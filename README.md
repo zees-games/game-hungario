@@ -82,12 +82,15 @@ On Windows, run `bootstrap.ps1` instead and open the project in Godot.
 Settings are cvars. Set them in the server's config, on the command line, or live from the console. `cvarlist hungry_` lists them all.
 
 ```
-hungry_bots 8                 // keep this many bots in the world
+bot_quota 6                   // players the arena is kept at with bots; each person who joins replaces one
+bot_quota_mode fill           // fill (as above), fixed (that many bots), per_player (that many per person) or off
 hungry_hunters_on 0           // release NPC hunters into the arena
 hungry_hazards_count 0        // rocks scattered into the arena at load
 hungry_outgrown ""            // a monster stuck in a refuge it outgrew: accept, cap or eject (empty: the mode's own)
 hungry_avatar_pack ""         // manifest URL for this server's rider content
 ```
+
+The bot cvars are the family's shared ones (dot-server's `DotBotQuota`). `hungry_bots N` still works and means what it did, N bots beside everybody: it sets `bot_quota N` and `bot_quota_mode fixed`. It is deprecated.
 
 Console commands:
 

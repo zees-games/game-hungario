@@ -367,6 +367,12 @@ func _build_server(server_side: Node) -> bool:
 	if not _check(hungry.ok, "and so does the game", str(hungry.error)):
 		return false
 
+	# No bots. This suite is one person and their own client, and it asserts things a
+	# server full of bots would disturb: a monster driven straight through a rock (and eaten
+	# on the way), and a world that is empty once that person leaves. The shared default
+	# (DotBotQuota, six in fill mode) is the dedicated suite's to check.
+	var _no_bots := _server.console.execute("bot_quota 0")
+
 	var services := _module().services
 	_check(services.punishments_path.begins_with(SERVER_DIR),
 		"punishments go to this run's own store", services.punishments_path)

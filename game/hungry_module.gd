@@ -46,6 +46,9 @@ const SNAPSHOT_RATE := 20
 ## which counts up from 1.
 const BOT_ID_BASE := 900001
 
+## `bot_quota`'s default. See where [DotBotQuota] is installed, in [method _register_console].
+const DEFAULT_BOT_QUOTA := 6
+
 ## The modes this server can switch between.
 const GAME_CLASSIC := "hungry_classic"
 const GAME_FRENZY := "hungry_frenzy"
@@ -134,7 +137,10 @@ var _bots: Dictionary = {}
 var _next_bot_id: int = BOT_ID_BASE
 var _tick: int = 0
 
+## `hungry_bots`, the old fixed count, kept only as an alias. See [method _register_console].
 var _cv_bots: DotConVar = null
+## How many bots, from how many people: dot-server's one rule for every game.
+var _quota: DotBotQuota = null
 var _cv_pack: DotConVar = null
 var _cv_auth_config: DotConVar = null
 var _cv_hunters: DotConVar = null
@@ -1375,9 +1381,19 @@ func _avatar_for(session: DotClientSession) -> DotAvatar:
 
 # --- Bots ------------------------------------------------------------------
 
-## Keeps the bot population at `hungry_bots` and hands each one its command.
+## Keeps the bot population where [DotBotQuota] says and hands each one its command.
+##
+## Every tick rather than on an interval, as the population always was here: it is two
+## counts and a comparison, and it means a person who joins takes a bot's place on the tick
+## they arrive. People are everybody in the world who is not one of this module's bots; a
+## leaver is out of the world before the next tick, so nobody half-disconnected counts.
 func _drive_bots() -> void:
-	var wanted := _cv_bots.get_int() if _cv_bots != null else 0
+	var wanted := 0
+
+	if _quota != null:
+		var humans := maxi(world.player_ids().size() - _bots.size(), 0)
+		var slots: int = server.config.max_players if server != null and server.config != null else -1
+		wanted = _quota.wanted(humans, slots)
 
 	while _bots.size() < wanted:
 		if not _add_bot():
@@ -1584,7 +1600,24 @@ func _register_console() -> void:
 		"hungry_mute <who> <seconds> [reason]", DotAdminFlags.MUTE
 	).with_chat()
 
-	_cv_bots = add_cvar("hungry_bots", "0", "Bots to keep in the world")
+	# [b]How many bots is dot-server's [DotBotQuota], so `bot_quota` and `bot_quota_mode`
+	# mean the same thing on every server in the family.[/b] Before it, this game had no
+	# bots unless an operator typed a number, and then that many beside everybody. The
+	# default now is six in fill mode: an arena about eating and being eaten is an empty
+	# plate for one person on their own, and six is what the offline client plays against,
+	# so a person alone on a server gets the game they get offline less one bot, and each
+	# person who joins takes a bot's place until there are six people and no bots.
+	_quota = DotBotQuota.install(self, DEFAULT_BOT_QUOTA)
+
+	# [b]Deprecated: `hungry_bots` was a FIXED count[/b], and it is kept as an alias that
+	# means exactly that — `bot_quota N` in `fixed` mode — so a config or an operator who
+	# typed it gets what they always got, with one cvar still deciding the count.
+	_cv_bots = add_cvar("hungry_bots", "0", "Deprecated: sets bot_quota to this and bot_quota_mode to fixed.")
+	_cv_bots.changed.connect(func(_old: String, _value: String) -> void:
+		if _quota == null or _quota.quota_cvar == null or _quota.mode_cvar == null:
+			return
+		var _mode := _quota.mode_cvar.set_value("fixed")
+		var _count := _quota.quota_cvar.set_value(str(maxi(_cv_bots.get_int(), 0))))
 
 	# [b]Hunters are off by default, and that is an operator's decision rather than an
 	# addon's.[/b] A mode about eating food and a mode about being hunted are different

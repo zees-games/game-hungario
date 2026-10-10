@@ -39,7 +39,7 @@ const SERVER_DIR := "user://hungry_dedicated"
 ## prints it to say which game this is, and nothing treats it as proof.
 const APP_URL := "hungario"
 
-const CHECKS := 210
+const CHECKS := 215
 
 var _passed := 0
 var _failed := 0
@@ -563,10 +563,48 @@ func _test_bots() -> void:
 	var module := _module()
 	var world := _world()
 
-	_check(module.bot_count() == 0, "there are none to start with")
+	_check(module.bot_count() == 0, "there are none before the first tick")
+
+	# [b]The default is DotBotQuota's fill[/b]: bots plus people make `bot_quota`, a person
+	# who joins takes a bot's place and the bot comes back when they leave. The person is
+	# put in through the bridge with peer zero, as a bot is, and `_drive_bots` is called
+	# rather than waited for, so the count is exact and nothing else moves under it.
+	var quota := _server.console.find_cvar("bot_quota")
+	var quota_mode := _server.console.find_cvar("bot_quota_mode")
+	_check(
+		quota != null and quota_mode != null and quota.get_int() == HungryModule.DEFAULT_BOT_QUOTA
+			and quota_mode.get_string() == "fill",
+		"the shared bot_quota is %d, in fill mode" % HungryModule.DEFAULT_BOT_QUOTA
+	)
+
+	var people := world.player_ids().size()
+	var wanted := maxi(HungryModule.DEFAULT_BOT_QUOTA - people, 0)
+	var defaulted := await _until(func() -> bool: return module.bot_count() == wanted)
+	_check(defaulted, "an empty server fills itself to the quota (%d of %d)" % [module.bot_count(), wanted])
+
+	var bots_before := module.bot_count()
+	var joined := module.bridge.add_player(0, 777, "Person")
+	module._drive_bots()
+	var bots_with := module.bot_count()
+	_check(
+		joined.ok and bots_before > 0 and bots_with == bots_before - 1,
+		"a person joining takes a bot's place (%d -> %d)" % [bots_before, bots_with]
+	)
+
+	world.remove_player(777)
+	module._drive_bots()
+	_check(
+		module.bot_count() == bots_before,
+		"and the bot comes back when they leave (%d -> %d)" % [bots_with, module.bot_count()]
+	)
 
 	var set_result := _server.console.execute("hungry_bots 4")
 	_check(set_result.ok, "hungry_bots 4 is accepted")
+	_check(
+		quota != null and quota.get_int() == 4 and quota_mode.get_string() == "fixed",
+		"and means what it always did: bot_quota 4, fixed (%s, %s)"
+			% [quota.get_string() if quota != null else "-", quota_mode.get_string() if quota_mode != null else "-"]
+	)
 
 	# The module fills the population from `_physics_process`, so this needs real frames.
 	var filled := await _until(func() -> bool: return module.bot_count() == 4)

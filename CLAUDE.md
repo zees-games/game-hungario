@@ -796,8 +796,9 @@ godot --headless --path . res://tools/publish_avatars.tscn
 ```
 
 Mouse steers — near is slow, far is full speed. Space splits, W ejects, Q throws, Tab (held) is
-the board, Enter is chat, Escape is the menu and the loadout. In the server console,
-`hungry_bots 6` fills it.
+the board, Enter is chat, Escape is the menu and the loadout.
+
+An empty server keeps six players in the arena with bots (`bot_quota`, DotBotQuota's fill mode), and each person who joins takes a bot's place; `bot_quota_mode fixed` keeps that many bots beside everybody, which is what the deprecated `hungry_bots N` sets.
 
 ## Where a dead monster's owner looks
 
