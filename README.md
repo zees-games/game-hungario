@@ -149,7 +149,7 @@ godot --headless --path . res://tools/publish_avatars.tscn
 | `sandbox` | Two real clients on a real server |
 | `dedicated` | A real server: boots, loads the game, runs its commands |
 
-[`CLAUDE.md`](CLAUDE.md) has the design decisions and the reasoning behind them.
+[`CLAUDE.md`](CLAUDE.md) has the rules, and [`docs/`](docs/README.md) the design decisions and the reasoning behind them.
 
 ## Credits
 There are no audio files: every sound is generated when the game starts.

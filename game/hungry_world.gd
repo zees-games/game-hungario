@@ -1434,7 +1434,7 @@ func _split(monster: HungryMonster, command: Dot2DCommand) -> int:
 	#
 	# Typed, because `Array.duplicate()` returns an *untyped* array, so the loop variable
 	# would be a Variant and every `:=` derived from it a parse error. The family's
-	# CLAUDE.md calls this out and it is still the easiest one to walk into.
+	# docs/gdscript-hazards.md calls this out and it is still the easiest one to walk into.
 	var existing: Array[HungryPiece] = monster.pieces.duplicate()
 
 	for piece in existing:

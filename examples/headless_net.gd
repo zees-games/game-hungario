@@ -1795,7 +1795,7 @@ func _test_game_change() -> void:
 ## [b]A split monster against the rock is measured and bounded, not held to the same
 ## number.[/b] `_separate` is applied live on both ends and not replayed, so while two
 ## pieces overlap the replay and the shown positions differ by a fraction of the overlap;
-## that is the named cost in CLAUDE.md, and this is where its size is written down.
+## that is the named cost in docs/netcode.md, and this is where its size is written down.
 func _test_warrens_rock_converges() -> void:
 	_section("a round of warrens: a client predicting itself against a rock")
 
