@@ -1,0 +1,88 @@
+# Modes and levels
+
+Six modes. `classic` and `frenzy` are dials; `gauntlet`, `warrens`, `reef` and `shallows` are shapes, built by `HungryLayout` and tuned by `HungryPreset`. Every number below is in `hungry_layout.gd` or `hungry_preset.gd` as a named constant; this file says why it is that number.
+
+## The rules every layout follows
+
+**Mass IS radius, so a gap is a mass limit.** A gate admits a radius under half its width, which on the players' curve (`8 √mass`, `base_radius` 8) is a mass. That is the mechanic every level is built on: geometry that is open to the players who are behind and shut to the player who is ahead is a catch-up mechanic made out of space rather than out of a rule, and no dial in `HungryPreset` can produce it. A leader can still split through (half the mass is `1/√2` of the radius), at the cost of `merge_delay_sec`, in the one place being in halves is most dangerous; a pepper does the same to somebody else against their will.
+
+**The geometry is derived on both ends and never replicated.** `HungryLayout.for_id(id, bounds)` is a pure function; the hello carries the *name* (`warrens:quartered` carries the variant too) and a client builds the same discs the server pushes it out of — the same trick `Dot2DScatter` plays with food. `HungryHazards` is deliberately not this: a hazard is placed at runtime, so it travels, is owned and can be cleared. A layout is the map.
+
+**Three things a layout makes true, all in `HungryWorld`:**
+
+- **The push-out is on the prediction path.** `block_piece` runs inside `simulate_piece`, right after the motor, because a reconciliation replays that call. A push applied outside it would make every tick against a rock a misprediction, which reads as packet loss and sends the next person to the netcode.
+- **The field is culled against it.** A crumb inside a rock is never eaten and never expires, so it would hold its slot for ever. `_cull_blocked` takes it back on the tick it is placed; the field's delta cancels an id added and taken between snapshots, so it costs nothing on the wire.
+- **A spawn is moved rather than refused.** Every producer of a spawn point knows about monsters and nothing about rocks.
+
+**Food is a density, and the cull is not a loss.** The scatter refills to its target on open floor, so `food_target` is what stands on the floor. A level with the same count on less floor is *richer*, not hungrier. Set each layout's target to its reference square's density times the floor the rocks leave (divide by the walkable area; do not multiply by the walkable fraction). `headless_round`'s *food on the floor that is left* measures the food actually alive in a settled world against the square each layout claims to match. The history of getting this backwards is in [history.md](history.md#the-food-arithmetic-was-backwards).
+
+**Ask the right gap question.** `narrowest_gap` measures rock against rock only. `narrowest_gate(bounds)` includes walls and is the one every layout should be asked; a rock touching a wall (within a hundredth of a unit) closes that side rather than leaving a hair-wide gate. `gates(bounds)` lists every gap on the map (rock to rock and rock to wall, kept when nothing else touches the circle across it). `HungryLayout.ids()` exists so a check iterates every layout rather than naming the one that existed when it was written.
+
+**One description, several representations.** A layout describes itself as lists (`chains` for barriers, `rings`, `spits`, `coves`, `pools`, `groynes`) over its `blocks`; sections compare the description against the discs actually built. Later features are always *appended* to `blocks` so existing indexes (and every check that asks `layout.part(0, N)`) do not move. `chains` are barriers that `route_across` will plan a crossing of; spits and groynes are deliberately not chains, because handed one `route_across` would plan a leader through a gap it does not fit.
+
+**Refuges.** A room behind doors smaller than itself (the den, the harbours, the cove, the rock pools, the deepest shallows band) follows one rule: doors the size of a small monster, at least two of them (one door is a cork — a monster waiting outside traps whoever is inside), and a room bigger than its doors so a monster that eats past the limit inside has to split or eject to leave. Hunters may not *appear* in a refuge (`HungryHunters.spawnable` asks `harbour_of`, `in_cove`, `in_pool`, `shallows_band`); see [npc-and-hazards.md](npc-and-hazards.md) for the fact that they can still walk in.
+
+**A monster that outgrows its room** (`[refuge-outgrown-1]`, decided 2026-10-06): since a pushed piece is clamped back inside the arena after `resolve_circle`, it sits visibly deep in its post until the player splits or ejects. `HungryWorld.outgrown` (`HungryPreset.outgrown`, overridden live by the `hungry_outgrown` cvar) chooses: **accept** (that; Christian's pick and every mode's default), **cap** (`_grow` gives a piece only the mass that still fits where it stands, bisected) or **eject** (`_shed_outgrown`, on the authority after the moves, sheds a pellet a tick for as long as it is wedged). Wedged is `wedged_depth` over `WEDGED_DEPTH` (1 unit), using `HungryLayout.depth_in_rocks`. Both alternatives act on the authority's mass, which replicates, so a client's replay of `block_piece` is unchanged. Shed *while wedged*, not to a size worked out once: the first version did that and a player steering into the corner stayed 12 units into the post.
+
+**A non-square world is worth more than the mode.** A square hides every place that reads `world_size.x` where it meant `.y`. Keep a non-square mode in the suites.
+
+## The square modes
+
+`classic` and `frenzy` are the same square at two sizes: bigger and slower, smaller and faster, with `merge_delay_sec` deciding whether splitting is a commitment or a move.
+
+## gauntlet: a corridor
+
+A five-to-one corridor (6708 × 1342) with the **same floor area and food as Frenzy**, so it is not also a starvation mode. A corridor removes two directions: being chased is being chased *along* something, and splitting past somebody becomes the move. `headless_round`'s *the gauntlet* walks a monster into all four walls (the short-axis pair is the one a square cannot test) and measures the span of the food that exists.
+
+**The slalom** (`HungryLayout.SLALOM`, `SLALOM_COUNT` rocks) alternates near one wall and the other. The near lane is about a third of the far one, so a small monster takes the shortcut and a grown one goes round every rock; the shortcut changes sides at each rock so taking it is paid for by the crossing that follows. **The far lane is deliberately open to a monster that has already won** — a corridor is not escapable by construction the way a ring is, so a rock whose wide lane is also too narrow is a cork. `widest_way_past` is the check.
+
+**The harbours** (`_append_harbours`): a fence of three posts (`HARBOUR_POSTS`) across each end at `HARBOUR_AT`, four doors of `HARBOUR_DOOR` (201 units, about 158 mass, below the slalom's near lane) — two against the side walls, two between posts. The end of a corridor is where a chase finishes; the harbour is a room a monster can outgrow at each end. The water in front of the fence is wider than the near lane so it is not a hidden gate. A leader cannot stand in a harbour at all.
+
+## warrens: a ring around the middle
+
+A ring of eight rocks with 360-unit gates: a gate admits about 500 mass against a winning mass of 1600, so the good middle is open to the players behind and shut to the leader. The ring's rocks sit half a step off the axes, which puts four gates ON the axes.
+
+**The den** (`DEN_*`, appended after the corners): four rocks on the diagonals with gates of 202 (about 160 mass) — the one place nobody can follow a newly spawned player into, and getting there means crossing the middle first. Its gates line up with the ring's axis gates, so from each wall's midpoint one straight line runs to the centre. The moat (418) is wider than a ring gate so it is not a hidden second gate. `rings` names the two closed rings and `ring_gates(ring)` measures one.
+
+**The corner rocks** (`[warren-corners-1]`, 2026-10-07, Christian's call): they stand against the walls as a pinwheel (`CORNER_VARIANTS["open"]`), so the perimeter lane, about 700 wide, is open to a leader (640 across). Not on the diagonal because a rock that small there cannot leave a leader's width each side; not in the corner because a rock crossing a wall pushes a player through it and one touching both walls seals the floor behind it. The original layout, which quartered the lane for anything over about 903 mass, is the `quartered` variant: the preset's `layout_variant` or the `hungry_warrens_corners` cvar, read when the world builds its layout (so from the next mode change).
+
+## reef: barriers whose channels differ
+
+**The fore reef** is a wall across the world with four channels of **248, 442, 635 and 828**. Warrens' gates are all one gate, so a monster learns its answer once; here size decides *how far along the barrier you travel first*, in the open. `channel_widths` is the list. The chain stops 361 short of each wall: a run-round for a small monster, shut to a leader. It is not a cage: the widest channel admits about 2680 mass against `win_mass` 1500.
+
+**The lagoon** (`LAGOON_AT`): a back reef with one door the width of the fore reef's widest channel and three gates of the mean of its three narrower ones (`back_reef_widths` — the fore reef's list redistributed, so both barriers let the same total width through). The door is behind the fore reef's **tight** end, while the channels a grown monster fits are at the other: a leader walks about 2360 units up a 920-wide strip, room to travel but not for two leaders to pass. The obvious mirrored design was measured and rejected: a leader (620 across) fits the 635 channel of both barriers, which a mirror leaves 207 apart, so it taxed only monsters past the winning mass. The gates make everybody over about 763 mass pay.
+
+`route_across(from, radius)` plans three waypoints per chain (in front of the nearest channel that admits the radius, its mouth, behind it), each clear of the rock by both radii and a margin. `chains` exists because the last rock of the fore reef and the first of the back are array neighbours 1500 apart; walking `blocks` pairwise would report a fifth channel along the lagoon.
+
+**The atoll** (`_append_atoll`, `ATOLL_RADIUS`, `ATOLL_AT`): four small rocks as a trapezoid in the open sea. Its gates are the fore reef's list again (`atoll_widths`): 248 facing the wall, 345 on each flank, 442 facing the reef, so it sorts monsters under the back reef's band by *side*. Placed by two measurements: bigger rocks nearer the wall made a pocket that corked monsters of radius 215-250, and mid-sea it stood on the leader's leg from the tight end to the open end. Both waters round it are wider than a leader.
+
+**The spits** (`_append_spits`, `SPIT_RADIUS`, `SPIT_AT`): two rocks from the sea wall toward the fore reef on each side of the atoll, gaps of 248 (at the wall) and 442 (between the rocks), ending 1070 short of the reef. The sea is one water for anybody under the back reef's band and three for a leader, joined only round the spits' reef ends. Sized off the lagoon's leader leg (74 clear of a leader). They enclose nothing, so no hunter refusal is needed; their gaps are measured by `spit_gaps(spit, bounds)`.
+
+**The cove** (`_append_cove`, `COVE_RADIUS`, `COVE_AT`): two posts off the open-end wall, three doors of exactly the tight channel (`cove_door`, 248), a room holding radius 154 that lets out 124. At the open end every crossing admitted whoever was chasing a small monster; the cove is its place to go. Placed by the leader who goes past it (both waters wider than 620). It encloses floor, so hunters are refused it (`in_cove`).
+
+**The reef is full.** Searches over the corridor and the warrens found no room for another feature without moving existing geometry, and the one empty stretch of the reef (behind the back reef) is a corridor to anybody its gates shut out, so anything in it would be a gate across a leader's floor. Growing any of the three further is a design decision.
+
+## shallows: how far in
+
+Every other level asks a question with a place in it, learnt once. `_shallows` asks **how far in**, and the answer moves as you eat. Five lines of posts across a 4600 square (`SHALLOWS_LINES`, each a `chains` entry), every gap in a line the same width with the walls counting as gaps: **248 / 359 / 469 / 580 / 690** from the west wall out (`shallows_widths`, `SHALLOWS_TIGHT` to `SHALLOWS_OPEN`), admitting up to about 240, 503, 860, 1312 and 1860 mass. A line is a fence crossed anywhere, so crossing costs no journey: the band behind is the prize, prey runs for the shallows and the chaser stops at its own tree line. Each band is `SHALLOWS_BAND` (1.2) times its outer gap, so no band is narrower than the gap into it; the deepest holds a radius of 149 behind a line that lets out 124 (the den's price). Posts are what the gaps leave (`shallows_post_radius`). Hunters may not appear behind the tightest line (`shallows_band`).
+
+**Rock pools** (`_append_pools`, `POOL_RADIUS`): one post in each corner of the open wall, `pool_door` (248) off both walls, two doors each and a room holding radius 163. A starting monster spawning against the open wall had nothing its size bought it; now it does. Hunters are refused (`in_pool`).
+
+**Groynes** (`_append_groynes`, `GROYNE_JOINT`): from each of the last line's quarter posts out to the open wall, two posts whose three doors are the first three line gaps (`groyne_doors`: 248 / 359 / 469 from the line out; posts from `groyne_post_radius`). The open water is three bays (`bay_of`): up to about 860 mass crosses bay to bay where it stands; a leader goes back through the last line, along the band and out again. **Deliberately not a refuge**: every bay opens onto the band through gaps of 690, so hunters may appear in every bay. Their own `groynes` list, not `chains`.
+
+## How the suites measure a level
+
+- **Reach** (`[reach-1]`): `gate_passes` floods each gate inside its own box and asserts it passes a monster 16 under its width and refuses one 16 over; `reach(bounds, from, radius)` floods the whole floor on a 24-unit grid, **eight-connected** (four-connected strands a point in each of the warrens' diagonal gate funnels). A starting monster must reach every sampled point of every mode; the leader line says what a leader reaches.
+- **Drives, not radii.** Every arithmetic check over a barrier passes as happily on one built in the wrong order or outside the world, so each level section *drives* monsters with real commands: through along `route_to` (a grid planner; 12-unit grid where a throat is tight) without overlapping a rock on any tick, and straight at a gate at sizes either side of its limit. Drives steer with `_full_reach` and assert they covered 90% of the route at 95% of ground speed — pace as well as distance, because a crawl still covers the route.
+- **Add the player before settling.** dot-match stays in warmup until somebody joins, and the first tick after a join is the reset that respawns everybody at a safe spawn. A section that settles and then places its player is measuring wherever the reset put it. `_settle` records a failure when it gives up. See [history.md](history.md#no-level-section-had-ever-driven-what-it-arranged).
+- **Steer with `aim` and `reach`.** This game's motor ignores `command.move`.
+- **Plan drives wide.** A waypoint counts as reached 40-60 units short, and a monster that clips a post stands against it eating; the shallows drives are planned 48 and 36 wide for that reason.
+- Every section was armed when it was written (the feature removed or bent, the checks that fired recorded in the commit). When you change geometry, re-arm the section that covers it.
+
+## Looking at a level
+
+Every check over a mode asserts a simulated value, so a level that is the wrong scale, drawn in the wrong place or not drawn at all passes them all. `tools/screenshot_map.sh <mode>` renders three framings because a level makes three claims: the whole arena (the shape reads), a player's view (the scale does), and a grown player (it still draws once the camera zooms out). `--at=x,y --name=n` puts the player somewhere; `--admin` adds the beacon and blind frames; `--fx` adds an effects frame; a vote frame is always rendered. Named spots used so far: `warrens --at=640,0 --name=den`, `gauntlet --at=-3200,190 --name=harbour`, `reef --at=632,1180 --name=lagoon`, `reef --at=-1368,0 --name=atoll`, `reef --at=-1647,-1150 --name=spit`, `reef --at=-1150,2146 --name=cove`, `shallows --at=-2150,0 --name=deep`, `shallows --at=2137,2137 --name=pool`, `shallows --at=1960,700 --name=groyne`.
+
+The tool's own traps: the whole-arena frame pins the camera through the rig's anchor (`position_source`), because a camera position alone is undone by the rig following its anchor; the zoom snaps per shot (`zoom_sec = 0`), because an eased zoom left consecutive frames at nearly the same zoom; and the world is driven from `_boot()` on the first frame with the player added before it ticks to live ([testing.md](testing.md#traps-the-suites-have-hit)).
+
+Every frame prints a `WARNING` naming any monster inside a rock or past the edge. Without `--at` the grown frame moves the player to the nearest spot its size fits (`_room_for`) and ticks until it stands clear (eating resolves after the push-out, so a monster fed on the tick of the shot overlaps by its growth). Under `--at` in a refuge a warning is the point: it shows an outgrown monster.
