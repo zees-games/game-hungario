@@ -50,6 +50,9 @@ const SCOPES := {
 }
 
 var settings: DotSettingsManager = null
+
+## The connection overlay (`net_stat` at the console). See [method DotMenuNetStat.follow].
+var net_stat: DotMenuNetStat = null
 var audio: DotAudioManager = null
 var fx: DotFxManager = null
 var console: DotConsoleController = null
@@ -91,6 +94,7 @@ func setup() -> DotResult:
 		return consoled
 
 	_build_chat()
+	net_stat = DotMenuNetStat.follow(self, settings)
 
 	# [b]And then every value is pushed once, which is the half that was missing.[/b]
 	# Everything below reacts to `changed`, and a value loaded from disk has not changed --
@@ -122,6 +126,11 @@ func _build_settings() -> DotResult:
 	settings.local_store = DotSettingsStoreFile.new("user://hungry_settings")
 	settings.app_namespace = &"game_hungario"
 	settings.shared_namespace = &"tmc_account"
+	# dot-menu's three net_stat settings, beside the config like the chat ones, and before
+	# the load so a stored level is read back. The console binds them by name. Top left by
+	# default: the top right is this game's leaderboard, the bottom corners its minimap and
+	# mass bar, and the top left only the message feed, which comes and goes.
+	var _net := DotMenuStock.declare_net_stat(settings.schema, &"top_left")
 	add_child(settings)
 
 	var res := settings.setup()
