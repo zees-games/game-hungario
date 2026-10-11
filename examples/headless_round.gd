@@ -38,7 +38,7 @@ const HungryWorld := preload("../game/hungry_world.gd")
 const SEED := 20260828
 const TICK_RATE := 60
 
-const CHECKS := 456
+const CHECKS := 460
 
 var _passed := 0
 var _failed := 0
@@ -5895,6 +5895,24 @@ func _test_interface() -> void:
 
 	_check(hud.mass_bar != null, "the HUD builds its widgets")
 	_check(hud.minimap != null, "including a minimap")
+
+	# HUD text over the pale sky is outlined, or it is a smudge ("20 mass" was, from the
+	# look pass until 2026-10-11). The mass number is a Label for that reason: DotStatBar
+	# draws its own text with no outline.
+	_check(
+		hud.mass_label != null and not hud.mass_bar.show_text,
+		"the mass number is an outlined Label, not the bar's own text"
+	)
+	_check(
+		hud.mass_label.get_theme_constant(&"outline_size") >= 3
+			and hud.carry_label.get_theme_constant(&"outline_size") >= 3,
+		"the HUD's labels carry an outline (%d)" % hud.mass_label.get_theme_constant(&"outline_size")
+	)
+	_check(
+		hud.mass_label.get_theme_color(&"font_outline_color").get_luminance() < 0.3,
+		"and the outline is dark"
+	)
+	_check(hud.feed.outline_size >= 3, "the feed is outlined too (%d)" % hud.feed.outline_size)
 
 	hud.refresh_leaderboard()
 	_check(

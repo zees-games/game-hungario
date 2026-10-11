@@ -32,6 +32,14 @@ var player_id: int = 0
 var watching_source: Callable = Callable()
 
 var mass_bar: DotStatBar = null
+
+## The mass bar's number, drawn by a [Label] over the bar instead of by the bar itself.
+##
+## [b]Because [DotStatBar] draws its text with no outline[/b], and white text with no
+## outline over this game's pale sky is a smudge: "20 mass" was unreadable from the look
+## pass on. A Label takes the HUD theme's outline (see [constant TEXT_OUTLINE]) like every
+## other line here.
+var mass_label: Label = null
 var leaderboard: DotTableView = null
 var feed: DotFeedView = null
 var clock_label: Label = null
@@ -83,6 +91,16 @@ const BLIND_COLOUR := Color(0.01, 0.01, 0.015)
 const COVER_GROUP := &"dot_hud_cover"
 
 ## The leaderboard's corner, in this HUD's own coordinates from the top-right.
+## Pixels of dark outline behind every line of HUD text: the labels (through
+## [method hud_theme]) and the feed.
+##
+## [b]An outline rather than a dark colour[/b], because the arena is a pale sky but the
+## blind, the death screen and a cloud-free corner under a big monster are not, and an
+## outlined light glyph reads over all of them. White with no outline, which is what the
+## HUD drew before, vanishes into the sky (see docs/client.md, Rendering).
+const TEXT_OUTLINE := 5
+const TEXT_OUTLINE_COLOUR := Color(0.05, 0.07, 0.14, 0.9)
+
 const BOARD_LEFT := -280.0
 const BOARD_RIGHT := -16.0
 const BOARD_TOP := 16.0
@@ -199,6 +217,7 @@ func build(p_world: HungryWorld, p_bridge: HungryNetBridge, p_player_id: int) ->
 	world = p_world
 	bridge = p_bridge
 	player_id = p_player_id
+	theme = hud_theme()
 
 	# First, so every widget added below draws over it. See [member blind_overlay].
 	blind_overlay = ColorRect.new()
@@ -219,6 +238,8 @@ func build(p_world: HungryWorld, p_bridge: HungryNetBridge, p_player_id: int) ->
 	mass_bar.format = "%d"
 	mass_bar.suffix = " mass"
 	mass_bar.show_bar = true
+	# The number is [member mass_label]'s job; see there for why.
+	mass_bar.show_text = false
 	mass_bar.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
 	mass_bar.offset_left = 20.0
 	mass_bar.offset_top = -74.0
@@ -233,6 +254,16 @@ func build(p_world: HungryWorld, p_bridge: HungryNetBridge, p_player_id: int) ->
 	mass_bar.max_source = func() -> Variant:
 		return world.preset.win_mass if world != null and world.preset != null \
 			else HungryContent.WIN_MASS
+
+	mass_label = Label.new()
+	mass_label.name = "MassText"
+	mass_label.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
+	mass_label.offset_left = 20.0
+	mass_label.offset_top = -80.0
+	mass_label.offset_right = 300.0
+	mass_label.offset_bottom = -50.0
+	mass_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(mass_label)
 
 	carry_label = Label.new()
 	carry_label.name = "Carrying"
@@ -263,6 +294,8 @@ func build(p_world: HungryWorld, p_bridge: HungryNetBridge, p_player_id: int) ->
 	feed.name = "Feed"
 	feed.alignment = HORIZONTAL_ALIGNMENT_LEFT
 	feed.newest_last = true
+	feed.outline_size = TEXT_OUTLINE
+	feed.outline_colour = TEXT_OUTLINE_COLOUR
 	feed.set_anchors_preset(Control.PRESET_TOP_LEFT)
 	feed.offset_left = 16.0
 	feed.offset_top = 16.0
@@ -574,6 +607,7 @@ func _process(delta: float) -> void:
 	_refresh_clock()
 	_refresh_vote()
 	_refresh_carry()
+	_refresh_mass()
 	_refresh_status()
 
 
@@ -631,6 +665,24 @@ func _refresh_clock() -> void:
 func _refresh_vote() -> void:
 	if vote_label != null and vote_label.text != "" and Time.get_ticks_msec() > _vote_until_msec:
 		vote_label.text = ""
+
+
+func _refresh_mass() -> void:
+	if mass_label == null:
+		return
+
+	var monster := _me()
+	# Not lagged like the bar: the number is the current value (DotStatBar's rule).
+	mass_label.text = "%d mass" % int(monster.mass() if monster != null else 0.0)
+
+
+## The theme every [Label] in this HUD inherits: an outline, so text is readable over
+## the pale arena. The leaderboard's cells are Labels and inherit it too.
+static func hud_theme() -> Theme:
+	var out := Theme.new()
+	out.set_constant(&"outline_size", &"Label", TEXT_OUTLINE)
+	out.set_color(&"font_outline_color", &"Label", TEXT_OUTLINE_COLOUR)
+	return out
 
 
 func _refresh_carry() -> void:
