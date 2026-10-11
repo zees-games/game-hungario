@@ -77,3 +77,7 @@ None of these was reachable from the other project's own suite. Details in [bugs
 - dot-net never pulled back a predicted entity whose server state stood still (fixed in f99fde3): an empty snapshot body was adopted as "you are right".
 - dot-ui's `DotTableView` honoured no column width and a column with no `width` collapsed to nothing: the mass, pieces, rank and ping had never been drawn.
 - dot-audio refused a sound with no file, until `DotAudioDef.generated`.
+
+## "Mode vote in 1…" under an open ballot
+
+The countdown's every second lingered 1.5 s so a late tick would not blink it off, which left the last one on screen half a second into the ballot it announced (seen in a game_vote_all frame, 2026-10-11). The last second lingers exactly one (`VOTE_LAST_MSEC`); `headless_presentation` checks it.

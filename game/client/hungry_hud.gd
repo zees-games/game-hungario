@@ -103,6 +103,9 @@ var _vote_until_msec: int = 0
 ## arriving a little late over the wire does not blink the line off between numbers.
 const VOTE_LINGER_MSEC := 1500
 
+## How long the countdown's last second stays up. See [method vote_countdown].
+const VOTE_LAST_MSEC := 1000
+
 
 ## Everybody's position on one small rectangle.
 ##
@@ -407,7 +410,9 @@ func vote_countdown(seconds_left: int, runoff: bool) -> void:
 		return
 
 	vote_label.text = "%s in %d…" % ["Runoff" if runoff else "Mode vote", seconds_left]
-	_vote_until_msec = Time.get_ticks_msec() + VOTE_LINGER_MSEC
+	# The last second lingers exactly a second: nothing follows it but the ballot, and the
+	# half second more read "Mode vote in 1…" under a ballot already open (a game_vote_all frame).
+	_vote_until_msec = Time.get_ticks_msec() + (VOTE_LAST_MSEC if seconds_left <= 1 else VOTE_LINGER_MSEC)
 
 
 # --- Refreshing ------------------------------------------------------------

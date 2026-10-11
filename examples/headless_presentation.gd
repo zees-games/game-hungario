@@ -29,7 +29,7 @@ const HungryMonster := preload("../game/hungry_monster.gd")
 ##
 ## Exits non-zero on any failure.
 
-const CHECKS := 101
+const CHECKS := 102
 
 var _passed := 0
 var _failed := 0
@@ -828,6 +828,12 @@ func _test_the_vote_is_heard() -> void:
 	_check(
 		str(hud.describe()["vote"]) == "Runoff in 2…",
 		"in place, and a runoff says so (%s)" % str(hud.describe()["vote"])
+	)
+	hud.vote_countdown(1, false)
+	var last_left: int = hud.get("_vote_until_msec") - Time.get_ticks_msec()
+	_check(
+		last_left <= HungryHud.VOTE_LAST_MSEC,
+		"the last second is gone when the ballot opens, not half a second into it (%d ms)" % last_left
 	)
 	_check(
 		hud.feed.line_count() == 0,
