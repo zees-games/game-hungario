@@ -11,6 +11,9 @@ const HungryHud := preload("../game/client/hungry_hud.gd")
 const HungryPreset := preload("../game/hungry_preset.gd")
 const HungryRenderer := preload("../game/client/hungry_renderer.gd")
 const HungryWorld := preload("../game/hungry_world.gd")
+const HungryClient := preload("../game/client/hungry_client.gd")
+const HungryInput := preload("../game/client/hungry_input.gd")
+const HungryMonster := preload("../game/hungry_monster.gd")
 
 ## Settings, audio, effects, the console and the private arena.
 ##
@@ -26,7 +29,7 @@ const HungryWorld := preload("../game/hungry_world.gd")
 ##
 ## Exits non-zero on any failure.
 
-const CHECKS := 90
+const CHECKS := 96
 
 var _passed := 0
 var _failed := 0
@@ -57,6 +60,7 @@ func _run() -> void:
 	_test_limits_the_bank_never_had()
 	_test_effects()
 	_test_console()
+	_test_console_stops_the_keys()
 	_test_party()
 	await _test_party_over_http()
 	_test_chat_box()
@@ -355,6 +359,60 @@ func _test_console() -> void:
 		"and the bank, because there is one path"
 	)
 
+	p.queue_free()
+	_done()
+
+
+## Typing at the console must not steer, split or eject. The sampler polls the keys and the
+## stick every tick, and a focused line edit does not stop `Input.is_action_pressed`; what
+## stops it is the client suspending the sampler while the console is open. Driven through
+## the real wiring ([method HungryClient._wire_console]) with the keys held down.
+func _test_console_stops_the_keys() -> void:
+	_section("Held keys do not reach the command while the console is open")
+
+	var p := _make()
+	var monster := HungryMonster.new()
+	monster.alive = true
+	var sampler := HungryInput.measuring(func() -> Variant: return monster, null)
+	add_child(sampler)
+
+	var client := HungryClient.new()
+	client.presentation = p
+	client.sampler = sampler
+	client._wire_chat_window()
+	client._wire_console()
+
+	Input.action_press(sampler.move_right)
+	Input.action_press(&"hungry_eject")
+
+	var free_run := sampler.sample()
+	_check(free_run.aim.x > 0.5 and free_run.is_pressed(Dot2DCommand.BUTTON_EJECT),
+		"with nothing open, the held keys steer and eject (the control)", str(free_run.aim))
+
+	p.console.open()
+	var typing := sampler.sample()
+	_check(typing.aim == Vector2.ZERO and not typing.is_pressed(Dot2DCommand.BUTTON_EJECT),
+		"with the console open, the held keys do not move the player or eject", str(typing.aim))
+
+	p.chat_window.open()
+	p.console.close()
+	_check(sampler.sample().aim == Vector2.ZERO,
+		"closing the console while the chat box is still open keeps the player still")
+
+	p.chat_window.close()
+	_check(sampler.sample().aim.x > 0.5, "and with both closed the keys steer again")
+
+	Input.action_release(sampler.move_right)
+	Input.action_release(&"hungry_eject")
+	_check(not sampler.suspended, "nothing is left suspended")
+	_check(p.console_panel != null and p.console_panel.get_parent().layer == 128,
+		"the panel is the kit's, over the menus and the chat")
+
+	client.presentation = null
+	client.sampler = null
+	client.free()
+	remove_child(sampler)
+	sampler.free()
 	p.queue_free()
 	_done()
 

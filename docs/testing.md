@@ -26,4 +26,4 @@ It is the only place the RPC node paths, dot-platform's admission, chat, and a g
 
 ## Pictures
 
-Every check asserts a simulated value, so placement, scale and drawing are only checked by looking. `tools/screenshot_map.sh` renders the modes ([levels.md](levels.md#looking-at-a-level)); `tools/screenshot_menus.sh` renders the pause menu, loadout picker, scoreboard, rebinder and settings screen. A column width, a missing scroll container, a rider under its disc and a renderer culling most of the screen were all found by a frame and by nothing else.
+Every check asserts a simulated value, so placement, scale and drawing are only checked by looking. `tools/screenshot_map.sh` renders the modes ([levels.md](levels.md#looking-at-a-level)); `tools/screenshot_menus.sh` renders the pause menu, loadout picker, scoreboard, rebinder, settings screen and the console open. A column width, a missing scroll container, a rider under its disc and a renderer culling most of the screen were all found by a frame and by nothing else.

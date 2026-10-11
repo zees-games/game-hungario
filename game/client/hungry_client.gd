@@ -351,6 +351,7 @@ func _build_presentation() -> void:
 	presentation.config = settings if settings != null else HungryConfig.load_saved()
 	add_child(presentation)
 	DotLog.result(CHANNEL, "the presentation layer", presentation.setup())
+	_wire_console()
 
 	if settings == null:
 		settings = presentation.config
@@ -946,19 +947,32 @@ func _wire_chat_window() -> void:
 		if voice != null:
 			voice.release()
 
-		if sampler != null:
-			sampler.suspended = true
+		_refresh_suspended()
 	)
 
-	window.closed.connect(func() -> void:
-		if sampler != null:
-			sampler.suspended = false
-	)
+	window.closed.connect(func() -> void: _refresh_suspended())
 
 	var client_link := DotRegistry.get_service(&"dot_client_link")
 
 	if client_link != null and client_link.has_signal("chat_received"):
 		client_link.connect("chat_received", _on_server_chat_state)
+
+
+## The console is the chat box's bug again: built by [DotConsoleKit], which would register
+## it with a [DotMenu] so the menu's "something is open" stops the player. This game has no
+## DotMenu, so the console's own open and close drive the sampler here instead.
+func _wire_console() -> void:
+	if presentation == null or presentation.console == null:
+		return
+	presentation.console.visibility_changed.connect(func(_open: bool) -> void: _refresh_suspended())
+
+
+## The keys stop reaching the command while the chat box or the console has the keyboard,
+## and only come back when neither does: one closing while the other is open must not let
+## a typed "w" eject mass.
+func _refresh_suspended() -> void:
+	if sampler != null:
+		sampler.suspended = presentation != null and presentation.swallows_input()
 
 
 ## dot-server's chat payload, read ONLY for what is carrying the conversation.

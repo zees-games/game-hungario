@@ -60,6 +60,8 @@ Five screens on the stack: pause, settings, controls, scoreboard, loadout.
 
 There is no chat screen; `HungryPresentation` builds dot-ui's `DotChatWindow`. When it opens (`opened`, however it was opened) it releases the voice gate (or the talk key's key-up lands in the box and the player broadcasts while typing) and sets `HungryInput.suspended` (split, throw, boost and eject are keys, and "gg boost" would split twice).
 
+The console is dot-console's `DotConsoleKit` (plus `quit` and `audio`, ahead of the server's console). The kit registers its panel with a `DotMenu`, which this game does not have, so `HungryClient._wire_console` suspends `HungryInput` on the console's `visibility_changed`, through the same `_refresh_suspended` as the chat box; `headless_presentation` holds the keys down to prove it.
+
 **The three chat settings are added beside the config, not read out of it** — the one deliberate departure from `from_config`. A `DotConfig` is layered from JSON, environment and argv, and a key binding has no business arriving from a server's argv (`HUNGRY_CHAT_OPEN_KEY=Q` in a container would rebind every player). `headless_presentation` asserts the key is not a config value.
 
 | | |

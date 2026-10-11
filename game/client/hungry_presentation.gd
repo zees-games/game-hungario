@@ -55,6 +55,7 @@ var settings: DotSettingsManager = null
 var net_stat: DotMenuNetStat = null
 var audio: DotAudioManager = null
 var fx: DotFxManager = null
+## The player's console. See [method DotConsoleKit.build] and [method _build_console].
 var console: DotConsoleController = null
 var console_panel: DotConsolePanel = null
 
@@ -69,7 +70,6 @@ var sound: HungrySound = null
 
 var client: Node = null
 
-var _layer: CanvasLayer = null
 var _chat_layer: CanvasLayer = null
 
 ## Whether the server said something else is carrying chat. See [method set_chat_relayed].
@@ -491,57 +491,39 @@ func _apply_chat_visibility() -> void:
 			chat_window.enabled = not _chat_relayed
 
 
+## dot-console's kit: `help`, `clear`, `settings`, every setting by its own name, the
+## in-process server's console, and the panel on layer 128. This game adds `quit` and
+## `audio`, ahead of the server's console so a listen server's own `quit` is not the one
+## that answers.
+##
+## [b]No menu to register with.[/b] The kit makes the panel one of a [DotMenu]'s overlays,
+## and this game's screens are [DotScreenStack]'s: [HungryClient] suspends its sampler on
+## the console's `visibility_changed` instead, as it does for the chat box.
 func _build_console() -> DotResult:
-	console = DotConsoleController.new()
-	console.name = "Console"
-	console.config = DotConsoleConfig.new()
-	console.config.mirror_log = true
-	console.config.mirror_from = DotLog.Level.INFO
-	add_child(console)
+	console = DotConsoleKit.build(self, settings)
 
-	var res := console.setup()
-	if not res.ok:
-		return res.wrap("hungario's console")
+	var server_sources := console.sources().slice(1)
+	for s in server_sources:
+		console.remove_source(s)
+	console.add_source(_local_commands())
+	for s in server_sources:
+		console.add_source(s)
 
+	console_panel = get_node_or_null(^"ConsoleLayer/ConsolePanel") as DotConsolePanel
+	return DotResult.success(null)
+
+
+## This game's own commands; the kit has `help`, `clear`, `settings` and every setting.
+func _local_commands() -> DotConsoleLocal:
 	var local := DotConsoleLocal.new()
-	local.add_command(&"help", "List what this client can do", func(_a: PackedStringArray) -> Variant:
-		var lines := PackedStringArray(["Client commands:"])
-		for n in console.all_names():
-			lines.append("  %-18s %s" % [n, console.help_for(n)])
-		return lines
-	)
 	local.add_command(&"quit", "Leave", func(_a: PackedStringArray) -> Variant:
 		get_tree().quit()
 		return null
 	)
-	local.add_command(&"settings", "Show every setting", func(_a: PackedStringArray) -> Variant:
-		return settings.describe_lines()
-	)
 	local.add_command(&"audio", "Show the audio system", func(_a: PackedStringArray) -> Variant:
 		return audio.describe_lines()
 	)
-	local.add_command(&"clear", "Empty the scrollback", func(_a: PackedStringArray) -> Variant:
-		console.buffer.clear()
-		return null
-	)
-	for key in settings.schema.keys():
-		local.bind_setting(key, settings)
-	console.add_source(local)
-
-	var server: Object = DotRegistry.get_service(&"dot_server")
-	if server != null and server.get("console") != null:
-		console.add_source(DotConsoleBridge.wrap(server.get("console"), "server"))
-
-	_layer = CanvasLayer.new()
-	_layer.name = "ConsoleLayer"
-	_layer.layer = 128
-	add_child(_layer)
-
-	console_panel = DotConsolePanel.new()
-	console_panel.name = "ConsolePanel"
-	console_panel.controller = console
-	_layer.add_child(console_panel)
-	return DotResult.success(null)
+	return local
 
 
 # --- What the game asks for -------------------------------------------------
@@ -558,7 +540,12 @@ func present(delta: float, listener: Vector2) -> void:
 ## with the mouse, so a typed key does not walk anybody into a wall — but split, throw,
 ## boost and eject are all keys, and a player typing "gg boost" who splits twice and
 ## ejects their mass has lost the round to a chat box.
+##
+## [b]Open, not focused.[/b] A click inside an open console can take focus off its line,
+## and the console is still in front of the game; [HungryClient] suspends its sampler on this.
 func swallows_input() -> bool:
+	if console != null and console.is_open():
+		return true
 	if console_panel != null and console_panel.has_keyboard_focus():
 		return true
 

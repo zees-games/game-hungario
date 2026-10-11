@@ -4,6 +4,8 @@ const HungryConfig := preload("../game/hungry_config.gd")
 const HungryContent := preload("../game/hungry_content.gd")
 const HungryMenus := preload("../game/client/hungry_menus.gd")
 const HungryWorld := preload("../game/hungry_world.gd")
+const HungryPresentation := preload("../game/client/hungry_presentation.gd")
+const HungrySound := preload("../game/client/hungry_sound.gd")
 
 ## Renders this game's own screens to `screenshots/` so a person can look at them.
 ##
@@ -24,6 +26,7 @@ var _stack: DotScreenStack = null
 var _world: HungryWorld = null
 var _seeded := false
 var _shots: Array[Dictionary] = []
+var _presentation: HungryPresentation = null
 var _at := 0
 var _wait := SETTLE
 var _done := false
@@ -101,7 +104,26 @@ func _initialize() -> void:
 		{"id": &"scoreboard", "file": "menu_scoreboard.png"},
 		{"id": &"controls", "file": "menu_controls.png"},
 		{"id": &"settings", "file": "menu_settings.png"},
+		# The console, open: the real `HungryPresentation`, so the panel is the one
+		# `DotConsoleKit` builds and on the layer it puts it on.
+		{"id": &"console", "file": "console.png"},
 	]
+
+
+## Built when its shot comes round rather than in `_initialize`, where nothing is in the
+## tree yet and the presentation's settings, audio and console would set up outside it.
+func _open_console() -> void:
+	if _presentation == null:
+		_presentation = HungryPresentation.new()
+		_presentation.name = "Presentation"
+		_presentation.config = HungryConfig.new()
+		_presentation.sound = HungrySound.make()
+		root.add_child(_presentation.sound)
+		root.add_child(_presentation)
+		DotLog.result("screenshot", "the presentation", _presentation.setup())
+	# `help` only: a setting typed here would be written to this machine's own settings.
+	var _ran := _presentation.console.submit("help")
+	var _opened := _presentation.console.open()
 
 
 func _process(_delta: float) -> bool:
@@ -139,6 +161,11 @@ func _process(_delta: float) -> bool:
 
 	if _wait == SETTLE:
 		_stack.clear()
+
+		if shot["id"] == &"console":
+			_open_console()
+			_wait -= 1
+			return false
 
 		var opened := _stack.push(StringName(shot["id"]))
 
