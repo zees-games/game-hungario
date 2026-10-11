@@ -40,7 +40,7 @@ const SERVER_DIR := "user://hungry_dedicated"
 ## prints it to say which game this is, and nothing treats it as proof.
 const APP_URL := "hungario"
 
-const CHECKS := 218
+const CHECKS := 220
 
 var _passed := 0
 var _failed := 0
@@ -1754,6 +1754,24 @@ func _test_vote() -> void:
 		"and a vote source over dot-server's own games",
 		"what a vote applies has to be the thing that actually changes the game"
 	)
+
+	# A server that runs other games beside this one offers only the modes on the mode
+	# ballot. It offered every game it ran, and a win there changed the whole server.
+	var other := DotGameDescriptor.new()
+	other.game_id = "other_game"
+	other.display_name = "Another Game"
+	other.scene = "res://nowhere.tscn"
+	_server.games.games.append(other)
+	var offered: Array[StringName] = []
+	if maps.director != null and maps.director.source != null:
+		for choice in maps.director.source.choices():
+			offered.append(choice.id)
+	_server.games.games.erase(other)
+	_check(
+		offered.size() == modes and not offered.has(&"other_game"),
+		"and only this game's modes are on its ballot, whatever else the server runs",
+		str(offered)
+	)
 	_check(
 		maps.director != null and _server.hibernation_changed.is_connected(maps.director.set_hibernating),
 		"the vote's clock follows the server's hibernation: it waits while nobody is here"
@@ -1770,10 +1788,19 @@ func _test_vote() -> void:
 
 	var next := maps.next_in_rotation()
 	_check(next != &"", "something is next in the rotation (%s)" % String(next))
+	# Against the game id, which is what the rotation holds. Against the preset id this
+	# could never fail, and the vote was handed the preset id, so it never knew what ran.
+	var playing := HungryModule.game_id_of(_module().world.preset.id)
 	_check(
-		next != StringName(_module().world.preset.id),
+		next != playing,
 		"and it is not what is playing now",
 		"a cooldown of one over four modes is what stops the same one twice running"
+	)
+	_check(
+		maps.director != null and maps.director.current_id() == playing,
+		"the vote knows the running mode by its game id (%s)" % String(playing),
+		"by the preset id it offered the running mode against itself: %s"
+			% String(maps.director.current_id() if maps.director != null else &"")
 	)
 
 	# Rocking the vote with one player, two minutes before `rtv_delay_sec` allows it, so

@@ -889,25 +889,23 @@ func _on_chat_message(message: DotChatMessage, channel_id: StringName) -> void:
 	# [b]The channel decides how a line is drawn, and the channel is a document.[/b] Its
 	# prefix and colour come off the [DotChatChannel] both ends share, so adding a channel
 	# is adding a definition rather than a branch somebody has to remember to extend.
+	#
+	# [b]In the chat box, and in the feed only when there is no box.[/b] Both drew every
+	# line: a vote's ballot was printed twice, once in each corner, and the feed's copy ran
+	# under the vote countdown at the top of the screen. The feed keeps what is the game's
+	# (who ate whom).
+	var window := _chat_window()
+
 	if message.is_from_server() or message.sender_name == "":
-		hud.say(
-			"%s%s" % [prefix, message.text],
-			chan.colour if chan != null else Color(0.62, 0.78, 1.0)
-		)
-
-		var from_server := _chat_window()
-
-		if from_server != null:
-			from_server.add_text("%s%s" % [prefix, message.text], Color(0.80, 0.82, 0.86))
+		if window != null:
+			window.add_text("%s%s" % [prefix, message.text], Color(0.80, 0.82, 0.86))
+		else:
+			hud.say(
+				"%s%s" % [prefix, message.text],
+				chan.colour if chan != null else Color(0.62, 0.78, 1.0)
+			)
 
 		return
-
-	hud.chat({
-		"name": "%s%s" % [prefix, message.sender_name],
-		"text": message.text,
-	})
-
-	var window := _chat_window()
 
 	if window != null:
 		window.add_said(
@@ -915,6 +913,11 @@ func _on_chat_message(message: DotChatMessage, channel_id: StringName) -> void:
 			message.text,
 			chan.colour if chan != null else Color(0.62, 0.78, 1.0)
 		)
+	else:
+		hud.chat({
+			"name": "%s%s" % [prefix, message.sender_name],
+			"text": message.text,
+		})
 
 
 # --- Chat ------------------------------------------------------------------

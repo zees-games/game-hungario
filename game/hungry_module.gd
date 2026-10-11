@@ -234,7 +234,7 @@ func _module_load() -> DotResult:
 	world.start(0)
 
 	if maps != null:
-		maps.note_playing(StringName(world.preset.id))
+		maps.note_playing(game_id_of(world.preset.id))
 
 	log_info("hungry loaded", {
 		"preset": String(world.preset.id),
@@ -350,7 +350,7 @@ func _module_game_changed(content_key: String) -> void:
 		progress.mode_id = StringName(next.preset.id)
 
 	if maps != null:
-		maps.note_playing(StringName(next.preset.id))
+		maps.note_playing(game_id_of(next.preset.id))
 
 	var rebound := bridge.rebind(world)
 
@@ -1472,6 +1472,14 @@ func _sync_pack() -> void:
 
 
 # --- Games -----------------------------------------------------------------
+
+## The game id a preset is played under, which is what dot-server, the vote and the rotation
+## call a mode. The preset id alone ("classic") is not one: handed to the vote, the running
+## mode was never recognised, so it was offered against itself and its play history and
+## time limit were never found.
+static func game_id_of(preset_id: StringName) -> StringName:
+	return StringName("hungry_%s" % preset_id)
+
 
 ## The modes, so `changegame` and a vote have something to change to.
 ##

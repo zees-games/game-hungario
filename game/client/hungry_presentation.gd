@@ -444,6 +444,10 @@ func _build_chat() -> void:
 	chat_window.open_action = &"hungry_chat"
 	chat_window.team_action = &"hungry_chat_near"
 	chat_window.channels = offered
+	# Lifted above the mass bar and the carry line (HungryHud, 74 px up from the bottom-left
+	# corner). At the stock 16 the newest chat lines, a vote's ballot and countdown among
+	# them, were drawn over the bar and the bar over them.
+	chat_window.margin_bottom = 84.0
 	_chat_layer.add_child(chat_window)
 
 

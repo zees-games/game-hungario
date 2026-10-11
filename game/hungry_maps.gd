@@ -115,6 +115,26 @@ var _match: DotMatch = null
 var config_path: String = CONFIG_PATH
 
 
+## dot-server's games, kept to the ones [member keep_fn] says are this game's modes.
+##
+## An inner class rather than a file of its own with a [code]class_name[/code]: a mounted
+## pack cannot declare one. Filtered in [method choices] rather than through
+## [member DotVoteGameSource.excluded], because what else a server runs changes with its
+## content and a list written once goes stale.
+class ModeSource extends DotVoteGameSource:
+	## [code]func(id: StringName) -> bool[/code]: whether a game id is one of the modes.
+	var keep_fn: Callable = Callable()
+
+	func choices() -> Array[DotVoteChoice]:
+		var out: Array[DotVoteChoice] = []
+
+		for choice in super.choices():
+			if not keep_fn.is_valid() or bool(keep_fn.call(choice.id)):
+				out.append(choice)
+
+		return out
+
+
 # --- The catalogue ---------------------------------------------------------
 
 ## The modes, as maps.
@@ -290,7 +310,15 @@ func setup(p_games: Object) -> DotResult:
 	# has to be the thing that actually changes the game, and `DotVoteGameSource.apply`
 	# calls `change_game`. The map catalogue is what says a mode needs three players; the
 	# game source is what makes a decision happen.
-	director.source = DotVoteGameSource.of(games)
+	#
+	# [b]Narrowed to this game's modes.[/b] dot-server's games are every game the server
+	# runs, and on a server that runs several the mode ballot offered arena, prop hunt and
+	# g2gfast as "modes", and a win changed the whole server behind its own game vote.
+	var modes := ModeSource.new()
+	modes.manager = games
+	var known := catalogue
+	modes.keep_fn = func(id: StringName) -> bool: return known != null and known.has(id)
+	director.source = modes
 	director.auto_apply = true
 	# [b]Off, and this is dot-vote's fifth bug.[/b] With it on the director announces the
 	# change it just made *and* the host announces the same change through its own

@@ -38,6 +38,8 @@ The joins that make it work, each of which was once missing:
 - **The leading score is the biggest monster's mass** (`director.note_score`, polled once a tick), so a vote `score_limit` is a mass; dot-match's `round_ended` reaches the director, so `apply: end_of_round` means a round. `round_based` is on, so `time_up: finish_round` finishes the round in progress.
 - **`extend` from the wire is an admin's**, not any player's.
 - **`map time` reads the vote's own clock**, which follows an extend; a separate `DotMapTimeLimit` beside it did not.
+- **The running mode is named by its game id** (`HungryModule.game_id_of`, `hungry_<preset>`). It was handed the preset id (`classic`), which no choice is called, so the running mode was offered against itself and its history and time limit were never found.
+- **The source is dot-server's games narrowed to the modes** (`HungryMaps.ModeSource`, filtered on the catalogue). On a server that runs other games the mode ballot offered every one of them, and a win there changed the whole server behind its own game vote.
 
 **Cues.** The rules name `HungryEvents.CUE_VOTE_*` — on the wire file because both ends load it, so rules, presentation catalogue and `HungrySoundSink.CUES` read one copy. `HungryMaps.cue_due` carries each cue and countdown second to the module, sent as `HungryEvents.Kind.VOTE`. `HungrySound` bakes them as pure tones (a ballot is about the server, not a monster). The countdown is one label under the round clock, not in the five-line feed, where a line a second would push out the chat line announcing the vote.
 
