@@ -40,7 +40,7 @@ const SERVER_DIR := "user://hungry_dedicated"
 ## prints it to say which game this is, and nothing treats it as proof.
 const APP_URL := "hungario"
 
-const CHECKS := 224
+const CHECKS := 226
 
 var _passed := 0
 var _failed := 0
@@ -1012,6 +1012,18 @@ func _test_services() -> void:
 			== HungryServices.voice_config().format_fingerprint(),
 		"and its format is the one a client builds from the same file"
 	)
+
+	# The operator's switch: registered by the module, replicated so clients hide their key,
+	# and enforced on the router.
+	var voice_cvar: DotConVar = _server.console.find_cvar("sv_voice_enable")
+	_check(voice_cvar != null and DotConsole.is_replicated(voice_cvar),
+		"sv_voice_enable is registered and replicated to clients")
+	var off_enabled := true
+	if voice_cvar != null:
+		var _off := voice_cvar.set_value("0")
+		off_enabled = services.voice.enabled
+		var _on := voice_cvar.set_value("1")
+	_check(not off_enabled and services.voice.enabled, "and turns the router off and on")
 
 	# dot-server's own chat is cancelled rather than run beside the router.
 	var legacy := _server.events.fire("player_chat", {
