@@ -4,7 +4,7 @@ extends "res://addons/dot_npc_ai/runtime/dot_npc_ai_brain.gd"
 ##
 ## [b]Extended by PATH, not by `class_name`, and that is not a style choice.[/b] A brain is
 ## named by [member DotNpcDef.brain_script_path], and a script inside a mounted dot-cloud
-## pack cannot resolve a `class_name` — measured, and in the family's own CLAUDE.md. A
+## pack cannot resolve a `class_name` — measured, and in game-dev/docs/bugs-found.md. A
 ## brain that named a class could therefore only ever ship inside a build. This game's
 ## hunters do ship inside its build; they are written the way a delivered one would have to
 ## be, because a path that stopped working would stop working here first.

@@ -1,6 +1,6 @@
 # The netcode
 
-dot-net does the replication; `game/net/` is this game's bridge onto it. Read dot-net's CLAUDE.md for the mechanism; this file is what is specific to a game whose entity count changes every second.
+dot-net does the replication; `game/net/` is this game's bridge onto it. Read dot-net's [docs/](../../dot-net/docs/README.md) for the mechanism; this file is what is specific to a game whose entity count changes every second.
 
 ## Ordering: the first behaviour through drives the world
 
@@ -49,7 +49,7 @@ Noclip, freeze and speed change how a monster moves, so they travel as dot-2d's 
 
 dot-server's `votemap`, `vote` and `vote_status` work against the descriptors with no code here.
 
-**Standalone and delivered.** Built in, `examples/play.gd` is the application and loads `HungryClient` itself, because dot-server refuses an absolute scene path a server names. Delivered as a pack, `game.yml` names `client_scene`, and every path the game makes to its own files goes through `HungryPaths.rebase`, because a mounted pack does not live at the path it was authored at (the mount constraint in the family [CLAUDE.md](../../../CLAUDE.md)).
+**Standalone and delivered.** Built in, `examples/play.gd` is the application and loads `HungryClient` itself, because dot-server refuses an absolute scene path a server names. Delivered as a pack, `game.yml` names `client_scene`, and every path the game makes to its own files goes through `HungryPaths.rebase`, because a mounted pack does not live at the path it was authored at (the mount constraint in dot-server-deploy's [delivery-constraint.md](../../dot-server-deploy/docs/delivery-constraint.md)).
 
 ## Messages
 

@@ -13,7 +13,7 @@ const HungryMonster := preload("hungry_monster.gd")
 ## and the one that is wrong is always the one nobody is looking at.
 ##
 ## [b]The merge rule is deliberately the same four kinds in both places.[/b]
-## `DotAchievementRule.Merge` is dot-stats' set again — dot-achievements' own CLAUDE.md
+## `DotAchievementRule.Merge` is dot-stats' set again — dot-achievements' own docs/design.md
 ## says so and says why: the two would otherwise disagree about what a new reading does to
 ## an old one, and that disagreement is a wrong number with nothing failing.
 ##
@@ -238,7 +238,7 @@ func _build_achievements() -> DotResult:
 	achievements.unlocked.connect(_on_unlocked)
 
 	# [b]The link is the whole integration and it is a signal connection.[/b]
-	# dot-achievements' own CLAUDE.md says the numbers should come from somewhere that
+	# dot-achievements' own docs/design.md says the numbers should come from somewhere that
 	# already has them, and dot-stats already does. A tracker fed by hand from twenty call
 	# sites is twenty places to forget one.
 	link = DotAchievementStatsLink.new()
