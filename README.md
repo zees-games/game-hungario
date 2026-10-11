@@ -1,4 +1,4 @@
-This is a game to demonstrate the capabilities of the [**Dot collection**](https://moddingcommunity.com/co/4-dot-assets) built on-top of [Godot 4](https://godotengine.org/) and [TMC's gaming platform](https://moddingcommunity.com/play). In this 2D game, players start off as a small monster and grow by consuming food and other players. You may use space to split and throw yourself at others. This is heavily inspired off of the game [Agario](https://agar.io)!
+This is a game to demonstrate the capabilities of the [**Dot collection**](https://moddingcommunity.com/co/4-dot-assets) built on-top of [Godot 4](https://godotengine.org/) and [TMC's gaming platform](https://moddingcommunity.com/play). In this 2D game, players start off as a small monster and grow by consuming food and other players. You may use space to split and throw yourself at others. This is heavily inspired by the cell-eating browser games!
 
 ![Preview](https://github.com/zees-games/game-hungario/blob/main/images/preview.gif?raw=true)
 
