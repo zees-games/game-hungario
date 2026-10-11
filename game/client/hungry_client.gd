@@ -985,16 +985,37 @@ func _refresh_suspended() -> void:
 		sampler.suspended = presentation != null and presentation.swallows_input()
 
 
-## dot-server's chat payload, read ONLY for what is carrying the conversation.
+## dot-server's chat payload: what is carrying the conversation, and the server's own lines.
 ##
-## This game routes its lines over its own wire, so drawing them here as well would be the
-## same line twice. The state payload has nowhere else to arrive.
+## A PLAYER's line is never drawn from here: this game routes those over its own wire, so
+## drawing them here as well would be the same line twice. The server's own lines (`system`:
+## a vote between games, "Ada joined the game."; `admin`: an admin's `say`) come only this
+## way, and dropping them with the players' lines is how this game never showed one. The same
+## drawing as dot-game's `DotGameChatClient.draw_server_line`, which this game does not link.
 func _on_server_chat_state(payload: Dictionary) -> void:
-	if str(payload.get("kind", "")) != "state":
+	var kind := str(payload.get("kind", ""))
+
+	if kind == "system" or kind == "admin":
+		_draw_server_line(kind, str(payload.get("name", "")), str(payload.get("text", "")).strip_edges())
+		return
+
+	if kind != "state":
 		return
 
 	if presentation != null:
 		presentation.set_chat_relayed(bool(payload.get("relay", false)))
+
+
+func _draw_server_line(kind: String, speaker: String, text: String) -> void:
+	var window := _chat_window()
+
+	if window == null or text == "":
+		return
+
+	if kind == "system":
+		window.add_text(text if speaker == "" else "%s %s" % [speaker, text], Color(0.98, 0.84, 0.40))
+	else:
+		window.add_said(speaker, text, Color(0.98, 0.72, 0.35))
 
 
 func _on_chat_submitted(text: String, channel: StringName) -> void:
