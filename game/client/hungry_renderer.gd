@@ -58,8 +58,8 @@ const CULL_MARGIN := 120.0
 ## what the rule says.
 @export var show_threat: bool = true
 
-var prey_colour := Color(0.45, 0.95, 0.55, 0.85)
-var threat_colour := Color(1.0, 0.35, 0.32, 0.85)
+var prey_colour := Color(0.12, 0.70, 0.36, 0.90)
+var threat_colour := Color(0.92, 0.20, 0.24, 0.90)
 
 ## Riders, one per player. Nodes rather than drawings, because an avatar may resolve to
 ## real content and content is a scene.
@@ -75,32 +75,46 @@ var _beacons: Dictionary = {}
 var hunters: HungryHunters = null
 var hazards: HungryHazards = null
 
-## The arena floor. Space, one shade off the void so the boundary reads without the wall
-## having to do all the work.
-var background := Color(0.046, 0.052, 0.088)
+## The look: a bright pastel sky, the family's sunny look (game-arena's built-in maps) in
+## 2D. It was deep space (a near-black floor, a starfield, faint nebulae), which read as
+## dark and heavy beside every other game; the saturated things on screen are now the food,
+## the fruit and the monsters, on a pale ground that never competes with them.
+##
+## The arena floor: a pale sky blue, one clear step lighter than the void so the boundary
+## reads without the wall having to do all the work.
+var background := Color(0.86, 0.92, 1.00)
 
-## Outside the walls. Darker, and the only thing that says "you cannot go there".
-var void_colour := Color(0.020, 0.023, 0.042)
+## Outside the walls. A deeper periwinkle, and the only thing that says "you cannot go there".
+var void_colour := Color(0.58, 0.64, 0.86)
 
-var grid_line := Color(0.17, 0.28, 0.46, 0.30)
-var wall := Color(0.36, 0.68, 1.0)
+var grid_line := Color(0.36, 0.48, 0.78, 0.22)
+var wall := Color(0.38, 0.46, 0.92)
 
-## The level's own geometry. Lit from the same direction as the wall and opaque, because
-## the one thing it has to say is "you cannot be here" — a translucent rock reads as an
-## area effect, and the first thing a player does with an area effect is drive into it.
-var rock := Color(0.21, 0.24, 0.33)
-var rock_rim := Color(0.44, 0.53, 0.70)
+## Clouds drifting under the arena: parallaxed, hashed per cell like [DotStarfield] (the
+## same position every frame from any direction), drawn only where a whole cloud fits
+## inside the arena. Opaque and a step toward white from the floor, because translucent
+## discs show every overlap as a seam; large and pale, so no cloud is ever mistaken for
+## something edible.
+const CLOUD_CELL := 900.0
+const CLOUD_PARALLAX := 0.3
+const CLOUD_WHITEN := 0.6
 
-## Food, by tier. Cool and dim through to hot and bright, so size reads at a glance — the
-## same ordering as before, moved onto a palette that belongs in a sky.
+## The level's own geometry. Opaque and in the wall's family, because the one thing it has
+## to say is "you cannot be here" — a translucent rock reads as an area effect, and the
+## first thing a player does with an area effect is drive into it.
+var rock := Color(0.66, 0.62, 0.90)
+var rock_rim := Color(0.40, 0.36, 0.76)
+
+## Food, by tier. Cool through to hot, so size reads at a glance; saturated enough to
+## stand off the pale floor (the dark-sky tints washed out against it).
 var food_colours: Array[Color] = [
-	Color(0.60, 0.70, 0.92),
-	Color(0.42, 0.88, 0.80),
-	Color(0.98, 0.84, 0.46),
-	Color(1.00, 0.58, 0.34),
+	Color(0.50, 0.60, 0.98),
+	Color(0.16, 0.76, 0.66),
+	Color(1.00, 0.70, 0.12),
+	Color(1.00, 0.42, 0.32),
 ]
 
-var planted_colour := Color(0.80, 0.52, 1.0)
+var planted_colour := Color(0.68, 0.36, 1.0)
 
 var _font: Font = null
 
@@ -355,14 +369,12 @@ func _draw_ground(view: Rect2) -> void:
 	draw_rect(view, void_colour)
 	draw_rect(bounds, background)
 
-	# The sky, parallaxed against the camera — see [DotStarfield] for why it is hashed rather
-	# than stored. Drawn under the grid and everything else: it is scenery, and nothing in
-	# it may be mistaken for something edible.
+	# The sky's clouds, parallaxed against the camera — hashed rather than stored, for the
+	# reason [DotStarfield] gives. Drawn under the grid and everything else: it is scenery,
+	# and nothing in it may be mistaken for something edible.
 	var anchor := camera.global_position if camera != null else Vector2.ZERO
-	var seconds := float(Time.get_ticks_msec()) * 0.001
 
-	DotStarfield.draw_nebula(self, view, anchor)
-	DotStarfield.draw_into(self, view, anchor, seconds)
+	_draw_clouds(view, anchor, bounds)
 
 	# A grid, because a featureless plane gives no sense of speed at all — a monster
 	# moving across an empty background looks stationary, which is exactly wrong for a
@@ -398,6 +410,41 @@ func _draw_ground(view: Rect2) -> void:
 		y += step
 
 	_draw_wall(bounds)
+
+
+## Soft white clouds over the visible rectangle, one candidate per [constant CLOUD_CELL].
+##
+## A cloud is four overlapping discs from one hash, so the same cell is the same cloud
+## every frame; half the cells are empty so the sky does not read as a lattice.
+func _draw_clouds(view: Rect2, anchor: Vector2, bounds: Rect2) -> void:
+	var colour := background.lerp(Color.WHITE, CLOUD_WHITEN)
+	var offset := anchor * (1.0 - CLOUD_PARALLAX)
+	var sample := Rect2(view.position - offset, view.size).grow(CLOUD_CELL * 0.5)
+	for cx in range(int(floorf(sample.position.x / CLOUD_CELL)), int(ceilf(sample.end.x / CLOUD_CELL)) + 1):
+		for cy in range(int(floorf(sample.position.y / CLOUD_CELL)), int(ceilf(sample.end.y / CLOUD_CELL)) + 1):
+			var h := _cloud_hash(cx, cy)
+			if h % 2 != 0:
+				continue
+			var at := Vector2(
+				(float(cx) + _cloud_unit(h, 1)) * CLOUD_CELL,
+				(float(cy) + _cloud_unit(h, 2)) * CLOUD_CELL
+			) + offset
+			var size := CLOUD_CELL * (0.12 + _cloud_unit(h, 3) * 0.10)
+			if not bounds.grow(-size * 2.2).has_point(at):
+				continue
+			for i in 4:
+				var puff := Vector2((float(i) - 1.5) * size * 0.7, (absf(float(i) - 1.5) - 0.75) * size * 0.25)
+				draw_circle(at + puff, size * (0.75 if i == 0 or i == 3 else 1.0), colour)
+
+
+static func _cloud_hash(x: int, y: int) -> int:
+	var h := (x * 73856093) ^ (y * 19349663) ^ 0x5bd1e995
+	h = (h ^ (h >> 13)) * 1274126177
+	return absi(h ^ (h >> 16))
+
+
+static func _cloud_unit(h: int, slot: int) -> float:
+	return float((h >> (slot * 5)) & 1023) / 1023.0
 
 
 ## The boundary, drawn as a glow rather than a line.
@@ -629,13 +676,15 @@ func _draw_name(monster: HungryMonster, piece: HungryPiece, mine: bool) -> void:
 	var width := _font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x
 	var at := piece.position() + Vector2(-width * 0.5, piece.radius() + float(size) + 4.0)
 
+	# Dark on a light sky, with a white lift under it: the white names of the dark-sky look
+	# vanished into the pale floor.
 	draw_string(
 		_font, at + Vector2(1.0, 1.0), text, HORIZONTAL_ALIGNMENT_LEFT, -1, size,
-		Color(0.0, 0.0, 0.0, 0.6)
+		Color(1.0, 1.0, 1.0, 0.7)
 	)
 	draw_string(
 		_font, at, text, HORIZONTAL_ALIGNMENT_LEFT, -1, size,
-		Color.WHITE if mine else Color(0.88, 0.90, 0.94)
+		Color(0.06, 0.08, 0.18) if mine else Color(0.16, 0.20, 0.34)
 	)
 
 

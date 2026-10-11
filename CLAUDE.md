@@ -93,6 +93,7 @@ Short forms; the reasoning is in the linked file.
 - dot-audio does not replace `HungrySound` and dot-settings does not replace `HungryConfig`; `apply_all()` after building the layer. [client](docs/client.md#the-presentation-layer-and-what-it-deliberately-does-not-duplicate)
 - Chat key settings sit beside the config, never in it (argv must not rebind players). [client](docs/client.md#chat-box)
 - Do not build the world in `SceneTree._initialize`; tools seed on the first frame. [testing](docs/testing.md#traps-the-suites-have-hit)
+- The arena is a pale pastel sky (`HungryRenderer`'s colour fields, opaque clouds); anything drawn on it is saturated or dark, never white. [client](docs/client.md#rendering)
 
 ## Not converted yet
 
