@@ -29,7 +29,7 @@ const HungryMonster := preload("../game/hungry_monster.gd")
 ##
 ## Exits non-zero on any failure.
 
-const CHECKS := 102
+const CHECKS := 103
 
 var _passed := 0
 var _failed := 0
@@ -760,6 +760,35 @@ func _test_chat_box() -> void:
 	_check(p.swallows_input(), "an open one does, so a typed key is not a split")
 	window.close()
 	_check(not p.swallows_input(), "and gives it back when it closes")
+
+	# A join notice is a name and NO text (dot-chat's `_presence`). Drawn by its text it was
+	# an empty row in the box: with dot-server's own join line turned off, nobody was ever
+	# seen to join. The client is never added to the tree (its `_ready` builds the netcode).
+	var chat := DotChatClient.new()
+	chat.channels = HungryServices.chat_channels()
+	var hud := HungryHud.new()
+	var client := HungryClient.new()
+	client.hud = hud
+	client.chat = chat
+	client.presentation = p
+	client._on_chat_message(
+		DotChatMessage.make(
+			DotChatMessage.Kind.JOIN, HungryServices.CHANNEL_ALL, "k2", "Guest 435", ""
+		),
+		HungryServices.CHANNEL_ALL
+	)
+	var rows := window.history()
+	var drawn := ""
+	for part in (rows[rows.size() - 1] if not rows.is_empty() else []):
+		drawn += str((part as Dictionary).get("text", ""))
+	_check(
+		drawn.contains("Guest 435") and drawn.contains("joined"),
+		"a join notice is drawn as a sentence, not as an empty line",
+		"'%s'" % drawn
+	)
+	client.free()
+	chat.free()
+	hud.free()
 
 	_done()
 

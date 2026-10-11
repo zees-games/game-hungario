@@ -896,12 +896,19 @@ func _on_chat_message(message: DotChatMessage, channel_id: StringName) -> void:
 	# (who ate whom).
 	var window := _chat_window()
 
+	# A join or leave notice is a name and no text (dot-chat's `_presence`): drawn by its
+	# text it was an empty line in the box, and by name and text a bare "Guest 435:".
+	# `describe()` words it ("Guest 435 joined"); every other kind is drawn by its text.
+	var text := message.describe() \
+		if message.kind in [DotChatMessage.Kind.JOIN, DotChatMessage.Kind.LEAVE] \
+		else message.text
+
 	if message.is_from_server() or message.sender_name == "":
 		if window != null:
-			window.add_text("%s%s" % [prefix, message.text], Color(0.80, 0.82, 0.86))
+			window.add_text("%s%s" % [prefix, text], Color(0.80, 0.82, 0.86))
 		else:
 			hud.say(
-				"%s%s" % [prefix, message.text],
+				"%s%s" % [prefix, text],
 				chan.colour if chan != null else Color(0.62, 0.78, 1.0)
 			)
 
