@@ -57,6 +57,7 @@ Short forms; the reasoning is in the linked file.
 - Anything that changes speed must be readable on both ends: effects travel as piece flags, the trait in the join. [gameplay](docs/gameplay.md#effects-are-replicated-as-flags)
 - Eating is not dot-combat; throwables are, through `HungryCombat`, and `damage_gate` stays optional. [gameplay](docs/gameplay.md#throwables-are-dot-combat-eating-is-not)
 - Loadouts: entitlements default to nothing; refuse an illegal loadout on the way in; takes effect next spawn. [gameplay](docs/gameplay.md#what-a-player-brings-in)
+- A hunter brain seeds from `npc.seed` (per spawn), never `npc.instance_id` (an identity whose value moves with every allocation). dot-npc `docs/runtime.md`
 
 **Levels**
 

@@ -46,11 +46,12 @@ func _build() -> void:
 		mass = float(npc.def.meta.get("mass", mass))
 		speed = float(npc.def.meta.get("speed", speed))
 
-	# Deterministic from the instance rather than `randf()`: two servers replaying the
+	# Deterministic from the spawn's seed rather than `randf()`: two servers replaying the
 	# same director decisions place and steer a wave identically, which is what makes a
 	# horde reproducible in a suite. It is also the only reason a hunter that spawned in
-	# the same place twice does not walk the same way twice.
-	_wander_angle = float(npc.instance_id % 628) / 100.0 if npc != null else 0.0
+	# the same place twice does not walk the same way twice. `npc.seed`, not
+	# `npc.instance_id`: the object id moves whenever anything earlier allocates an object.
+	_wander_angle = float(npc.seed % 628) / 100.0 if npc != null else 0.0
 
 	machine = DotNpcAiMachine.new()
 
@@ -86,7 +87,7 @@ func _wander(ctx: DotNpcAiContext) -> void:
 	# averages to standing still, and a hunter that never goes anywhere is one players
 	# never meet.
 	_wander_angle = DotNpcAiSteering.wander(
-		_wander_angle, 0.5, npc.instance_id + int(ctx.now * 4.0)
+		_wander_angle, 0.5, npc.seed + int(ctx.now * 4.0)
 	)
 
 	var heading := DotNpcAiSteering.angle_to_direction(_wander_angle)
