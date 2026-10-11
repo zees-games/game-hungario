@@ -338,6 +338,12 @@ func setup(p_games: Object) -> DotResult:
 	# Every round's end is reported (see _on_round_ended), so a time limit can wait for the
 	# round in progress under `time_up: finish_round`.
 	director.round_based = true
+	# [b]Set by name, and only where it exists.[/b] A delivered pack runs on the shell's
+	# dot-vote, and one older than API 3 has no `round_in_progress_fn`: naming it would fail
+	# the pack's parse. There, a finish_round limit in warmup waits out finish_round_max_sec,
+	# which is what it did before.
+	if "round_in_progress_fn" in director:
+		director.set(&"round_in_progress_fn", round_in_progress)
 	add_child(director)
 
 	feed = DotVoteBallotFeed.of(director, func(state: Dictionary) -> void:
@@ -432,6 +438,15 @@ func _bind_match() -> void:
 
 	if _match != null:
 		_match.round_ended.connect(_on_round_ended)
+
+
+## Whether a round is being played right now, for `time_up: finish_round`: warmup and the gap
+## between rounds have nothing to play out, so a limit that runs out there changes the mode at
+## once. Asked of [member match_fn] every time, because a mode change replaces the match; no
+## match is "cannot tell", which holds as before.
+func round_in_progress() -> bool:
+	var node: DotMatch = match_fn.call() if match_fn.is_valid() else null
+	return node == null or not is_instance_valid(node) or node.is_live()
 
 
 ## A round ended. This game's rules apply a vote's winner at the end of a round, and until

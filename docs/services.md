@@ -35,7 +35,7 @@ The joins that make it work, each of which was once missing:
 
 - **The director is advanced once a tick, by the module only** (it was also self-advancing, so every vote clock ran double).
 - **`HungryMaps.install_commands`** puts `DotVoteCommands` on the module, voters keyed as the bare player id; a chat `!rtv` goes to the console here.
-- **The leading score is the biggest monster's mass** (`director.note_score`, polled once a tick), so a vote `score_limit` is a mass; dot-match's `round_ended` reaches the director, so `apply: end_of_round` means a round. `round_based` is on, so `time_up: finish_round` finishes the round in progress.
+- **The leading score is the biggest monster's mass** (`director.note_score`, polled once a tick), so a vote `score_limit` is a mass; dot-match's `round_ended` reaches the director, so `apply: end_of_round` means a round. `round_based` is on, so `time_up: finish_round` finishes the round in progress. `HungryMaps.round_in_progress` answers dot-vote's `round_in_progress_fn` from `match_fn` (set by name because an older shell's dot-vote lacks it), so a limit that runs out in warmup or between rounds changes the mode at once.
 - **`extend` from the wire is an admin's**, not any player's.
 - **`map time` reads the vote's own clock**, which follows an extend; a separate `DotMapTimeLimit` beside it did not.
 - **The running mode is named by its game id** (`HungryModule.game_id_of`, `hungry_<preset>`). It was handed the preset id (`classic`), which no choice is called, so the running mode was offered against itself and its history and time limit were never found.
