@@ -29,7 +29,7 @@ const HungryMonster := preload("../game/hungry_monster.gd")
 ##
 ## Exits non-zero on any failure.
 
-const CHECKS := 96
+const CHECKS := 101
 
 var _passed := 0
 var _failed := 0
@@ -66,6 +66,7 @@ func _run() -> void:
 	_test_chat_box()
 	_test_the_vote_is_heard()
 	_test_blind_and_beacon()
+	_test_board_makes_room()
 
 	if not probe.is_empty():
 		_test_exits_clean(probe)
@@ -833,6 +834,94 @@ func _test_the_vote_is_heard() -> void:
 		"and not in the feed, whose five lines the count would push the ballot out of"
 	)
 	hud.queue_free()
+	_done()
+
+
+## The leaderboard under a ballot: something in dot-ui's `dot_hud_cover` group over the
+## board's corner shrinks it to the rows above that, and the corner comes back when it goes.
+## Where the rows end up on screen is `tools/screenshot_map.sh <mode> --ballot`'s; this is the
+## arithmetic, and the player's own row surviving the cut.
+func _test_board_makes_room() -> void:
+	_section("The leaderboard makes room for a ballot over its corner")
+
+	var world := HungryWorld.new()
+	world.name = "BoardWorld"
+	world.preset = HungryPreset.classic()
+	world.world_seed = 20261011
+	world.register_service = false
+	add_child(world)
+	var _set := world.setup()
+	world.start(0)
+
+	for id in range(1, 8):
+		var _added := world.add_player(id, "P%d" % id)
+		world.spawn(id)
+		world.monster_for(id).alive = true
+		# Player 1, the one this HUD is for, the smallest: last on the board.
+		world.feed_player(id, 30.0 * id)
+
+	var hud := HungryHud.new()
+	hud.name = "BoardHud"
+	add_child(hud)
+	hud.build(world, null, 1)
+	# A 1280 x 720 HUD in a 64 x 64 headless window: anchored to a corner, or the size is
+	# overridden by the full-rect anchors DotHud gives itself.
+	hud.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	hud.position = Vector2.ZERO
+	hud.size = Vector2(1280.0, 720.0)
+	hud.refresh_leaderboard()
+
+	# Where the client shell puts a ballot at 1280 wide, on a layer of its own.
+	var layer := CanvasLayer.new()
+	layer.layer = 20
+	add_child(layer)
+	var ballot := Control.new()
+	ballot.add_to_group(&"dot_hud_cover")
+	ballot.position = Vector2(904.0, 110.0)
+	ballot.size = Vector2(360.0, 250.0)
+	layer.add_child(ballot)
+
+	hud.make_room()
+	var room := hud.board_room()
+	var shown := hud.leaderboard.rows()
+	_check(
+		room >= 1 and room < HungryHud.BOARD_ROWS and not hud.leaderboard.show_header
+			and hud.leaderboard.offset_bottom <= 110.0 - HungryHud.BOARD_GAP,
+		"a ballot over the corner shrinks the board above it, headerless",
+		"room %d, header %s, bottom %.0f" % [room, hud.leaderboard.show_header, hud.leaderboard.offset_bottom]
+	)
+	_check(
+		shown.size() == room and bool(shown.back().get("highlight", false)) and int(shown.back()[&"rank"]) == 7
+			and int(shown.front()[&"rank"]) == 1,
+		"the leader first and this player's own row last, with their real rank",
+		str(shown.map(func(r: Dictionary) -> String: return "%s:%s" % [r[&"rank"], r[&"name"]]))
+	)
+
+	ballot.position = Vector2(904.0, 400.0)
+	hud.make_room()
+	_check(hud.board_room() == -1, "a panel clear of the corner leaves the board alone (%d)" % hud.board_room())
+
+	ballot.position = Vector2(904.0, 110.0)
+	hud.make_room()
+	ballot.visible = false
+	hud.make_room()
+	_check(
+		hud.board_room() == -1 and hud.leaderboard.show_header and hud.leaderboard.max_rows == HungryHud.BOARD_ROWS
+			and hud.leaderboard.offset_bottom == HungryHud.BOARD_BOTTOM and hud.leaderboard.rows().size() == 7,
+		"a hidden panel gives the corner back: header, ten rows, every monster"
+	)
+
+	ballot.visible = true
+	ballot.position = Vector2(904.0, 20.0)
+	hud.make_room()
+	_check(
+		hud.board_room() == 0 and not hud.leaderboard.visible,
+		"no room for one row hides the board rather than drawing it under the panel"
+	)
+
+	layer.queue_free()
+	hud.queue_free()
+	world.queue_free()
 	_done()
 
 

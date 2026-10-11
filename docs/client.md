@@ -72,6 +72,14 @@ The console is dot-console's `DotConsoleKit` (plus `quit` and `audio`, ahead of 
 | `chat_open_key` | `Y` by default. |
 | `chat_near_key` | `U` by default; opens the proximity channel. |
 
+## The leaderboard makes room for a ballot
+
+The client shell draws every ballot (the server's game vote and this game's mode vote) as a `DotBallotPanel` in a column down the right-hand side from about 110 px down, over whatever the game drew. The board's corner is 16 to 280 px down, so rows 3 to 10 sat under the panel, unread, for the whole vote. The shell cannot reach into a delivered game, so the game looks: `HungryHud.make_room()` runs every frame, reads every visible Control in dot-ui's `dot_hud_cover` group (by that string, so the pack still loads on a shell whose dot-ui predates the group), converts their rects into the HUD's own space (the HUD is inset by the safe area and scaled), and when one overlaps the board's corner the board keeps the corner but shrinks to the rows that fit above it, without its header: the leader first, and this player's own row last, with their real rank, when they are not in the top few. Two rows at 1280 x 720 under the stand-in, three under the real shell. No room for one row hides it. It gets its corner, header and ten rows back the frame the panel goes.
+
+- **Not moved left of the column**: beside a 360 px column it runs into the round clock at the top centre.
+- **Not faded out**: who is winning is what a player is deciding a mode vote with.
+- **Looked at with** `tools/screenshot_map.sh <mode> --ballot`, which draws a stand-in panel where the shell does; `headless_presentation` checks the arithmetic and the player's row.
+
 ## Rendering
 
 `HungryRenderer._view` computes the visible rectangle as the viewport **divided** by the zoom: `Camera2D.zoom` is a magnification. Multiplying culls most of the screen once the player has grown, on a black background that reads as an empty arena.

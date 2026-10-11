@@ -43,7 +43,7 @@ Read the family [CLAUDE.md](../../CLAUDE.md) first; this file is only what is sp
 - An empty server keeps six players in the arena with bots (dot-server's `DotBotQuota`, `bot_quota` in fill mode); each person who joins takes a bot's place. `bot_quota_mode fixed` keeps that many bots beside everybody; `hungry_bots N` is a deprecated alias for it.
 - **Run `headless_round` after any change to dot-2d, and `headless_net` after any change to dot-net.** They are the only places that see replay determinism and client/server agreement under loss.
 - **`sandbox` is the suite that matters most**: two real clients on a real socket. See [docs/testing.md](docs/testing.md).
-- **Look at it.** No check reaches placement, scale or drawing: `tools/screenshot_map.sh <mode>` for levels, `tools/screenshot_menus.sh` for screens ([docs/levels.md](docs/levels.md#looking-at-a-level)).
+- **Look at it.** No check reaches placement, scale or drawing: `tools/screenshot_map.sh <mode>` for levels (`--ballot` for the HUD under a ballot), `tools/screenshot_menus.sh` for screens ([docs/levels.md](docs/levels.md#looking-at-a-level)).
 - `docs/` and the `.md` files are never loaded. A Godot export leaves them out (`all_resources`, `exclude_filter` `web/*, tools/*`), but dot-ci's `package.sh --pack` zip is the tracked tree minus addons, examples, tools, screenshots and images, so it carries them as inert text.
 
 ## Rules that bite
@@ -92,7 +92,8 @@ Short forms; the reasoning is in the linked file.
 - Stats have one source: `DotStatsSchema`; every achievement stat must be declared. Boards are per mode. [services](docs/services.md#stats-boards-and-achievements)
 - The vote's director is advanced once a tick by the module; the swap is dot-server's `change_game`, not `DotMapSyncHost`. [services](docs/services.md#the-vote-and-dot-map)
 - The vote knows a mode by its game id (`HungryModule.game_id_of`), never the preset id, and its source is narrowed to the modes (`HungryMaps.ModeSource`): a server runs other games too. [services](docs/services.md#the-vote-and-dot-map)
-- Chat lines go to the chat box, and to the feed only when there is no box; the box sits above the mass bar. [client](docs/client.md#chat-box)
+- Chat lines go to the chat box, and to the feed only when there is no box; the box sits above the mass bar.
+- The leaderboard shrinks above any visible `dot_hud_cover` Control over its corner (the shell's ballots); read the group by its string, never a dot-ui constant. [client](docs/client.md#the-leaderboard-makes-room-for-a-ballot) [client](docs/client.md#chat-box)
 - dot-audio does not replace `HungrySound` and dot-settings does not replace `HungryConfig`; `apply_all()` after building the layer. [client](docs/client.md#the-presentation-layer-and-what-it-deliberately-does-not-duplicate)
 - Chat key settings sit beside the config, never in it (argv must not rebind players). [client](docs/client.md#chat-box)
 - Do not build the world in `SceneTree._initialize`; tools seed on the first frame. [testing](docs/testing.md#traps-the-suites-have-hit)

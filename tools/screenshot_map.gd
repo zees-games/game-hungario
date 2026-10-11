@@ -21,6 +21,7 @@ const HungryWorld := preload("../game/hungry_world.gd")
 ##
 ##     tools/screenshot_map.sh warrens
 ##     tools/screenshot_map.sh warrens --admin   # also a beacon, and a blind
+##     tools/screenshot_map.sh warrens --ballot  # also the HUD under an open ballot
 ##
 ## [b]Not `--headless`[/b]: that gives a null renderer and a 64 x 64 viewport, and every
 ## frame it saves is empty — which is worse than no screenshot because it looks like one.
@@ -35,6 +36,8 @@ var _hud: HungryHud = null
 var _shots: Array[Dictionary] = []
 var _at := 0
 var _wait := SETTLE
+## Whether the current shot has been set up. Not `_wait == SETTLE`: a shot may settle longer.
+var _prepared := false
 var _finished := false
 
 ## Where the player is put, and whether [method _boot] has run. See [method _process].
@@ -56,6 +59,7 @@ func _initialize() -> void:
 	var tag := ""
 	var admin := false
 	var fx := false
+	var ballot := false
 
 	for argument in OS.get_cmdline_user_args():
 		if argument.begins_with("--at="):
@@ -69,6 +73,8 @@ func _initialize() -> void:
 			admin = true
 		elif argument == "--fx":
 			fx = true
+		elif argument == "--ballot":
+			ballot = true
 		elif not argument.begins_with("-"):
 			wanted = StringName(argument)
 
@@ -126,6 +132,14 @@ func _initialize() -> void:
 	# sized for a starting monster's mouthful.
 	if fx:
 		_shots.insert(2, {"name": "%s%s_fx" % [wanted, tag], "mass": 0.0, "whole": false, "fx": true})
+
+	# The HUD under a ballot, drawn where and as the client shell draws one (its notice
+	# overlay's column: 16 px in from the right, 110 px down, a third of the frame wide), with
+	# five more monsters so the leaderboard has the rows it has in a real round. The shell's
+	# ballot is the one thing on this screen the game does not place, so only a frame says
+	# whether the game made room for it. Settles for longer: the HUD eases out of its way.
+	if ballot:
+		_shots.append({"name": "%s%s_ballot" % [wanted, tag], "mass": 0.0, "whole": false, "ballot": true, "settle": 40})
 
 	if admin:
 		_shots.append({"name": "%s%s_beacon" % [wanted, tag], "mass": 0.0, "whole": false, "beacon": true})
@@ -200,7 +214,8 @@ func _process(_delta: float) -> bool:
 
 	var shot: Dictionary = _shots[_at]
 
-	if _wait == SETTLE:
+	if not _prepared:
+		_prepared = true
 		var monster := _world.monster_for(1)
 
 		if float(shot["mass"]) > 0.0 and monster != null:
@@ -259,6 +274,9 @@ func _process(_delta: float) -> bool:
 			_hud.say("A vote for what plays next starts in 5s.", Color(0.62, 0.78, 1.0))
 			_hud.vote_countdown(4, false)
 
+		if shot.has("ballot"):
+			_ballot()
+
 		if shot.has("beacon"):
 			_beacon_two()
 
@@ -306,7 +324,8 @@ func _process(_delta: float) -> bool:
 	print("wrote %s (%d x %d)" % [path, image.get_width(), image.get_height()])
 
 	_at += 1
-	_wait = SETTLE
+	_prepared = false
+	_wait = SETTLE if _at >= _shots.size() else int(_shots[_at].get("settle", SETTLE))
 	return false
 
 
@@ -430,3 +449,50 @@ func _beacon_two() -> void:
 	_world.monster_for(3).beacon = true
 	_hud.visible = true
 	_hud.refresh_leaderboard()
+
+
+## Five more monsters and an open mode ballot over the HUD: see the `ballot` frame in
+## [method _initialize]. The state is the shape dot-vote's ballot view sends, written out,
+## because a real one needs a server's director and this frame is about the layout.
+func _ballot() -> void:
+	for id in range(2, 7):
+		if _world.monster_for(id) == null:
+			_world.add_player(id, ["Gulp", "Nibbler", "Maw", "Pip", "Chomp"][id - 2])
+			_world.spawn(id, _world.arena.bounds.get_center() + Vector2(300.0 * id, -200.0 * (id % 3)))
+			_world.feed_player(id, 40.0 * id)
+
+	_hud.visible = true
+	_hud.refresh_leaderboard()
+
+	var layer := CanvasLayer.new()
+	layer.name = "ShellBallot"
+	layer.layer = 20
+	root.add_child(layer)
+	var box := VBoxContainer.new()
+	box.anchor_left = 1.0
+	box.anchor_right = 1.0
+	box.anchor_bottom = 1.0
+	box.offset_left = -16.0 - clampf(root.get_visible_rect().size.x * 0.34, 240.0, 360.0)
+	box.offset_right = -16.0
+	box.offset_top = 110.0
+	box.offset_bottom = -16.0
+	layer.add_child(box)
+	var panel := DotBallotPanel.new()
+	panel.ui_theme = DotUiTheme.space()
+	panel.local_voter = "1"
+	box.add_child(panel)
+	panel.show_state({
+		"open": true,
+		"title": "Vote for the next mode",
+		"command": "vote",
+		"seconds": 25,
+		"options": [
+			{"id": "hungry_classic", "label": "Classic", "votes": 2},
+			{"id": "hungry_frenzy", "label": "Frenzy", "votes": 1},
+			{"id": "hungry_warrens", "label": "Warrens", "votes": 0},
+			{"id": "hungry_reef", "label": "Reef", "votes": 1},
+			{"id": "__keep__", "label": "Keep this mode", "votes": 0},
+		],
+		"voters": {"1": 0, "2": 0, "3": 1, "4": 3},
+		"people": {"1": {"name": "Screenshot"}, "2": {"name": "Gulp"}, "3": {"name": "Nibbler"}, "4": {"name": "Maw"}},
+	})

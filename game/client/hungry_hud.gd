@@ -69,6 +69,33 @@ const BLIND_FADE_SEC := 0.25
 
 const BLIND_COLOUR := Color(0.01, 0.01, 0.015)
 
+## [b]The leaderboard makes room for a ballot.[/b] The client shell draws every ballot — the
+## server's game vote and this game's mode vote — as a panel in a column down the right-hand
+## side from 110 px down, over whatever the game drew, and this board's rows 3 to 10 sat under
+## it unread for the whole vote. The shell cannot reach into the game, so the game looks: every
+## visible Control in dot-ui's [code]dot_hud_cover[/code] group is something on top of this HUD
+## ([method covered_rect]). While one overlaps the board's corner, the board keeps the corner
+## and shrinks to the rows that fit above it, without its header, the leader first and this
+## player's own row last when they are not in the top few — the strip a shooter's HUD shows
+## while a menu has the right of the screen. [b]Not moved left[/b]: beside a 360 px column it
+## ran into the round clock at the top centre. [b]Not faded[/b]: who is winning is what a
+## player is deciding a vote with.
+const COVER_GROUP := &"dot_hud_cover"
+
+## The leaderboard's corner, in this HUD's own coordinates from the top-right.
+const BOARD_LEFT := -280.0
+const BOARD_RIGHT := -16.0
+const BOARD_TOP := 16.0
+const BOARD_BOTTOM := 280.0
+const BOARD_ROWS := 10
+
+## Space kept between the shrunk board and what covers the rest of its corner.
+const BOARD_GAP := 8.0
+
+## Rows the board has room for while something covers its corner, or -1 while nothing does.
+## 0 hides it: a frame too short for even one row.
+var _board_room: int = -1
+
 ## When [member vote_label] stops showing its last second, in [method Time.get_ticks_msec].
 var _vote_until_msec: int = 0
 
@@ -216,12 +243,12 @@ func build(p_world: HungryWorld, p_bridge: HungryNetBridge, p_player_id: int) ->
 
 	leaderboard = DotTableView.new()
 	leaderboard.name = "Leaderboard"
-	leaderboard.max_rows = 10
+	leaderboard.max_rows = BOARD_ROWS
 	leaderboard.set_anchors_preset(Control.PRESET_TOP_RIGHT)
-	leaderboard.offset_left = -280.0
-	leaderboard.offset_top = 16.0
-	leaderboard.offset_right = -16.0
-	leaderboard.offset_bottom = 280.0
+	leaderboard.offset_left = BOARD_LEFT
+	leaderboard.offset_top = BOARD_TOP
+	leaderboard.offset_right = BOARD_RIGHT
+	leaderboard.offset_bottom = BOARD_BOTTOM
 	add_child(leaderboard)
 	leaderboard.set_columns([
 		{"key": &"rank", "title": "#", "width": 0.4, "align": HORIZONTAL_ALIGNMENT_RIGHT},
@@ -424,7 +451,113 @@ func refresh_leaderboard() -> void:
 			})
 			rank += 1
 
+	if _board_room > 0:
+		rows = _top_and_me(rows, _board_room)
+
 	leaderboard.set_rows(rows)
+
+
+## The first [param room] rows, with this player's own row last in place of the one it pushes
+## out when they are not among them. Ranks are kept, so "7  you" says where they stand.
+static func _top_and_me(rows: Array[Dictionary], room: int) -> Array[Dictionary]:
+	if rows.size() <= room:
+		return rows
+
+	var out: Array[Dictionary] = rows.slice(0, room)
+	var mine := -1
+
+	for i in rows.size():
+		if bool(rows[i].get("highlight", false)):
+			mine = i
+			break
+
+	if mine >= room:
+		out[room - 1] = rows[mine]
+
+	return out
+
+
+# --- Making room -----------------------------------------------------------
+
+## Everything drawn over this HUD by somebody else — the shell's ballot panels — as one
+## rect in this HUD's own coordinates, or an empty rect when nothing is. See [member _board_room].
+##
+## [b]Through the canvas transforms, both ways.[/b] The panel is on the shell's canvas layer
+## and this HUD is inset by the safe area and scaled by the interface scale, so a rect read
+## as-is is in the wrong space on any phone and at any scale but one.
+func covered_rect() -> Rect2:
+	if not is_inside_tree():
+		return Rect2()
+
+	var to_me := get_global_transform_with_canvas().affine_inverse()
+	var out := Rect2()
+
+	for node in get_tree().get_nodes_in_group(COVER_GROUP):
+		var other := node as Control
+
+		if other == null or not other.is_visible_in_tree() or other == self or is_ancestor_of(other):
+			continue
+
+		var rect := to_me * (other.get_global_transform_with_canvas() * Rect2(Vector2.ZERO, other.size))
+
+		if not rect.has_area():
+			continue
+
+		out = rect if not out.has_area() else out.merge(rect)
+
+	return out
+
+
+## Shrinks the board to the rows that fit above whatever covers its corner, and gives it the
+## corner back when that goes. Every frame: one group lookup, and a rebuild only on a change.
+func make_room() -> void:
+	if leaderboard == null:
+		return
+
+	var home := Rect2(
+		Vector2(size.x + BOARD_LEFT, BOARD_TOP),
+		Vector2(BOARD_RIGHT - BOARD_LEFT, BOARD_BOTTOM - BOARD_TOP)
+	)
+	var cover := covered_rect()
+	var room := -1
+
+	if cover.has_area() and cover.intersects(home):
+		var row := _board_row_height()
+		var above := cover.position.y - BOARD_GAP - BOARD_TOP
+		room = clampi(int(floor((above + row.y) / (row.x + row.y))), 0, BOARD_ROWS)
+
+	if room == _board_room:
+		return
+
+	_board_room = room
+	leaderboard.show_header = room < 0
+	leaderboard.max_rows = BOARD_ROWS if room < 0 else room
+	leaderboard.visible = room != 0
+	leaderboard.offset_bottom = BOARD_BOTTOM if room < 0 else maxf(cover.position.y - BOARD_GAP, BOARD_TOP)
+	refresh_leaderboard()
+
+
+## Rows the board shows while shrunk, or -1 when it has its corner. For a check and a bug report.
+func board_room() -> int:
+	return _board_room
+
+
+## A row's height and the gap between rows, measured from the board's own first row
+## (dot-ui keeps its rows container named `Grid` for exactly this kind of reader), so a theme
+## or an interface scale that changes the font changes how many rows fit.
+func _board_row_height() -> Vector2:
+	var grid := leaderboard.get_node_or_null(^"Grid") as Container
+
+	if grid != null and grid.get_child_count() > 0:
+		var first := grid.get_child(0) as Control
+
+		if first != null:
+			var height := first.get_combined_minimum_size().y
+
+			if height > 0.0:
+				return Vector2(height, float(grid.get_theme_constant(&"separation")))
+
+	return Vector2(26.0, 4.0)
 
 
 func _process(delta: float) -> void:
@@ -432,6 +565,7 @@ func _process(delta: float) -> void:
 		return
 
 	present_blind(delta)
+	make_room()
 	_refresh_clock()
 	_refresh_vote()
 	_refresh_carry()
@@ -549,6 +683,7 @@ func describe() -> Dictionary:
 	return {
 		"player": player_id,
 		"rows": leaderboard.row_count() if leaderboard != null else 0,
+		"board_room": _board_room,
 		"feed": feed.line_count() if feed != null else 0,
 		"vote": vote_label.text if vote_label != null else "",
 		"blind": blind_overlay.modulate.a if blind_overlay != null else 0.0,
