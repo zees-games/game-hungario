@@ -16,7 +16,7 @@ const HungryNetCommand := preload("hungry_net_command.gd")
 ##
 ## [b]The pointer is a direction and a distance, not a screen position.[/b] A screen
 ## position depends on a window size and a camera zoom the server does not have, so the
-## sampler resolves it before it goes anywhere. That is the whole reason an agar.io-like
+## sampler resolves it before it goes anywhere. That is the whole reason a cell-eating
 ## game is predictable at all.
 
 ## Largest pointer distance accepted, in world units. Also the wire's range, so both

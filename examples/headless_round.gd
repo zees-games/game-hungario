@@ -5507,7 +5507,7 @@ func _test_determinism() -> void:
 ## [bot-drive-1]: what a bot actually travels at, against the speed the game gives it.
 ##
 ## [b]In the 3D games a bot held forward and jump and crawled at the air cap.[/b] This is a
-## 2D game and has no jump; its motor is agar.io's, and the speed a monster is GIVEN is
+## 2D game and has no jump; its motor is the cell-eating genre's, and the speed a monster is GIVEN is
 ## `max_speed` × `speed_scale(mass)` × its trait and effects — the ground speed below,
 ## worked per piece per tick. What it GETS is that times how hard the pointer is pushed:
 ## the wish ramps from nothing at `dead_reach` (7) to full at `full_speed_reach` (105), so

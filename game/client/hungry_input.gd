@@ -86,7 +86,7 @@ func _register_actions() -> void:
 	_ensure_action(&"hungry_split", KEY_SPACE, MOUSE_BUTTON_LEFT)
 	_ensure_action(&"hungry_throw", KEY_Q, MOUSE_BUTTON_RIGHT)
 	_ensure_action(&"hungry_boost", KEY_SHIFT, 0)
-	# W, which is free here because movement is the mouse. It is also where agar.io puts
+	# W, which is free here because movement is the mouse. It is also where the genre puts
 	# it, and muscle memory from the genre is worth more than a tidier layout.
 	_ensure_action(&"hungry_eject", KEY_W, 0)
 

@@ -1060,7 +1060,7 @@ func _tunables_for(monster: HungryMonster, tick_value: int) -> Dot2DTunables:
 ## distance of each other. Splitting would be permanent and merging unreachable — and
 ## nothing would error, because each piece individually did exactly what it was told.
 ##
-## In agar.io every cell steers toward the cursor's [i]point[/i], which is what makes a
+## In the genre every cell steers toward the cursor's [i]point[/i], which is what makes a
 ## split converge, what makes "let go to regroup" work, and what makes the trailing half
 ## of a split catch up.
 static func pointer_of(monster: HungryMonster, command: Dot2DCommand) -> Vector2:
@@ -1627,7 +1627,7 @@ func _throw(monster: HungryMonster, command: Dot2DCommand) -> HungryProjectile:
 ## Spits a blob of mass out along the aim.
 ##
 ## [b]From the rider's piece only, and that is a design choice rather than a
-## simplification.[/b] agar.io ejects from every cell at once, which is how you feed a
+## simplification.[/b] The genre ejects from every cell at once, which is how you feed a
 ## virus in a second — and which, at sixteen pieces, is a spray of blobs nobody can read.
 ## One blob per press comes out of the piece the player is looking at, and a player who
 ## wants to shed a lot of mass presses it a lot.

@@ -260,7 +260,7 @@ const EFFECT_MASK := FLAG_RUSH | FLAG_MAW | FLAG_RIND | FLAG_FROSTED | FLAG_PROT
 static func tunables() -> Dot2DTunables:
 	var out := Dot2DTunables.blob()
 	out.max_speed = 415.0
-	# The distance over which the cursor goes from "stopped" to "full speed". agar.io
+	# The distance over which the cursor goes from "stopped" to "full speed". The genre
 	# ramps over roughly a body length; this is the number that makes fine positioning
 	# next to a bigger monster possible at all, and making it large makes the whole
 	# game feel like steering a barge.

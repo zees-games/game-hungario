@@ -14,7 +14,7 @@
 # which describes the same game for a deployment that publishes it itself;
 # dot-server-deploy's examples/install_descriptor suite fails when the two disagree.
 #
-# Classic is the mode a published pack starts in. The other four (frenzy, gauntlet, warrens, reef) are the same pack under their own descriptors in dot-server-deploy/content/hungry_*; a pack carries one descriptor, so a server that installs this one by id runs Classic.
+# Classic is the mode a published pack starts in. The other five (frenzy, gauntlet, warrens, reef, shallows) are the same pack under their own descriptors in dot-server-deploy/content/hungry_*; a pack carries one descriptor, so a server that installs this one by id runs Classic.
 
 content_id: gamemann/game-hungario
 version: 0.0.0
