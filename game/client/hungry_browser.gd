@@ -15,11 +15,12 @@ const HungryModule := preload("../hungry_module.gd")
 ## applied on the client rather than sent to the server, because a server that decided
 ## which of its own properties to report is a server that reports whatever gets it listed.
 ##
-## [b]There is no master server yet, and this file is where that is visible.[/b] A tracker
-## has to be told an address and nothing announces one, so the sources are the two that
-## need no such thing: the servers this person has visited, and whatever they type.
-## `DotBrowserSourceBackbone` reads a listing website-city does not publish yet, and adding
-## it is one line the day it does.
+## [b]Three sources, and only one needs a website.[/b] The servers this person has visited,
+## whatever they type, and — when a site is configured — the site's listing of this game's
+## servers ([DotBrowserSourceBackbone], website-city's `/api/content/server/list`). The
+## listing is off unless `--browser-backbone-url` / `DOT_BROWSER_BACKBONE_URL` names a site:
+## a LAN game, a test or a fork must not reach out to a website the moment the list opens.
+## It lists addresses only; every row is still asked what it is, like any other.
 ##
 ## [b]The mode filter is the one thing here that is this game's.[/b] `hungry_gauntlet` and
 ## `hungry_classic` are different games in the way that matters to somebody choosing a
@@ -37,6 +38,9 @@ const DEFAULT_PORT := 27081
 ## server on it several times a second, which is what a badly written browser looks like
 ## from the other end.
 const REFRESH_INTERVAL := 8.0
+
+## This game's app on the site, the slug its server pages live under.
+const SITE_APP := "hungario"
 
 
 signal joined(address: String)
@@ -161,6 +165,7 @@ func _start() -> void:
 	# History and favourites: the only source that needs no tracker. A server you have
 	# played on is one you can get back to.
 	browser.load_favourites()
+	_add_site_listing()
 
 	browser.entry_updated.connect(func(_entry: DotBrowserEntry) -> void: _redraw())
 	browser.refresh_finished.connect(func(online: int, total: int) -> void:
@@ -182,6 +187,40 @@ func _start() -> void:
 		add_address("127.0.0.1:%d" % DEFAULT_PORT)
 
 	browser.refresh()
+
+
+## Adds the site's listing when one is configured. Absent, the list is exactly what it was.
+func _add_site_listing() -> void:
+	var made := site_listing()
+	if not made.ok:
+		DotLog.warn(CHANNEL, "the server listing is misconfigured and was left out", {
+			"error": str(made.error)
+		})
+		return
+
+	var source: DotBrowserSourceBackbone = made.value
+	if source == null:
+		DotLog.debug(CHANNEL, "no site configured; the list is history and typed addresses")
+		return
+
+	browser.add_source(source)
+	DotLog.info(CHANNEL, "listing this game's servers from the site", {
+		"url": source.config.page_url(1)
+	})
+
+
+## This game's site listing from the layered config, or [code]success(null)[/code] when no
+## site is configured. Static so a suite can ask without building the window.
+static func site_listing() -> DotResult:
+	var defaults := DotBrowserBackboneConfig.new()
+	defaults.app = SITE_APP
+
+	var made := DotBrowserSourceBackbone.from_config(defaults)
+	if not made.ok:
+		return made
+
+	var source: DotBrowserSourceBackbone = made.value
+	return DotResult.success(source if source.is_available() else null)
 
 
 func _process(delta: float) -> void:

@@ -1,5 +1,6 @@
 extends Node
 
+const HungryBrowser := preload("../game/client/hungry_browser.gd")
 const HungryContent := preload("../game/hungry_content.gd")
 const HungryHunters := preload("../game/hungry_hunters.gd")
 const HungryEvents := preload("../game/net/hungry_events.gd")
@@ -39,7 +40,7 @@ const SERVER_DIR := "user://hungry_dedicated"
 ## prints it to say which game this is, and nothing treats it as proof.
 const APP_URL := "hungario"
 
-const CHECKS := 215
+const CHECKS := 218
 
 var _passed := 0
 var _failed := 0
@@ -197,6 +198,27 @@ func _test_query() -> void:
 		"the player count is the module's own rather than a second tally",
 		str(snapshot.game.get("players", -1))
 	)
+
+	# The client half's other source: the site's listing, off unless a site is named.
+	var env_key := "DOT_BROWSER_BACKBONE_URL"
+	var had := OS.get_environment(env_key)
+	OS.unset_environment(env_key)
+	var off: DotResult = HungryBrowser.site_listing()
+	_check(off.ok and off.value == null, "the browser reads no site listing when none is configured")
+
+	OS.set_environment(env_key, "http://127.0.0.1:9")
+	var on: DotResult = HungryBrowser.site_listing()
+	var listing: DotBrowserSourceBackbone = on.value if on.ok else null
+	_check(listing != null, "and does when one is", str(on.error) if not on.ok else "")
+	_check(
+		listing != null and listing.config.page_url(1).contains("app=hungario"),
+		"asking for this game's servers",
+		listing.config.page_url(1) if listing != null else ""
+	)
+	if had != "":
+		OS.set_environment(env_key, had)
+	else:
+		OS.unset_environment(env_key)
 
 	_done()
 

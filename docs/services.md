@@ -45,7 +45,7 @@ The joins that make it work, each of which was once missing:
 
 ## The browser and the query provider
 
-`HungryBrowser` is a dot-browser list: DQP, DQP over a WebSocket, A2S, favourites, history and a mode filter. `HungryQueryProvider` is the server's half, reporting what a person filtering a list filters on: the mode (the map here), occupancy, round state, the leader's mass, and **whether hunters and hazards are on**, the two cvars that make it a different game. A tracker still has to be told an address; `DotBrowserSourceBackbone` reads its listing from website-city.
+`HungryBrowser` is a dot-browser list: DQP, DQP over a WebSocket, A2S, favourites, history and a mode filter. `HungryQueryProvider` is the server's half, reporting what a person filtering a list filters on: the mode (the map here), occupancy, round state, the leader's mass, and **whether hunters and hazards are on**, the two cvars that make it a different game. With a site configured (`--browser-backbone-url=<origin>` or `DOT_BROWSER_BACKBONE_URL`), the list also starts with the site's listing of this game's servers (`DotBrowserSourceBackbone`, app `hungario`, website-city's `/api/content/server/list`); without one it is history and typed addresses only.
 
 ## The backbone
 
