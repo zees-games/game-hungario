@@ -404,15 +404,16 @@ static func spawn_points_for(layout: HungryLayout, bounds: Rect2) -> PackedVecto
 
 
 ## Whether a hunter may appear at [param at]: not behind a harbour's fence, in the reef's
-## cove, behind the shallows' tightest line or in one of its rock pools (refuges for the same reason, and a lurker
-## fits all their doors), and inside
+## cove, behind the shallows' tightest line, in one of its rock pools or in its inlet (refuges for the same
+## reason, and a lurker fits all their doors), and inside
 ## [param region] ([method HungryLayout.main_region] at the size being placed).
 static func spawnable(layout: HungryLayout, bounds: Rect2, at: Vector2, region: Dictionary) -> bool:
 	if layout == null or layout.is_empty():
 		return bounds.has_point(at)
 
 	if layout.harbour_of(at, bounds) >= 0 or layout.in_cove(at, bounds) \
-			or layout.shallows_band(at, bounds) == 0 or layout.in_pool(at, bounds):
+			or layout.shallows_band(at, bounds) == 0 or layout.in_pool(at, bounds) \
+			or layout.in_inlet(at, bounds):
 		return false
 
 	return HungryLayout.in_region(region, bounds, at)

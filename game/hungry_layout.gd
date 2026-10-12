@@ -54,8 +54,10 @@ const SLALOM := &"slalom"
 const REEF := &"reef"
 
 ## Five lines of posts across the world whose gaps widen from one wall to the other, so
-## the further from the open water a monster wants to go the smaller it has to be. See
-## [method _shallows].
+## the further from the open water a monster wants to go the smaller it has to be, with
+## rock pools in the open water's corners, groynes across it and an inlet in its middle
+## bay. See [method _shallows], [method _append_pools], [method _append_groynes] and
+## [method _append_inlet].
 const SHALLOWS := &"shallows"
 
 
@@ -122,6 +124,10 @@ var pools: Array[Vector2i] = []
 ## The shallows' groynes, as `(first, count)`: two posts each, laid out from the last
 ## line toward the open wall. See [method _append_groynes] and [method bay_of].
 var groynes: Array[Vector2i] = []
+
+## The shallows' inlet, as `(first, count)`: two posts off the open wall in the middle
+## bay, the short axis's low side first. See [method _append_inlet] and [method in_inlet].
+var inlets: Array[Vector2i] = []
 
 
 static func none() -> HungryLayout:
@@ -1011,6 +1017,7 @@ static func _shallows(bounds: Rect2) -> HungryLayout:
 
 	_append_pools(out, bounds)
 	_append_groynes(out, bounds)
+	_append_inlet(out, bounds)
 	return out
 
 
@@ -1235,6 +1242,100 @@ func bay_of(at: Vector2, bounds: Rect2) -> int:
 			bay += 1
 
 	return bay
+
+
+# --- the shallows' inlet ------------------------------------------------------
+
+## How big one of the inlet's posts is, as a fraction of the short half-extent: 36.8 units
+## at `shallows`' size, a groyne's post.
+##
+## [b]The doors are the design number and the post is what sets the water round it.[/b]
+## The inlet reaches door plus two radii off the open wall (322), which leaves 900 of
+## water between its front and the last line, against a leader 620 across, and 586
+## between a post and the nearest groyne post: wider than the fourth line's gap (580), so
+## the floor beside the inlet is open to everybody the lines let that far and the water
+## beside it is no hidden gate. The room behind the posts holds a radius of 165 (about 420
+## mass), the rock pools' room. Much bigger posts close that water below the fourth line.
+const INLET_RADIUS := 0.016
+
+
+## The shallows' fourth part: an inlet in the middle of the open wall, the middle bay's
+## room.
+##
+## [b]The groynes cut the open water into three bays, and only the two corner bays had a
+## room in them.[/b] The middle bay is the one a leader comes out into, through the last
+## line's two middle gaps, and a starting monster caught there had a groyne to cross and
+## the length of a bay along the wall a leader walks before it reached a pool. The inlet is
+## two posts standing off the open wall at the middle bay's centre with THREE doors, each
+## exactly the tightest line's gap (248, about 240 mass): the one between the posts and one
+## between each post and the wall — the reef's cove, in the bay that had nothing. Three
+## doors for the harbours' reason: one door is a cork, and a monster waiting at one is 322
+## from the next.
+##
+## [b]Why not one tier up[/b] (doors of the second line's 359, a room for the monsters the
+## pools shut out, which was the first design): an inlet that wide stands so close to the
+## groynes that the water between them is under the fourth line's 580 however thin the
+## posts are, and a 0.02 post left 483. That water is a gate the lines do not have: the
+## floor beside the inlet was shut to monsters the third line still admitted, which the
+## shallows' own section caught (`headless_round`, 45 stranded points in front of the
+## third line). The tightest tier is the one whose room fits the bay.
+##
+## [b]A room, at its tier's price[/b]: it holds a radius of 165 behind doors that let out
+## 124, so a monster that eats past the door's limit inside has to split or eject to
+## leave. It encloses floor, so hunters are refused it ([method in_inlet], asked by
+## [method HungryHunters.spawnable]).
+##
+## [b]Appended after the groynes[/b], so every line, pool and groyne index is unchanged,
+## and its posts are their own [member inlets] list for the cove's reason: neither a
+## barrier across the world nor a ring.
+static func _append_inlet(layout: HungryLayout, bounds: Rect2) -> void:
+	var along_x := bounds.size.x >= bounds.size.y
+	var short_half := minf(bounds.size.x, bounds.size.y) * 0.5
+	var door := inlet_door(short_half)
+	var radius := short_half * INLET_RADIUS
+	var open_wall := bounds.end.x if along_x else bounds.end.y
+	var middle := bounds.get_center().y if along_x else bounds.get_center().x
+	# The middle bay's centre across: halfway between the two groynes, which is the
+	# world's centre line while the last line is symmetric, and the bay it stands in if
+	# it ever is not.
+	if layout.groynes.size() == 2:
+		var a := layout.blocks[layout.groynes[0].x]
+		var b := layout.blocks[layout.groynes[1].x]
+		middle = ((a.y + b.y) if along_x else (a.x + b.x)) * 0.5
+
+	var out_at := open_wall - door - radius
+	var first := layout.blocks.size()
+
+	for side in [-1.0, 1.0]:
+		var across: float = middle + side * (door * 0.5 + radius)
+		layout.blocks.append(Vector3(out_at, across, radius) if along_x else Vector3(across, out_at, radius))
+
+	layout.inlets.append(Vector2i(first, 2))
+
+
+## The width of every inlet door: the shallows' tightest line, a rock pool's door.
+static func inlet_door(short_half: float) -> float:
+	return shallows_widths(short_half)[0]
+
+
+## Whether [param at] is inside the inlet: past the posts' front face toward the open
+## wall, and between their outer faces along it. Past the FRONT face counts, as a cove's
+## does: a point between the two posts is past the line a monster outgrows.
+func in_inlet(at: Vector2, bounds: Rect2) -> bool:
+	if id != SHALLOWS or inlets.is_empty():
+		return false
+
+	var along_x := bounds.size.x >= bounds.size.y
+	var a := blocks[inlets[0].x]
+	var b := blocks[inlets[0].x + 1]
+	var front := (a.x if along_x else a.y) - a.z
+	var low := (minf(a.y, b.y) if along_x else minf(a.x, b.x)) - a.z
+	var high := (maxf(a.y, b.y) if along_x else maxf(a.x, b.x)) + a.z
+	var here := at.x if along_x else at.y
+	var sideways := at.y if along_x else at.x
+
+	return here > front and sideways > low and sideways < high
+
 
 
 ## One barrier of rocks [param behind] units along the crossing axis from the world's

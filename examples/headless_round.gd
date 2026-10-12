@@ -37,7 +37,7 @@ const HungryWorld := preload("../game/hungry_world.gd")
 const SEED := 20260828
 const TICK_RATE := 60
 
-const CHECKS := 449
+const CHECKS := 464
 
 var _passed := 0
 var _failed := 0
@@ -99,6 +99,7 @@ func _run() -> void:
 	_test_the_shallows()
 	_test_the_rock_pools()
 	_test_the_groynes()
+	_test_the_inlet()
 	_test_the_den()
 	_test_the_harbours()
 	_test_hunter_round_a_rock()
@@ -3573,7 +3574,8 @@ func _test_the_shallows() -> void:
 
 	# --- Reach: the floor recedes one band per line as a monster grows ----------
 
-	var open_water := Vector2(bounds.end.x - won - 30.0, bounds.get_center().y)
+	# The middle bay in front of the inlet: the open wall's own middle is the inlet's room.
+	var open_water := _shallows_open_water(layout, bounds)
 	var all := layout.reach(bounds, open_water, widths[0] * 0.5 - 16.0)
 	_check(
 		all["reached"] == all["free"],
@@ -3590,19 +3592,20 @@ func _test_the_shallows() -> void:
 		var over := widths[line] * 0.5 + 16.0
 		# From the open wall at this size: just over the last line is wider than a leader,
 		# and the leader's own start would be inside the wall for it.
-		var sweep := layout.reach(bounds, Vector2(bounds.end.x - over - 30.0, open_water.y), over)
+		var sweep := layout.reach(bounds, open_water, over)
 		var stranded: PackedVector2Array = sweep["stranded"]
 		var outside := 0
 
-		var start_bay := layout.bay_of(Vector2(bounds.end.x - over - 30.0, open_water.y), bounds)
+		var start_bay := layout.bay_of(open_water, bounds)
 		# Too big for every groyne door and for the last line, the bays it did not start
 		# in are behind both; the groynes' own section asks them.
 		var walled_in := over * 2.0 > groyne_widest and over * 2.0 > widths[lines - 1]
 
 		for point: Vector2 in stranded:
-			# The rock pools are in the open water and shut to everybody over the
-			# tightest line's limit; their own section asks them.
+			# The rock pools and the inlet are in the open water and shut to everybody
+			# over the first and second lines' limits; their own sections ask them.
 			if layout.shallows_band(point, bounds) > line and not layout.in_pool(point, bounds) \
+					and not layout.in_inlet(point, bounds) \
 					and not (walled_in and layout.bay_of(point, bounds) != start_bay):
 				outside += 1
 
@@ -3779,7 +3782,7 @@ func _test_the_rock_pools() -> void:
 	if not _check(
 		layout != null and layout.pools.size() == 2 and layout.chains.size() == lines
 			and layout.pools[0] == Vector2i(line_posts, 1) and layout.pools[1] == Vector2i(line_posts + 1, 1)
-			and layout.count() == line_posts + 2 + layout.groynes.size() * 2,
+			and layout.count() == line_posts + 2 + layout.groynes.size() * 2 + layout.inlets.size() * 2,
 		"the shallows have two rock pools of one post each, after the five lines",
 		"pools %s, %d posts in the lines, %d in all" % [
 			str(layout.pools) if layout != null else "none", line_posts, layout.count() if layout != null else -1
@@ -3861,7 +3864,7 @@ func _test_the_rock_pools() -> void:
 
 	# --- Reach: just too big for a door ---------------------------------------
 
-	var open_water := Vector2(bounds.end.x - won - 30.0, centre.y)
+	var open_water := _shallows_open_water(layout, bounds)
 	var outgrown := door * 0.5 + 16.0
 	var sweep := layout.reach(bounds, open_water, outgrown)
 	var loose := 0
@@ -3872,12 +3875,13 @@ func _test_the_rock_pools() -> void:
 
 		if which >= 0:
 			pool_points[which] += 1
-		elif layout.shallows_band(point, bounds) != 0:
+		elif layout.shallows_band(point, bounds) != 0 and not layout.in_inlet(point, bounds):
+			# The inlet's doors are a pool's; its own section asks it.
 			loose += 1
 
 	_check(
 		loose == 0 and pool_points[0] > 0 and pool_points[1] > 0,
-		"one just too big for a door reaches everything but the pools and the deepest band",
+		"one just too big for a door reaches everything but the pools, the inlet and the deepest band",
 		"radius %.0f: %d of %d reached; %d stranded elsewhere, %d and %d in the pools"
 			% [outgrown, sweep["reached"], sweep["free"], loose, pool_points[0], pool_points[1]]
 	)
@@ -3917,7 +3921,8 @@ func _test_the_rock_pools() -> void:
 		return
 
 	var small := monster.pieces[0].radius()
-	var into := layout.route_to(bounds, monster.centre(), inside, small + 24.0)
+	# Planned 48 wide: from the middle bay the route crosses a groyne door on the slant.
+	var into := layout.route_to(bounds, monster.centre(), inside, small + 48.0, 12.0)
 	var small_drive := _drive_route(world, monster, into, diagonal, TICK_RATE * 30)
 	_check(
 		into.size() >= 1 and small_drive["deepest"] > -2.0
@@ -3936,7 +3941,9 @@ func _test_the_rock_pools() -> void:
 	_run_ticks(world, 2)
 
 	var leader := monster.pieces[0].radius()
-	var beside := Vector2(south.x - south.z - leader - 40.0, bounds.end.y - leader - 8.0)
+	# 16 off the wall, not 8: the route is planned 12 wide, and a goal closer to the wall
+	# than that is a blocked cell whenever the leader ate a little on its way.
+	var beside := Vector2(south.x - south.z - leader - 40.0, bounds.end.y - leader - 16.0)
 	var past := layout.route_to(bounds, monster.centre(), beside, leader + 12.0, 12.0)
 	var leader_drive := _drive_route(world, monster, past, Vector2.DOWN, TICK_RATE * 60)
 	_check(
@@ -4094,7 +4101,7 @@ func _test_the_groynes() -> void:
 	if not _check(
 		layout != null and layout.groynes.size() == 2 and layout.chains.size() == lines
 			and layout.groynes[0] == Vector2i(line_posts + 2, 2) and layout.groynes[1] == Vector2i(line_posts + 4, 2)
-			and layout.count() == line_posts + 6,
+			and layout.count() == line_posts + 6 + layout.inlets.size() * 2,
 		"the shallows have two groynes of two posts each, after the lines and the pools",
 		"groynes %s, %d posts in the lines, %d in all" % [
 			str(layout.groynes) if layout != null else "none", line_posts, layout.count() if layout != null else -1
@@ -4167,7 +4174,8 @@ func _test_the_groynes() -> void:
 
 	# --- The detour: one crossing, planned at both sizes --------------------------
 
-	var from := Vector2(bounds.end.x - won - 30.0, gy - won - 60.0)
+	# Far enough off the open wall that a leader clears the inlet's posts.
+	var from := Vector2(bounds.end.x - won - 440.0, gy - won - 60.0)
 	var to := Vector2(from.x, gy + won + 60.0)
 	var start := rules.radius_for(HungryContent.START_MASS)
 	var short_way := layout.route_to(bounds, from, to, start + 24.0)
@@ -4254,7 +4262,9 @@ func _test_the_groynes() -> void:
 	# --- Straight at the wall door ------------------------------------------------
 
 	var door_x := (outer.x + outer.z + bounds.end.x) * 0.5
-	var run_from := Vector2(door_x, gy - 700.0)
+	# From beside the inlet rather than in front of it: further along this line is the
+	# inlet's room.
+	var run_from := Vector2(door_x, gy - 330.0)
 	var run_to := Vector2(door_x, gy + 1400.0)
 	var fits := rules.mass_for(doors[2] * 0.5 - 16.0)
 	var fit_got := _straight_run(world, 1, run_from, run_to, fits)
@@ -4306,6 +4316,330 @@ func _test_the_groynes() -> void:
 
 	_drop(world)
 	_done()
+
+
+## The shallows' inlet: two posts off the open wall in the middle bay, three doors each
+## the tightest line's gap, the middle bay's room.
+##
+## [b]The cove's questions, asked in the bay that had no room[/b], and one more: the water
+## beside the inlet must be wider than the fourth line, or it is a gate the lines do not
+## have (the first design, a tier up, failed exactly that). The doors measured off the
+## discs; a leader's water in front; a room that holds more than it lets out; hunters
+## refused. Then driven: a starting monster along its route into the room, a leader across
+## the bay in front of it, straight at the middle door one under the limit comes in and
+## one at 1.6 times it is held; and [HungryBot]s playing on their own from the middle bay,
+## which go in and out of it.
+func _test_the_inlet() -> void:
+	_section("the inlet")
+
+	var preset := HungryPreset.shallows()
+	var leader_mass := preset.win_mass
+	# Lifted for the cove's reason: the leader eats on its walk.
+	preset.win_mass = 1000000.0
+	var world := _make_world(preset, SEED + 283)
+	world.add_player(1, "Inl")
+	_settle(world)
+
+	var bounds := world.arena.bounds
+	var layout := world.layout
+	var rules := world.tunables.mass_rules
+	var lines := HungryLayout.SHALLOWS_LINES
+	var line_posts := 0
+
+	for run in layout.chains:
+		line_posts += run.y
+
+	if not _check(
+		layout != null and layout.inlets.size() == 1 and layout.chains.size() == lines
+			and layout.inlets[0] == Vector2i(line_posts + 6, 2) and layout.count() == line_posts + 8,
+		"the shallows have an inlet of two posts, after the lines, the pools and the groynes",
+		"inlets %s, %d posts in the lines, %d in all" % [
+			str(layout.inlets) if layout != null else "none", line_posts, layout.count() if layout != null else -1
+		]
+	):
+		_drop(world)
+		_done()
+		return
+
+	var short_half := minf(bounds.size.x, bounds.size.y) * 0.5
+	var door := HungryLayout.inlet_door(short_half)
+	var widths := HungryLayout.shallows_widths(short_half)
+	var won := rules.radius_for(leader_mass)
+	var last_line := layout.chains[lines - 1]
+	var a := layout.blocks[layout.inlets[0].x]
+	var b := layout.blocks[layout.inlets[0].x + 1]
+	var a_at := Vector2(a.x, a.y)
+	var b_at := Vector2(b.x, b.y)
+
+	# --- The doors, which are the level ---------------------------------------
+
+	var built := PackedFloat32Array([
+		bounds.end.x - a.x - a.z, a_at.distance_to(b_at) - a.z - b.z, bounds.end.x - b.x - b.z,
+	])
+	var mismatch := 0.0
+
+	for gap in built:
+		mismatch = maxf(mismatch, absf(gap - door))
+
+	_check(
+		mismatch < 0.5 and absf(door - widths[0]) < 0.01 and absf(door - HungryLayout.pool_door(short_half)) < 0.01,
+		"its three doors, measured off the discs, are the tightest line's gap, a rock pool's door",
+		"built %s, the tightest line %.0f" % [_widths(built), widths[0]]
+	)
+
+	# --- Placed: in the middle bay, a leader's water in front, no hidden gate ----
+
+	var face := layout.blocks[last_line.x].x + layout.blocks[last_line.x].z
+	var front := minf(a.x - a.z, b.x - b.z)
+	var to_line := front - face
+
+	for index in range(last_line.x, last_line.x + last_line.y):
+		var o := layout.blocks[index]
+		to_line = minf(to_line, minf(a_at.distance_to(Vector2(o.x, o.y)) - a.z - o.z,
+			b_at.distance_to(Vector2(o.x, o.y)) - b.z - o.z))
+
+	var to_groyne := INF
+
+	for run in layout.groynes:
+		for index in range(run.x, run.x + run.y):
+			var g := layout.blocks[index]
+			to_groyne = minf(to_groyne, minf(a_at.distance_to(Vector2(g.x, g.y)) - a.z - g.z,
+				b_at.distance_to(Vector2(g.x, g.y)) - b.z - g.z))
+
+	_check(
+		layout.bay_of(a_at, bounds) == 1 and layout.bay_of(b_at, bounds) == 1
+			and to_line > won * 2.0 + 40.0 and to_groyne > widths[lines - 2],
+		"it stands in the middle bay with more than a leader's water in front of it, and the water beside it is wider than the fourth line",
+		"bays %d and %d; %.0f of water to the last line (a leader %.0f across), %.0f to a groyne (the fourth line %.0f)"
+			% [layout.bay_of(a_at, bounds), layout.bay_of(b_at, bounds), to_line, won * 2.0, to_groyne, widths[lines - 2]]
+	)
+	_check(
+		absf(layout.narrowest_gate(bounds) - widths[0]) < 1.0,
+		"and nothing on the map is tighter than the tightest line",
+		"narrowest %.0f" % layout.narrowest_gate(bounds)
+	)
+
+	# --- A room: it holds more than it lets out -------------------------------
+
+	# The circle against the open wall on the inlet's centre line, touching both posts.
+	var mid_y := (a.y + b.y) * 0.5
+	var off := bounds.end.x - a.x
+	var half_span := (b.y - a.y) * 0.5
+	var holds := (off * off + half_span * half_span - a.z * a.z) / (2.0 * off + 2.0 * a.z)
+	var inside := Vector2(bounds.end.x - holds, mid_y)
+	var clear := minf(bounds.end.x - inside.x,
+		minf(inside.distance_to(a_at) - a.z, inside.distance_to(b_at) - b.z))
+	_check(
+		layout.in_inlet(inside, bounds) and not layout.in_inlet(Vector2(front - 1.0, mid_y), bounds)
+			and absf(clear - holds) < 0.5 and holds > door * 0.5 + 24.0 and holds < won,
+		"it is a room: it holds a radius wider than a door lets out, and nothing a leader's size",
+		"holds %.0f (%.0f mass), lets out %.0f (%.0f mass), a leader %.0f"
+			% [holds, rules.mass_for(holds), door * 0.5, rules.mass_for(door * 0.5), won]
+	)
+
+	# --- Reach: the tier it is for ----------------------------------------------
+
+	var bay := Vector2((face + front) * 0.5, mid_y)
+	_check(
+		layout.route_to(bounds, bay, inside, door * 0.5 + 16.0).is_empty()
+			and not layout.route_to(bounds, bay, inside, door * 0.5 - 16.0).is_empty(),
+		"one just over its door has no route in from the bay, and one just under has",
+		"radii %.0f / %.0f" % [door * 0.5 + 16.0, door * 0.5 - 16.0]
+	)
+
+	# --- Hunters: refused, as the pools are --------------------------------------
+
+	var lurker := HungryHunters.largest_radius()
+	var region := layout.main_region(bounds, lurker)
+	var seeded := 0
+
+	for at in HungryHunters.spawn_points_for(layout, bounds):
+		if layout.in_inlet(at, bounds):
+			seeded += 1
+
+	_check(
+		HungryLayout.in_region(region, bounds, inside)
+			and not HungryHunters.spawnable(layout, bounds, inside, region) and seeded == 0
+			and HungryHunters.spawnable(layout, bounds, bay, region),
+		"a lurker fits its doors, and a hunter may not appear inside it, only in the bay in front",
+		"lurker radius %.1f; %d seeded points inside" % [lurker, seeded]
+	)
+
+	# --- Driven: a starting monster in, a leader across in front -------------------
+
+	world.spawn(1, bay)
+	_run_ticks(world, 2)
+	var monster := world.monster_for(1)
+
+	if not _check(monster != null and monster.alive, "a monster spawns in the middle bay"):
+		_drop(world)
+		_done()
+		return
+
+	var middling := monster.pieces[0].radius()
+	var into := layout.route_to(bounds, monster.centre(), inside, middling + 24.0)
+	var middling_drive := _drive_route(world, monster, into, Vector2.RIGHT, TICK_RATE * 20)
+	_check(
+		into.size() >= 1 and middling_drive["deepest"] > -2.0
+			and middling_drive["reached"] == into.size() and layout.in_inlet(monster.centre(), bounds),
+		"a starting monster driven along its route from the bay never overlaps a post and stands inside",
+		"radius %.0f (the doors let in %.0f), %d of %d waypoints, deepest %.1f, at %s"
+			% [middling, door * 0.5, middling_drive["reached"], into.size(),
+				middling_drive["deepest"], str(monster.centre())]
+	)
+
+	var groyne_low := layout.blocks[layout.groynes[0].x]
+	var groyne_high := layout.blocks[layout.groynes[1].x]
+	world.spawn(1, bay)
+	_run_ticks(world, 2)
+	monster = world.monster_for(1)
+	world.feed_player(1, leader_mass - monster.mass())
+	_run_ticks(world, 2)
+	var leader := monster.pieces[0].radius()
+	var from := Vector2(bay.x, groyne_low.y + groyne_low.z + leader + 40.0)
+	var to := Vector2(bay.x, groyne_high.y - groyne_high.z - leader - 40.0)
+	var leader_route := layout.route_to(bounds, from, to, leader + 12.0, 12.0)
+	leader_route.insert(0, from)
+	var leader_drive := _drive_route(world, monster, leader_route, Vector2.DOWN, TICK_RATE * 30)
+	var stayed := true
+
+	for point in leader_route:
+		stayed = stayed and layout.bay_of(point, bounds) == 1
+
+	_check(
+		monster.pieces.size() == 1 and leader > won - 2.0 and leader_route.size() >= 2 and stayed
+			and leader_drive["deepest"] > -2.0 and leader_drive["reached"] == leader_route.size()
+			and not layout.in_inlet(monster.centre(), bounds),
+		"a leader driven across the middle bay in front of it stays in the bay and never overlaps a post",
+		"radius %.0f of %.0f, %d of %d waypoints, deepest %.1f, at %s"
+			% [leader, won, leader_drive["reached"], leader_route.size(), leader_drive["deepest"], str(monster.centre())]
+	)
+	_check(
+		middling_drive["covered"] > middling_drive["length"] * 0.9
+			and leader_drive["covered"] > leader_drive["length"] * 0.9
+			and middling_drive["pace"] > 0.95 and leader_drive["pace"] > 0.95,
+		"and both covered their routes at their ground speed",
+		"in %.0f of %.0f at %.2f; across %.0f of %.0f at %.2f"
+			% [middling_drive["covered"], middling_drive["length"], middling_drive["pace"],
+				leader_drive["covered"], leader_drive["length"], leader_drive["pace"]]
+	)
+
+	# --- Straight at the middle door --------------------------------------------
+
+	var run_from := Vector2(face + 200.0, mid_y)
+	var run_to := Vector2(bounds.end.x + 400.0, mid_y)
+	var fits := rules.mass_for(door * 0.5 - 16.0)
+	var fit_got := _straight_run(world, 1, run_from, run_to, fits)
+	_check(
+		fit_got > a.x + 24.0,
+		"one of %.0f mass driven straight at the middle door comes in through it" % fits,
+		"reached %.0f, the door at %.0f" % [fit_got, a.x]
+	)
+
+	var held := rules.mass_for(door * 0.5) * 1.6
+	var held_got := _straight_run(world, 1, run_from, run_to, held)
+	monster = world.monster_for(1)
+	_check(
+		monster != null and held_got < front and not layout.in_inlet(monster.centre(), bounds),
+		"one of %.0f mass on the same line is held at it" % held,
+		"reached %.0f, the posts' front at %.0f" % [held_got, front]
+	)
+	print("        doors %s, posts %.1f; the room holds %.0f, lets out %.0f; %.0f of water to the last line, %.0f to a groyne"
+		% [_widths(built), a.z, holds, door * 0.5, to_line, to_groyne])
+	_drop(world)
+
+	# --- Bots, playing on their own --------------------------------------------------
+	# Four HungryBots from the middle bay, steering themselves for thirty seconds: the
+	# inlet is a place they go into and come out of by its doors, and the push-out holds
+	# them at every tick. A grown one among them never gets in.
+	var bots := _make_world(preset, SEED + 284)
+	var bot_ids := [1, 2, 3, 4, 5]
+
+	for id in bot_ids:
+		bots.add_player(id, "Bot %d" % id)
+
+	_settle(bots)
+	# One at each door's mouth, outside, and one out in the bay.
+	var starts := [
+		Vector2(front - 80.0, mid_y), Vector2(a.x + a.z + door * 0.5, a.y - a.z - 80.0),
+		Vector2(b.x + b.z + door * 0.5, b.y + b.z + 80.0), Vector2(bay.x, mid_y - 300.0),
+	]
+
+	for i in range(starts.size()):
+		bots.spawn(bot_ids[i], starts[i])
+
+	bots.spawn(5, Vector2(front - rules.radius_for(held) - 60.0, mid_y))
+	_run_ticks(bots, 2)
+	bots.feed_player(5, held - bots.monster_for(5).mass())
+	_run_ticks(bots, 2)
+
+	var entered := {}
+	var left := {}
+	var deepest := INF
+	var grown_in := 0
+	var grown_mass := 0.0
+	var inlet_posts := [a, b]
+
+	for tick in range(TICK_RATE * 30):
+		var commands := {}
+
+		for m in bots.monsters():
+			commands[m.id] = HungryBot.command_for(bots, m, tick)
+
+		bots.tick(commands)
+
+		for m in bots.monsters():
+			if not m.alive:
+				continue
+
+			var inside_now := layout.in_inlet(m.centre(), bounds)
+
+			if m.id == 5:
+				grown_mass = m.mass()
+				if inside_now:
+					grown_in += 1
+				continue
+
+			if inside_now:
+				entered[m.id] = true
+			elif entered.has(m.id):
+				left[m.id] = true
+
+			for piece in m.pieces:
+				for post: Vector3 in inlet_posts:
+					deepest = minf(deepest,
+						piece.position().distance_to(Vector2(post.x, post.y)) - post.z - piece.radius())
+
+	_check(
+		entered.size() >= 2 and left.size() >= 1 and deepest > -2.0,
+		"HungryBots playing from the middle bay go into the inlet and out again, never into a post",
+		"%d of 4 went in (%s), %d came out, deepest %.1f into a post"
+			% [entered.size(), str(entered.keys()), left.size(), deepest]
+	)
+	_check(
+		grown_in == 0 and grown_mass > rules.mass_for(door * 0.5),
+		"and a grown one beside them, over the door's limit, is never inside",
+		"%d ticks inside at %.0f mass (the door lets in %.0f)" % [grown_in, grown_mass, rules.mass_for(door * 0.5)]
+	)
+	print("        bots: %d of 4 went into the inlet, %d came out again; the grown one (%.0f mass) %d ticks inside"
+		% [entered.size(), left.size(), grown_mass, grown_in])
+
+	_drop(bots)
+	_done()
+
+
+## The open water a shallows check starts from: the middle bay, halfway between the last
+## line and the inlet's front, on the centre line. The open wall's own middle was it until
+## the inlet stood there; this is 900 across, room for anything up to radius 450.
+func _shallows_open_water(layout: HungryLayout, bounds: Rect2) -> Vector2:
+	var last := layout.blocks[layout.chains[layout.chains.size() - 1].x]
+	var front := bounds.end.x
+
+	for run in layout.inlets:
+		for index in range(run.x, run.x + run.y):
+			front = minf(front, layout.blocks[index].x - layout.blocks[index].z)
+
+	return Vector2((last.x + last.z + front) * 0.5, bounds.get_center().y)
 
 
 ## Drives [param monster] along [param route] at full reach, measuring what the level
@@ -5213,9 +5547,9 @@ func _test_the_reach() -> void:
 
 		# The shallows' west wall is the SHALLOW one, behind five lines a leader cannot
 		# cross, so a fill from there measures a band rather than the floor. From the
-		# open wall instead.
+		# open water in front of the inlet instead.
 		if preset.layout == HungryLayout.SHALLOWS:
-			wall.x = bounds.end.x - won - 30.0
+			wall = _shallows_open_water(layout, bounds)
 
 		# [b]Off the wall until a leader can stand there.[/b] The gauntlet's west end is a
 		# harbour now, and this point is behind its middle post — inside the post for a
@@ -5306,7 +5640,9 @@ func _test_the_reach() -> void:
 			var in_front := 0
 
 			for point: Vector2 in stranded_big:
-				if layout.shallows_band(point, bounds) >= HungryLayout.SHALLOWS_LINES - 1:
+				# The pools and the inlet are rooms in front of it, shut to a leader by design.
+				if layout.shallows_band(point, bounds) >= HungryLayout.SHALLOWS_LINES - 1 \
+						and not layout.in_pool(point, bounds) and not layout.in_inlet(point, bounds):
 					in_front += 1
 
 			_check(
