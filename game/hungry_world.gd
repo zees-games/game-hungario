@@ -310,6 +310,10 @@ func _build_match() -> DotResult:
 	match_node.name = "Match"
 	match_node.rules = rules
 	match_node.register_service = false
+	# Its own point only. Left to look for itself the match collects every spawn point under
+	# the current scene, and a solo mode change has the old client's world in the tree beside
+	# this one, freed a moment later (dot-match's history: it crashed the engine).
+	match_node.spawns_ref = DotNodeRef.of_self()
 
 	var config := DotMatchConfig.new()
 	config.tick_rate = tick_rate

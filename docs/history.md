@@ -77,6 +77,7 @@ None of these was reachable from the other project's own suite. Details in [bugs
 - dot-net never pulled back a predicted entity whose server state stood still (fixed in f99fde3): an empty snapshot body was adopted as "you are right".
 - dot-ui's `DotTableView` honoured no column width and a column with no `width` collapsed to nothing: the mass, pieces, rank and ping had never been drawn.
 - dot-audio refused a sound with no file, until `DotAudioDef.generated`.
+- dot-match walked spawn points that had been freed: the solo mode change builds a fresh client beside the old one, the new match (no `spawns_ref`) collected every point under the current scene, and when the old world was freed the next round's `point.reset()` crashed the engine (signal 11). Seen only with the client built late in `headless_presentation`. dot-match forgets freed points (5689bc2); the world points the match at its own point (`spawns_ref`), and the section runs last on purpose.
 
 ## "Mode vote in 1…" under an open ballot
 

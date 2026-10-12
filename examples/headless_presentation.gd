@@ -61,7 +61,6 @@ func _run() -> void:
 	if not _is_exit_probe():
 		probe = await _run_exit_probe()
 
-	await _test_the_mode_list()
 	_test_schema_is_the_config()
 	_test_sound_is_still_the_bank()
 	_test_limits_the_bank_never_had()
@@ -77,6 +76,9 @@ func _run() -> void:
 	_test_board_makes_room()
 	_test_help()
 	_test_migration()
+	# Last, on purpose: built after every other section has left worlds in the tree, which
+	# is what crashed the engine when the new client's match collected their spawn points.
+	await _test_the_mode_list()
 
 	if not probe.is_empty():
 		_test_exits_clean(probe)
@@ -948,6 +950,11 @@ func _test_chat_box() -> void:
 ## starts that mode now, as a fresh client on its preset (a mode is a game here). A whole
 ## offline client, because that is what is replaced. The server's half is dot-vote's map menu
 ## over this game's mode vote (dot-vote's suite, and `dedicated`).
+##
+## [b]Run last.[/b] Built late, with other sections' nodes still in the tree, the fresh client's
+## match once collected spawn points that were not its own and crashed the engine (signal 11
+## in `DotMatch._begin_round`) when they were freed; the world now hands the match its own
+## point (`spawns_ref`) and dot-match forgets freed ones.
 func _test_the_mode_list() -> void:
 	_section("M opens the mode list, and solo a choice starts that mode")
 	var holder := Node.new()
