@@ -99,7 +99,12 @@ func play(request: Dictionary) -> int:
 		# The pitch dot-audio rolled, not one this file picks. A pitch chosen down here
 		# could not be reproduced from a seed, and an audio bug that cannot be reproduced
 		# is an audio bug nobody fixes.
-		sound.play(CUES[id], float(request.get("pitch", 1.0)))
+		#
+		# [b]And the volume dot-audio decided, which this line dropped until 2026-10-12.[/b]
+		# The request's volume_db is the def's gain and `loudness_trim_db` (and a caller's
+		# volume scale); every cue played at the bank's flat -8 dB whatever the catalogue
+		# said, and a measured trim reached nothing.
+		sound.play(CUES[id], float(request.get("pitch", 1.0)), float(request.get("volume_db", 0.0)))
 
 	return handle
 

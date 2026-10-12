@@ -202,7 +202,9 @@ static func bake(
 ##
 ## [param pitch] is a multiplier, so eating a haunch and eating a crumb are the same blip
 ## at different pitches rather than two voices that have to be kept in step.
-func play(cue: Cue, pitch: float = 1.0) -> void:
+## [param gain_db] is added to [member volume_db]: what dot-audio decided this voice is worth
+## (the def's gain and the measured trim), handed down by [code]HungrySoundSink[/code].
+func play(cue: Cue, pitch: float = 1.0, gain_db: float = 0.0) -> void:
 	if muted or _players.is_empty():
 		return
 
@@ -218,7 +220,7 @@ func play(cue: Cue, pitch: float = 1.0) -> void:
 
 	player.stream = stream
 	player.pitch_scale = clampf(pitch, 0.4, 2.4)
-	player.volume_db = volume_db
+	player.volume_db = volume_db + gain_db
 
 	# [b]Not started when nothing will ever mix it.[/b] Under the dummy audio driver —
 	# every headless run — a started voice's playback is registered with the audio

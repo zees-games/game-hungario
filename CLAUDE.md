@@ -32,7 +32,7 @@ Read the family [CLAUDE.md](../../CLAUDE.md) first; this file is only what is sp
 | `game/net/` | the dot-net bridge, piece and match entities, interest, events and requests |
 | `game/client/` | client scene, camera, renderer, HUD, input, touch, menus, sound, rider, browser, presentation; `hungry_settings.gd` (dot-menu's document, menu and the migration) and `hungry_bindings.gd` (the key table) |
 | `examples/` | the seven test suites, `play.tscn` (the standalone application) |
-| `tools/` | `screenshot_map.sh`, `screenshot_menus.sh`, `publish_avatars.tscn` |
+| `tools/` | `screenshot_map.sh`, `screenshot_menus.sh`, `publish_avatars.tscn`, `loudness_pilot.gd` |
 | `content/avatars/`, `scenes/fx/` | built-in rider parts, effect scenes |
 | `game.yml` | the descriptor that travels inside the published pack (Classic); the other modes' descriptors are in dot-server-deploy's `content/hungry_*` |
 
@@ -52,7 +52,7 @@ Short forms; the reasoning is in the linked file.
 
 **Simulation**
 
-- **The bed is dot-audio's, through a second manager** (`HungryPresentation.bed_audio` on dot-audio's Godot sink), because `HungrySoundSink` plays generated cues and no files. No footsteps: nobody walks. Measure with `addons/dot_audio/tools/loudness.sh -- --offline` (the main scene is the browser).
+- **The bed is dot-audio's, through a second manager** (`HungryPresentation.bed_audio` on dot-audio's Godot sink), because `HungrySoundSink` plays generated cues and no files. No footsteps: nobody walks. Measure with `addons/dot_audio/tools/loudness.sh --warmup=6 -- --offline` (the main scene is the browser), which steers the local monster through `tools/loudness_pilot.gd` (a pointer that never moves steers nothing); `HungrySoundSink` plays each cue at the request's `volume_db`, so the def's gain and `loudness_trim_db` reach the bank.
 - **Escape is dot-menu's menu** (`HungrySettings`, a `DotMenuSettings`): Loadout first, Game, the stock pages, Controls over `HungryBindings`, Help & commands (H) and Leave. Nothing in the table may default to H or M; `headless_presentation` checks it. [client](docs/client.md#screens)
 - Every piece steers toward the pointer's **world point** (`HungryWorld.pointer_of`), never along one shared direction, or split pieces can never merge. [gameplay](docs/gameplay.md#a-player-is-a-set-and-the-pointer-is-a-point)
 - The arena size is part of every food position: `adopt_world_size` before `adopt_field_seed`. Slot indexes are never reused. [gameplay](docs/gameplay.md#four-fields-one-id-space-and-only-membership-travels)

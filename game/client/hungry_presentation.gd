@@ -297,6 +297,13 @@ func _build_audio() -> DotResult:
 	audio.mixer = DotAudioMixer.new()
 	audio.voices = HungrySound.VOICES
 	audio.apply_mixer_to_buses = false
+	# Measured toward the family's -17 LUFS (dot-audio docs/loudness.md) with the local monster
+	# driven by tools/loudness_pilot.gd (steering at food, away from bigger monsters, throwing,
+	# splitting with mass to spare), at this game's own master default (0.4, Master -8 dB):
+	# with these two trims three 40 s runs read -17.6, -17.1 and -17.6 LUFS. Large because the
+	# bank is baked at -8 dB under that -8 dB master, and because until 2026-10-12 the sink
+	# dropped every request's volume, so no trim reached a cue (the bed alone read -26).
+	audio.loudness_trim_db = 19.0
 	# The seam. Everything above it is dot-audio's; the last four lines are this game's.
 	audio.sink = HungrySoundSink.new(sound)
 	add_child(audio)
@@ -313,8 +320,9 @@ func _build_audio() -> DotResult:
 	bed_audio.voices = 2
 	bed_audio.apply_mixer_to_buses = false
 	bed_audio.register_as_service = false
-	# No trim: measured with dot-audio's addons/dot_audio/tools/loudness.sh (-- --offline) the
-	# bed alone reads about -27 LUFS under this game's -8 dB master, a room under the cues.
+	# The bed's share of the measurement above: about -20 LUFS alone under the -8 dB master, a
+	# room under the cues and over silence.
+	bed_audio.loudness_trim_db = 6.0
 	add_child(bed_audio)
 	var bres := bed_audio.setup()
 	if not bres.ok:

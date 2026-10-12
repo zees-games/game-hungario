@@ -86,3 +86,7 @@ The countdown's every second lingered 1.5 s so a late tick would not blink it of
 ## A menu page that leaked itself
 
 The Loadout page, the first version of `HungryMenus.LoadoutPage` (2026-10-12), gave its rows getters and setters that read the page's own members. A lambda that touches a member holds the object that defines it, the object held the page, the page held the rows, and the rows held the lambdas: a ring of RefCounteds that nothing ever freed. Every suite passed; `sandbox` alone ended with "8 resources still in use at exit", which a clean clone of the previous commit did not. The rows now capture a dictionary of state and call static functions, and the page object is outside the ring.
+
+## Every cue at one volume whatever the catalogue said
+
+`HungrySoundSink.play` handed `HungrySound` the cue and the pitch dot-audio had decided and dropped the request's `volume_db`, so every cue played at the bank's flat -8 dB: the def's gain and `loudness_trim_db` reached nothing but the bed (which has its own manager on dot-audio's Godot sink); only the bus volumes moved the cues. It hid because the bank was loud enough to hear and nothing measured it: dot-audio's capture recorded -26 LUFS, which read as "the stand-in did not play" until a pilot that eats food recorded the same number with fifty cues in it (2026-10-12). The sink now passes the volume through, and a trim is set from a measured run.
