@@ -98,14 +98,17 @@ var hazards: HungryHazards = null
 ## dark and heavy beside every other game; the saturated things on screen are now the food,
 ## the fruit and the monsters, on a pale ground that never competes with them.
 ##
-## The arena floor: a pale sky blue, one clear step lighter than the void so the boundary
-## reads without the wall having to do all the work.
-var background := Color(0.86, 0.92, 1.00)
+## The arena floor: a sky blue, one clear step lighter than the void so the boundary reads
+## without the wall having to do all the work. A mid sky blue rather than a near-white one:
+## the floor is most of every frame, and at (0.86, 0.92, 1.00) the whole frame sat at 0.91
+## luminance with the grid, the rocks and the paler food barely off it (the first play
+## test's "washed out", in 2D).
+var background := Color(0.74, 0.82, 0.96)
 
 ## Outside the walls. A deeper periwinkle, and the only thing that says "you cannot go there".
-var void_colour := Color(0.58, 0.64, 0.86)
+var void_colour := Color(0.46, 0.52, 0.78)
 
-var grid_line := Color(0.36, 0.48, 0.78, 0.22)
+var grid_line := Color(0.30, 0.40, 0.72, 0.30)
 var wall := Color(0.38, 0.46, 0.92)
 
 ## Clouds drifting under the arena: parallaxed, hashed per cell like [DotStarfield] (the
@@ -120,8 +123,8 @@ const CLOUD_WHITEN := 0.6
 ## The level's own geometry. Opaque and in the wall's family, because the one thing it has
 ## to say is "you cannot be here" — a translucent rock reads as an area effect, and the
 ## first thing a player does with an area effect is drive into it.
-var rock := Color(0.66, 0.62, 0.90)
-var rock_rim := Color(0.40, 0.36, 0.76)
+var rock := Color(0.56, 0.52, 0.86)
+var rock_rim := Color(0.32, 0.28, 0.66)
 
 ## Food, by tier. Cool through to hot, so size reads at a glance; saturated enough to
 ## stand off the pale floor (the dark-sky tints washed out against it).
