@@ -715,18 +715,24 @@ func _steps(count: int, command: Dot2DCommand = null) -> void:
 func _test_handshake() -> void:
 	_section("a client joins")
 
-	var added := _server_bridge.add_player(CLIENT_PEER, 7, "Ada")
-	_check(added.ok, "the server adds them", str(added.error))
-
-	_check(
-		not _server_net.peers().has(CLIENT_PEER),
-		"and sends them nothing until they ask"
-	)
-
 	# The client asking is what admits it. Between dot-server's signon finishing and the
 	# client building its scene there is a window in which it has no node for an RPC to
 	# land on, so everything sent in it is lost and logged as a missing node.
+	#
+	# Asked FIRST, as over ENet with loss: a client is PLAYING by its own reckoning once it
+	# has sent `loaded`, on another channel, so its READY can reach the server before its
+	# seat. The server sends nothing on it, keeps it, and answers it when the seat comes; a
+	# bridge that dropped it never told this client anything.
 	_client_bridge.ask_for_world()
+	_flush()
+	_flush()
+	_check(
+		not _server_net.peers().has(CLIENT_PEER) and _client_bridge.local_player_id != 7,
+		"a READY before the seat admits nothing yet"
+	)
+
+	var added := _server_bridge.add_player(CLIENT_PEER, 7, "Ada")
+	_check(added.ok, "the server adds them", str(added.error))
 	_flush()
 	_flush()
 

@@ -183,6 +183,11 @@ var _peer_of_player: Dictionary = {}
 ## once per call, and the events themselves are simply lost. Waiting for
 ## [constant HungryEvents.Ask.READY] is the client saying it has somewhere to put them.
 var _ready_peers: Dictionary = {}
+## Server: peers whose READY came before their seat ([method add_player]). A client sends READY
+## when its link says PLAYING, which the link decides itself after sending `loaded` on another
+## channel; over ENet with loss the READY can overtake `loaded`, and a READY dropped here left
+## that client waiting for a world for ever. Admitted when seated.
+var _ready_unseated: Dictionary = {}
 
 ## piece id -> [HungryPieceNet].
 var _behaviours: Dictionary = {}
@@ -606,11 +611,17 @@ func add_player(
 	world.spawn(session_id)
 	roster_changed.emit(session_id)
 
+	if peer_id > 0 and _ready_unseated.has(peer_id):
+		_ready_unseated.erase(peer_id)
+		_admit(peer_id, session_id)
+
 	return DotResult.success(monster)
 
 
 ## Drops a peer's player from the world and from replication. Server side.
 func remove_peer(peer_id: int) -> void:
+	_ready_unseated.erase(peer_id)
+
 	if not _player_of_peer.has(peer_id):
 		return
 
@@ -1629,6 +1640,9 @@ func _on_request(message: DotNetMessage) -> void:
 	var peer_id := ask.sender_peer_id
 
 	if not _player_of_peer.has(peer_id):
+		# Kept, not dropped: see `_ready_unseated`.
+		if ask.kind == HungryEvents.Ask.READY and peer_id > 0:
+			_ready_unseated[peer_id] = true
 		return
 
 	var player_id := int(_player_of_peer[peer_id])

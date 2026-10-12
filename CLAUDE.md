@@ -76,6 +76,7 @@ Short forms; the reasoning is in the linked file.
 
 - The first `_net_simulate` on a tick runs the whole world (`ensure_world_ticked`). [netcode](docs/netcode.md#ordering-the-first-behaviour-through-drives-the-world)
 - Nothing is sent before `Ask.READY`; greet players from `peer_admitted`, not `client_spawn`; `_broadcast` goes peer by peer. [netcode](docs/netcode.md#nothing-is-sent-to-a-peer-before-it-asks)
+- **A READY before the player is seated is kept** (`_ready_unseated`, kept by `_on_request` before its seat check) and answered by `add_player`: over ENet with loss it overtakes the link's `loaded`, and a dropped READY left the client waiting for ever. `headless_net` sends it first (armed). [history](docs/history.md)
 - Bots are peer 0: never `add_peer(0)`, never `send(msg, 0)`. [netcode](docs/netcode.md#a-bot-has-no-peer-and-peer-0-is-not-everybody)
 - Prediction replays the motor only; `receive_snapshot` must not reconcile; `_net_state_applied` skips predicted entities; `RECONCILE_EPSILON` on every `DotNetConfig`. [netcode](docs/netcode.md#prediction-is-the-motor-and-deliberately-not-the-set)
 - Anything that changes how a monster moves goes through replicated admin state, or the owner rubber-bands. [netcode](docs/netcode.md#admin-state-goes-through-what-the-client-predicts)
