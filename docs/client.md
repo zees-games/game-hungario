@@ -28,13 +28,25 @@ The server names the pack in the hello (`hungry_avatar_pack`), so one client bui
 
 **Under the `Dummy` audio driver `HungrySound.play` does not start the voice.** Every headless run gets that driver, which never mixes or retires a started playback, so the playbacks leaked at exit. The voice is still chosen and loaded, so the round-robin is unchanged.
 
-## Settings are a `DotConfig`
+## Settings are dot-menu's document
 
-`HungryConfig` is a set of `@export`s. `DotSettingsPanel` reads the annotations (type, range, group, hint) and builds the editors, so adding a setting adds a row and the screen cannot drift from the settings.
+`HungrySettings` is dot-menu's `DotMenuSettings`, as in every game of the family: one dot-settings document (`user://hungry_settings`, namespace `game_hungario`, the account keys under `tmc_account`), dot-menu's applier for the stock keys, and the Escape menu over it.
 
-- **Applied, then announced.** The panel holds edits until Apply because a config is legitimately invalid on its way to valid, and `validate()` runs on the whole thing. `DotSettingsScreen.applied` fires only after `apply()` succeeded.
+- **This game's own keys are still declared by `HungryConfig`** (`@export`s for the camera and the interface) and read out of it with `DotSettingsSchema.from_config`, so a range tightened there tightens the slider and the console at once. The presentation layer writes each change back into the config, and `HungryClient._apply_settings` pushes it at the camera, renderer and HUD. The config is never saved itself.
+- **The volume is the stock audio page** (`master_volume`, `sfx_volume`, `ui_volume`), set on dot-audio's mixer by the applier. The bank's own level stays at `HungrySound`'s default. The old `volume_db` was applied twice (each voice and the Master bus), so this game's master starts at 0.4, about the old loudness, not the family's 0.8.
+- **Stock keys nothing here applies are left out** (`HungrySettings.NOT_APPLIED`): render scale and field of view (2D), sensitivity and invert (the mouse is a pointer), and the voice mode, microphone and voice volume (`HungryVoice` is not published as `dot_voice_client`). The talk key is a table row.
 - **Pushed, not polled.** The camera, sound and renderer hold the value they were given; no dictionary lookups in the draw path.
-- A missing settings file is a first run. A malformed one falls back to defaults with a warning rather than refusing to start.
+
+### The migration from dot-ui's files
+
+Until 2026-10-12 the settings screen saved `HungryConfig` to `user://cfg/hungry.json` and the Controls screen saved the `hungry_*` actions to `user://cfg/bindings.json`, beside the document (which already held net_stat, the chat keys and anything set at the console). `HungrySettings.setup` brings a version-1 document (or none) to version 2 once, before dot-menu loads it:
+
+- **The document wins over the files**, because that is what the old client showed: it loaded `hungry.json` and laid the document over it.
+- The camera and interface keys come over by name. The volume becomes `master_volume` at the loudness it had (`2 * volume_db + 8` dB, capped at full; muted is 0).
+- Split and throw were a key and a mouse button on one action; each becomes its own row (`bind_split` and `bind_split_click`), because a table row puts one input on its action.
+- The document is saved at version 2, so a player who later changes a value back is never overruled by the old file. The files are read, never written or deleted. A first run with nothing to bring writes nothing.
+
+`headless_presentation`'s migration section covers all four.
 
 ## The presentation layer, and what it deliberately does not duplicate
 
@@ -42,18 +54,20 @@ The server names the pack in the hello (`hungry_avatar_pack`), so one client bui
 
 - **dot-audio does not replace `HungrySound`.** `HungrySoundSink` is dot-audio's sink and the generation stays; the addon adds the catalogue, concurrency caps, cooldowns, distance cull, priorities, a `linear_to_db` curve and a reason for every refusal. `DotAudioDef.generated` exists because of this game.
 - **dot-settings does not replace `HungryConfig`.** `DotSettingsSchema.from_config` reads it, so ranges come from the `@export_range` hints and the only addition is **scope** (which keys follow a person between games). `apply_to_config` is the way back.
-- **`apply_all()` runs once after the layer is built.** Everything reacts to `changed`, and a value loaded from disk has not changed, so without it a saved volume never reached the bank.
+- **`apply_all()` runs once after the layer is built**, this game's keys and then the applier's. Everything reacts to `changed`, and a value loaded from disk has not changed, so without it a saved value never reached what reads it.
 
 **Effects** are dot-fx: `fx_catalogue()` names `eat_pop` and `burst` under `scenes/fx/`, script-free `CPUParticles2D` scenes at `z_index` 5 over the renderer's -1. `FX_DIR` goes through `HungryPaths.rebase` so a delivered pack finds them; `_build_fx` warns when a scene is missing (dot-fx refuses a missing scene only at DEBUG). `headless_presentation` asserts `missing_scenes()` is empty and that each effect puts particles where it happened.
 
 ## Screens
 
-Five screens on the stack: pause, settings, controls, scoreboard, loadout.
+**Escape is dot-menu's menu**, the same structure as every other game: Resume, the pages (Loadout, General, Game, Video, Audio, Controls, Advanced), Help & commands and Leave. H opens the help screen (the goal, the rules, and every key as bound now), and the "H Help" plate is in the top-left corner, with the feed moved under it. The only thing left on dot-ui's screen stack is the held Tab scoreboard.
 
-- **Pause and settings are dot-ui's** (`DotPauseScreen`, `DotSettingsScreen`). What is this game's is `HungryMenus.PAUSE_BUTTONS` and what a press does; ids are derived from labels, and for the buttons that open a screen **the button id IS the screen id**, so `install` looks it up rather than keeping a second table. The settings screen scrolls: a `DotSettingsPanel` is as tall as its document, and without a `ScrollContainer` Apply, Revert and Back fall off the window, which only a picture shows.
-- **Controls, scoreboard and loadout are this game's own**, deliberately: a key map, a scoreboard and a loadout schema are things dot-ui has no opinion about.
-- **The scoreboard draws dot-menu's `DotMenuScoreboard`**: every monster, bots included, in the world's rank order, with the server's roster merged in by id for people (time on, ping). Tab is held. Sort by the world's rank, not by mass then name, or a draw reads 2, 3, 1.
-- **The rest of dot-menu is not used** — not converted, on purpose for now: dot-menu's menu is a view of dot-settings and this game's settings are a `DotConfig`, so moving would change how settings are stored, not just the screens.
+- **Loadout is the first page** (`HungryMenus.LoadoutPage`), live rows rather than settings: a loadout is the server's to accept, so each choice is sent as it is made and takes effect at the next spawn. It offers what `DotLoadoutSchema.choices_for` allows this player and nothing else. Its rows' callables capture a dictionary, never the page object: a row holding a callable bound to the object that holds the row is a cycle of RefCounteds, and the whole page leaked at exit (`sandbox`, 8 resources) until it did not.
+- **Game is this game's page** (`HungrySettings.game_page`): camera lag, zoom, threat rings, names, the minimap, message lines.
+- **The keys are `HungryBindings`' table**: split, eject, throw, boost, a mouse-button row each for split and throw, chat and nearby chat (still stored as `chat_open_key`/`chat_near_key`, ACCOUNT, so nobody's chat key reset), push to talk, the scoreboard, and dot-menu's help. Nothing may default to H or M; `headless_presentation` checks it.
+- **No M yet**: `map_menu` is off until the modes are handed to dot-menu (`use_maps`), queue item `fpt-family-map-menu-1`.
+- **Leave is stock**: off the server when connected, "Quit game" solo on a desktop, hidden solo in a browser.
+- **The scoreboard draws dot-menu's `DotMenuScoreboard`**: every monster, bots included, in the world's rank order, with the server's roster merged in by id for people (time on, ping). Tab is held (`hungry_scoreboard`, a table row). Sort by the world's rank, not by mass then name, or a draw reads 2, 3, 1.
 - **The rank column width is `0.4`.** An omitted width is an equal share, so a one-digit `#` would otherwise take as much room as the mass.
 
 ## Chat box
@@ -62,9 +76,9 @@ There is no chat screen; `HungryPresentation` builds dot-ui's `DotChatWindow`. W
 
 **Every chat line goes to the box, and to the HUD feed only when there is no box.** Both drew every line, so a vote's ballot was printed in two corners and the feed's copy ran under the vote countdown at the top. The box is lifted 84 px (`margin_bottom`) to clear the mass bar and the carry line; at the stock 16 the newest lines were drawn over the bar.
 
-The console is dot-console's `DotConsoleKit` (plus `quit` and `audio`, ahead of the server's console). The kit registers its panel with a `DotMenu`, which this game does not have, so `HungryClient._wire_console` suspends `HungryInput` on the console's `visibility_changed`, through the same `_refresh_suspended` as the chat box; `headless_presentation` holds the keys down to prove it.
+The console is dot-console's `DotConsoleKit` (plus `quit` and `audio`, ahead of the server's console), registered as one of the Escape menu's overlays. `HungryClient._wire_console` suspends `HungryInput` on the console's `visibility_changed`, through the same `_refresh_suspended` as the chat box and the menu; `headless_presentation` holds the keys down to prove it. The menu's `busy` is the presentation's `swallows_input`, so Escape and H are the chat line's and the console's while they have the keyboard.
 
-**The three chat settings are added beside the config, not read out of it** — the one deliberate departure from `from_config`. A `DotConfig` is layered from JSON, environment and argv, and a key binding has no business arriving from a server's argv (`HUNGRY_CHAT_OPEN_KEY=Q` in a container would rebind every player). `headless_presentation` asserts the key is not a config value.
+**The chat settings are not config values.** `chat_window` is dot-menu's stock setting and the two keys are rows of the key table. A `DotConfig` is layered from JSON, environment and argv, and a key binding has no business arriving from a server's argv (`HUNGRY_CHAT_OPEN_KEY=Q` in a container would rebind every player). `headless_presentation` asserts the key is not a config value.
 
 | | |
 | --- | --- |

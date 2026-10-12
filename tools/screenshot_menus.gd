@@ -1,8 +1,8 @@
 extends SceneTree
 
 const HungryConfig := preload("../game/hungry_config.gd")
-const HungryContent := preload("../game/hungry_content.gd")
 const HungryMenus := preload("../game/client/hungry_menus.gd")
+const HungrySettings := preload("../game/client/hungry_settings.gd")
 const HungryWorld := preload("../game/hungry_world.gd")
 const HungryPresentation := preload("../game/client/hungry_presentation.gd")
 const HungrySound := preload("../game/client/hungry_sound.gd")
@@ -10,10 +10,14 @@ const HungrySound := preload("../game/client/hungry_sound.gd")
 ## Renders this game's own screens to `screenshots/` so a person can look at them.
 ##
 ## [b]This game had no screenshot tool at all[/b], and it is the one with the most screens:
-## a pause menu, a loadout picker, a scoreboard, a rebinder and a chat window. It is also
-## where two of the family's table bugs were sitting — its browser and its HUD leaderboard
-## both declared columns with no width, and a column with no width used to collapse to
-## nothing, so the mass, the pieces, the rank and the ping had never been drawn.
+## the Escape menu's pages (Loadout first), the help screen, the held scoreboard and the
+## console. It is also where two of the family's table bugs were sitting — its browser and
+## its HUD leaderboard both declared columns with no width, and a column with no width used
+## to collapse to nothing, so the mass, the pieces, the rank and the ping had never been
+## drawn.
+##
+## The menu is the real one: the presentation layer's [HungrySettings], over a memory store
+## so nothing this draws is written to this machine's settings.
 ##
 ## Run through `tools/screenshot_menus.sh`. [b]Not `--headless`[/b]: that gives a null
 ## renderer, a 64 x 64 viewport, and every frame it saves is empty — which is worse than no
@@ -27,6 +31,7 @@ var _world: HungryWorld = null
 var _seeded := false
 var _shots: Array[Dictionary] = []
 var _presentation: HungryPresentation = null
+var _menu: DotMenu = null
 var _at := 0
 var _wait := SETTLE
 var _done := false
@@ -36,15 +41,6 @@ func _initialize() -> void:
 	DotLog.set_level(DotLog.Level.ERROR)
 	DirAccess.make_dir_recursive_absolute(OUT_DIR)
 
-	# The movement and action bindings, so the rebinder has rows. `HungryInput` registers
-	# them in the real client; without them the picture is an empty screen for a reason
-	# that has nothing to do with the code.
-	for action in [
-		&"hungry_split", &"hungry_throw", &"hungry_boost", &"hungry_eject",
-	]:
-		if not InputMap.has_action(action):
-			InputMap.add_action(action)
-
 	_stack = DotScreenStack.new()
 	_stack.name = "Stack"
 	_stack.register_service = false
@@ -52,24 +48,6 @@ func _initialize() -> void:
 	_stack.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	root.add_child(_stack)
 	_stack.setup()
-
-	var ui_config := DotUiConfig.new()
-
-	var pause := DotPauseScreen.new()
-	pause.name = "Pause"
-	pause.half_size = Vector2(170.0, 150.0)
-	pause.build(PackedStringArray(HungryMenus.PAUSE_BUTTONS))
-	_stack.register(pause)
-
-	var controls := HungryMenus.ControlsScreen.new()
-	controls.name = "Controls"
-	controls.build(ui_config)
-	_stack.register(controls)
-
-	var loadout := HungryMenus.LoadoutScreen.new()
-	loadout.name = "Loadout"
-	loadout.build(HungryContent.loadout_schema())
-	_stack.register(loadout)
 
 	# A world with monsters of a spread of masses, through the real world rather than a
 	# hand-built row list: a picture of a dictionary is a picture of a dictionary.
@@ -80,50 +58,38 @@ func _initialize() -> void:
 	world.setup()
 
 	_world = world
-
-	var scoreboard := HungryMenus.ScoreboardScreen.new()
-	scoreboard.name = "Scoreboard"
-	scoreboard.build(world, null)
-	_stack.register(scoreboard)
-
-	# [b]The settings screen was not in this list and is the one that most needed to be.[/b]
-	# It is generated from a document rather than laid out, so the only thing that can be
-	# wrong with it is its SHAPE -- and the shape is exactly what no assertion reaches.
-	# dot-ui's own screenshot found the case: a panel as tall as somebody's `@export` list
-	# grows past the bottom of the window and takes Apply, Revert and Back with it, with
-	# every property correct throughout. This game's own copy of the screen had no
-	# ScrollContainer and was never looked at.
-	var settings := DotSettingsScreen.new()
-	settings.name = "Settings"
-	settings.build(HungryConfig.new())
-	_stack.register(settings)
+	var _board := HungryMenus.install(_stack, world, null)
 
 	_shots = [
-		{"id": &"pause", "file": "menu_pause.png"},
-		{"id": &"loadout", "file": "menu_loadout.png"},
+		{"page": &"loadout", "file": "menu_loadout.png"},
+		{"page": &"general", "file": "menu_general.png"},
+		{"page": &"game", "file": "menu_game.png"},
+		{"page": &"audio", "file": "menu_audio.png"},
+		{"page": &"controls", "file": "menu_controls.png"},
+		{"help": true, "file": "menu_help.png"},
 		{"id": &"scoreboard", "file": "menu_scoreboard.png"},
-		{"id": &"controls", "file": "menu_controls.png"},
-		{"id": &"settings", "file": "menu_settings.png"},
-		# The console, open: the real `HungryPresentation`, so the panel is the one
-		# `DotConsoleKit` builds and on the layer it puts it on.
-		{"id": &"console", "file": "console.png"},
+		# The console, open: the kit's panel, on the layer it puts it on.
+		{"console": true, "file": "console.png"},
 	]
 
 
-## Built when its shot comes round rather than in `_initialize`, where nothing is in the
-## tree yet and the presentation's settings, audio and console would set up outside it.
-func _open_console() -> void:
-	if _presentation == null:
-		_presentation = HungryPresentation.new()
-		_presentation.name = "Presentation"
-		_presentation.config = HungryConfig.new()
-		_presentation.sound = HungrySound.make()
-		root.add_child(_presentation.sound)
-		root.add_child(_presentation)
-		DotLog.result("screenshot", "the presentation", _presentation.setup())
-	# `help` only: a setting typed here would be written to this machine's own settings.
-	var _ran := _presentation.console.submit("help")
-	var _opened := _presentation.console.open()
+## The presentation layer, with its menu and console, built on the first frame rather than in
+## `_initialize`, where nothing is in the tree yet.
+func _build_presentation() -> void:
+	_presentation = HungryPresentation.new()
+	_presentation.name = "Presentation"
+	_presentation.config = HungryConfig.new()
+	_presentation.sound = HungrySound.make()
+	_presentation.menu_settings = HungrySettings.new()
+	_presentation.menu_settings.store = DotSettingsStoreMemory.new()
+	_presentation.menu_settings.legacy_config_path = ""
+	_presentation.menu_settings.legacy_bindings_path = ""
+	root.add_child(_presentation.sound)
+	root.add_child(_presentation)
+	DotLog.result("screenshot", "the presentation", _presentation.setup())
+	_menu = _presentation.menu_settings.menu
+	if _menu != null:
+		var _l := _menu.add_page(HungryMenus.loadout_page(null).page, &"general")
 
 
 func _process(_delta: float) -> bool:
@@ -151,6 +117,7 @@ func _process(_delta: float) -> bool:
 			if not added.ok:
 				push_error("could not add %s: %s" % [names[i], added.error.message])
 
+		_build_presentation()
 		return false
 
 	if _at >= _shots.size():
@@ -161,21 +128,30 @@ func _process(_delta: float) -> bool:
 
 	if _wait == SETTLE:
 		_stack.clear()
+		if _menu != null:
+			_menu.close_all()
+		if _presentation.console.is_open():
+			_presentation.console.close()
 
-		if shot["id"] == &"console":
-			_open_console()
-			_wait -= 1
-			return false
+		if shot.has("console"):
+			# `help` only: a setting typed here would be a setting.
+			var _ran := _presentation.console.submit("help")
+			var _opened := _presentation.console.open()
+		elif shot.has("help"):
+			_menu.open_help()
+		elif shot.has("page"):
+			_menu.open(StringName(shot["page"]))
+		else:
+			var opened := _stack.push(StringName(shot["id"]))
 
-		var opened := _stack.push(StringName(shot["id"]))
-
-		if not opened.ok:
-			# Said out loud rather than saved as a grey rectangle. A screen registered under
-			# a name nothing pushes is exactly the bug this tool found in dot-ui, and a
-			# picture of an empty viewport is indistinguishable from a broken renderer.
-			push_error("could not open '%s': %s" % [shot["id"], opened.error.message])
-			_at += 1
-			return false
+			if not opened.ok:
+				# Said out loud rather than saved as a grey rectangle. A screen registered
+				# under a name nothing pushes is exactly the bug this tool found in dot-ui,
+				# and a picture of an empty viewport is indistinguishable from a broken
+				# renderer.
+				push_error("could not open '%s': %s" % [shot["id"], opened.error.message])
+				_at += 1
+				return false
 
 	if _wait > 0:
 		_wait -= 1

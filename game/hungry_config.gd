@@ -1,34 +1,18 @@
 @tool
 extends DotConfig
 
-const HungryConfig := preload("hungry_config.gd")
-
-## What a player can change, and where it is kept.
+## This game's own settings: the camera and what is drawn over the arena.
 ##
-## [b]A `DotConfig`, which is the whole reason the settings screen has no layout code.[/b]
-## [DotSettingsPanel] reads the `@export` annotations below — the type, the range, the
-## group, the hint — and builds the editors from them. Adding a setting here adds a row
-## there and nothing else changes, and the screen cannot drift from the settings it is
-## supposed to show because it never restates one.
+## [b]The declaration, not the store.[/b] [HungrySettings] reads these `@export`s with
+## [method DotSettingsSchema.from_config] (the type, the range, the default) into the
+## dot-settings document dot-menu's Escape menu is a view of, and the presentation layer
+## writes each value back here as it changes, so the game reads plain properties and there
+## is one list. The document is what is saved; this object is never written to disk. Until
+## 2026-10-12 it was (`user://cfg/hungry.json`, dot-ui's settings screen), and
+## [HungrySettings] migrates that file once.
 ##
-## It layers the same way everything in this family does:
-## [code]exported defaults < JSON file < environment < command line[/code]. Nothing here
-## is a secret, so nothing is refused from the environment — see
-## [method DotConfig.sensitive_keys] for the rule and [DotAuthConfig] for a config that
-## has one.
-
-## Where a player's own settings live.
-const PATH := "user://cfg/hungry.json"
-
-@export_group("Sound")
-
-## Volume of every generated voice, in decibels.
-##
-## A game whose sound cannot be turned down is a game people play muted, and a game they
-## play muted is one whose audio work was wasted.
-@export_range(-60.0, 6.0, 1.0) var volume_db: float = -8.0
-
-@export var muted: bool = false
+## The volume is not here any more: it is dot-menu's stock audio page, which dot-audio's
+## mixer applies, as in every game of the family.
 
 @export_group("Camera")
 
@@ -82,40 +66,5 @@ func validate() -> DotResult:
 	return DotResult.success(null)
 
 
-## Loads a player's settings, falling back to the defaults above.
-##
-## A missing file is the normal case — it is what a first run looks like — so it is not an
-## error. A malformed one is: silently starting from defaults would throw away everything
-## a player had set with nothing on screen to say so.
-static func load_saved(path: String = PATH) -> HungryConfig:
-	var config := HungryConfig.new()
-
-	if not FileAccess.file_exists(path):
-		return config
-
-	var loaded := config.load_layered(path)
-
-	if not loaded.ok:
-		DotLog.warn("hungry.config", "could not read the settings; using defaults", {
-			"path": path, "error": str(loaded.error)
-		})
-		return HungryConfig.new()
-
-	return config
-
-
-## Writes a player's settings back.
-##
-## On the web this goes through `user://`, which is an IndexedDB mirror that needs an
-## explicit flush — [method DotPaths.write_text] does it, which is why this goes through
-## [method DotConfig.save_json_file] rather than a [FileAccess] of its own.
-func save(path: String = PATH) -> DotResult:
-	return save_json_file(path)
-
-
 func describe_summary() -> String:
-	return "%s, camera %.2fs%s" % [
-		"muted" if muted else "%.0f dB" % volume_db,
-		follow_sec,
-		"" if zoom_with_size else ", fixed zoom",
-	]
+	return "camera %.2fs%s" % [follow_sec, "" if zoom_with_size else ", fixed zoom"]

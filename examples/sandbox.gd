@@ -490,10 +490,9 @@ func _test_client_scene() -> void:
 	)
 	_check(_client.hud != null, "and a HUD")
 	_check(
-		_client.screens != null and _client.screens.registered_ids().size() >= 5,
-		"and its screens (%d)" % (
-			_client.screens.registered_ids().size() if _client.screens != null else 0
-		)
+		_client.screens != null and _client.screens.screen(&"scoreboard") != null
+			and _client.menu != null and _client.menu.page(&"loadout") != null,
+		"and its Tab board and dot-menu's Escape menu, Loadout first"
 	)
 
 	# The pointer is what drives this game, and a headless run has none. The sampler's

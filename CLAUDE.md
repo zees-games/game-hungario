@@ -28,9 +28,9 @@ Read the family [CLAUDE.md](../../CLAUDE.md) first; this file is only what is sp
 | `game/hungry_layout.gd`, `hungry_preset.gd`, `game/modes/` | level geometry, per-mode tuning, and the six mode scenes (`HungryMode`) |
 | `game/hungry_module.gd`, `hungry_services.gd`, `hungry_mod_tools.gd`, `hungry_maps.gd` | the server: dot-server module, chat/voice/moderation, admin tools, the vote |
 | `game/hungry_hunters.gd`, `hungry_hunter_brain.gd`, `hungry_hazards.gd`, `hungry_combat.gd` | NPCs, hazards, throwable damage |
-| `game/hungry_content.gd`, `hungry_config.gd`, `hungry_paths.gd` | items and loadout schema, client config, pack-safe paths |
+| `game/hungry_content.gd`, `hungry_config.gd`, `hungry_paths.gd` | items and loadout schema, this game's own settings (declared, never saved), pack-safe paths |
 | `game/net/` | the dot-net bridge, piece and match entities, interest, events and requests |
-| `game/client/` | client scene, camera, renderer, HUD, input, touch, menus, sound, rider, browser, presentation |
+| `game/client/` | client scene, camera, renderer, HUD, input, touch, menus, sound, rider, browser, presentation; `hungry_settings.gd` (dot-menu's document, menu and the migration) and `hungry_bindings.gd` (the key table) |
 | `examples/` | the seven test suites, `play.tscn` (the standalone application) |
 | `tools/` | `screenshot_map.sh`, `screenshot_menus.sh`, `publish_avatars.tscn` |
 | `content/avatars/`, `scenes/fx/` | built-in rider parts, effect scenes |
@@ -52,7 +52,7 @@ Short forms; the reasoning is in the linked file.
 
 **Simulation**
 
-- **H is help** (`HungryHelp`: dot-menu's help screen only, with a display table of the `hungry_*` actions read live from the InputMap), so no `hungry_*` action may default to H; the pause menu has Help and Leave. `headless_presentation` checks it.
+- **Escape is dot-menu's menu** (`HungrySettings`, a `DotMenuSettings`): Loadout first, Game, the stock pages, Controls over `HungryBindings`, Help & commands (H) and Leave. Nothing in the table may default to H or M; `headless_presentation` checks it. [client](docs/client.md#screens)
 - Every piece steers toward the pointer's **world point** (`HungryWorld.pointer_of`), never along one shared direction, or split pieces can never merge. [gameplay](docs/gameplay.md#a-player-is-a-set-and-the-pointer-is-a-point)
 - The arena size is part of every food position: `adopt_world_size` before `adopt_field_seed`. Slot indexes are never reused. [gameplay](docs/gameplay.md#four-fields-one-id-space-and-only-membership-travels)
 - Anything that changes speed must be readable on both ends: effects travel as piece flags, the trait in the join. [gameplay](docs/gameplay.md#effects-are-replicated-as-flags)
@@ -96,7 +96,9 @@ Short forms; the reasoning is in the linked file.
 - Chat lines go to the chat box, and to the feed only when there is no box; the box sits above the mass bar.
 - The leaderboard shrinks above any visible `dot_hud_cover` Control over its corner (the shell's ballots), read through `DotHudPiece.covered_rect`. [client](docs/client.md#the-leaderboard-makes-room-for-a-ballot) [client](docs/client.md#chat-box)
 - dot-audio does not replace `HungrySound` and dot-settings does not replace `HungryConfig`; `apply_all()` after building the layer. [client](docs/client.md#the-presentation-layer-and-what-it-deliberately-does-not-duplicate)
-- Chat key settings sit beside the config, never in it (argv must not rebind players). [client](docs/client.md#chat-box)
+- Settings are one dot-settings document at schema version 2; `HungrySettings` migrates a version-1 document and dot-ui's old files (`user://cfg/hungry.json`, `user://cfg/bindings.json`) once, document first, and never deletes them. A new key with a stored predecessor needs a migration step, never a silent reset. [client](docs/client.md#the-migration-from-dot-uis-files)
+- A key is a `HungryBindings` row (one input per action, so a mouse button is its own row); chat keys keep their `chat_open_key`/`chat_near_key` names, ACCOUNT. Keys are never config values (argv must not rebind players). [client](docs/client.md#chat-box)
+- A menu row's callables capture a dictionary, never the object that holds the row (a RefCounted cycle leaks the page). [client](docs/client.md#screens)
 - Do not build the world in `SceneTree._initialize`; tools seed on the first frame. [testing](docs/testing.md#traps-the-suites-have-hit)
 - The round clock is dot-ui's `DotScoreStrip` (`HungryHud.strip`, colours from `HungryHud.piece_theme()`), so the pack needs a client shell with dot-ui API level 4; `headless_presentation` checks the derived requires.json and that the clock, the ballot and the full chat log do not meet. [client](docs/client.md#the-round-clock)
 - The arena is a pale pastel sky (`HungryRenderer`'s colour fields, opaque clouds); anything drawn on it is saturated or dark, never white. [client](docs/client.md#rendering)
@@ -105,4 +107,4 @@ Short forms; the reasoning is in the linked file.
 ## Not converted yet
 
 - **dot-game**: the module extends `DotModule` and `HungryServices` is its own, not `DotGameModule`/`DotGameServices`. Not yet converted; dot-game's CLAUDE.md says to convert game-arena first.
-- **dot-menu's Escape menu is not converted yet.** The Tab scoreboard and the help screen (H, and the pause menu's Help; `HungryHelp`) are dot-menu's; the pause, settings, controls and loadout screens are still dot-ui's, because this game's settings are a `DotConfig` and dot-menu's menu is a view of dot-settings, so converting moves where a player's settings are stored. Until it is, the help key is not rebindable here (dot-ui's rebinder lists `hungry_*` only). Queue item `fpt-hungario-dot-menu-1`. [client](docs/client.md#screens)
+- **No map menu on M yet**: `HungrySettings.map_menu` is off until the modes are handed to dot-menu's `use_maps`. Queue item `fpt-family-map-menu-1`.

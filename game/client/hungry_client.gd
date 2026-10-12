@@ -1,6 +1,6 @@
 extends Node2D
 
-const HungryHelp := preload("hungry_help.gd")
+const HungryBindings := preload("hungry_bindings.gd")
 const HungryBot := preload("../hungry_bot.gd")
 const HungryCamera := preload("hungry_camera.gd")
 const HungryConfig := preload("../hungry_config.gd")
@@ -19,6 +19,7 @@ const HungryPreset := preload("../hungry_preset.gd")
 const HungryProjectile := preload("../hungry_projectile.gd")
 const HungryRenderer := preload("hungry_renderer.gd")
 const HungryServices := preload("../hungry_services.gd")
+const HungrySettings := preload("hungry_settings.gd")
 const HungrySound := preload("hungry_sound.gd")
 const HungryVoice := preload("hungry_voice.gd")
 const HungryWorld := preload("../hungry_world.gd")
@@ -39,7 +40,7 @@ const HungryWorld := preload("../hungry_world.gd")
 ##   Camera     HungryCamera
 ##   Input      HungryInput
 ##   UI         CanvasLayer
-##     Screens  DotScreenStack — pause, settings, controls, scoreboard, chat
+##     Screens  DotScreenStack — the held Tab scoreboard
 ##     Hud      HungryHud
 ## [/codeblock]
 ##
@@ -89,15 +90,18 @@ var presentation: HungryPresentation = null
 var screens: DotScreenStack = null
 var ui_config: DotUiConfig = null
 
-## What this player has chosen. Loaded at startup, written back on Apply.
+## This game's own settings as the game reads them: the presentation layer's config, which
+## it keeps in step with the player's document. See [HungrySettings].
 var settings: HungryConfig = null
 
 ## The connection, when there is one.
 var link: Node = null
 
-var _pause: DotPauseScreen = null
-## dot-menu's help screen, on H and the pause menu's Help ([HungryHelp]).
-var help_menu: DotMenu = null
+## dot-menu's Escape menu ([HungrySettings]): Loadout, Game, the stock pages, Controls,
+## Help & commands on H, and Leave.
+var menu: DotMenu = null
+## The menu's Loadout page.
+var loadout_page: HungryMenus.LoadoutPage = null
 var _offline: bool = false
 var _tick: int = 0
 var _board_accum: float = 0.0
@@ -351,7 +355,7 @@ func _build_presentation() -> void:
 	# The SAME config object the rest of the client reads, not a copy. dot-settings owns
 	# the persistence and the scopes; `HungryConfig` stays the declaration, so there is
 	# one list rather than two that drift.
-	presentation.config = settings if settings != null else HungryConfig.load_saved()
+	presentation.config = settings if settings != null else HungryConfig.new()
 	add_child(presentation)
 	DotLog.result(CHANNEL, "the presentation layer", presentation.setup())
 	_wire_console()
@@ -361,8 +365,6 @@ func _build_presentation() -> void:
 
 
 func _build_ui() -> void:
-	settings = HungryConfig.load_saved()
-
 	ui_config = DotUiConfig.new()
 	ui_config.allow_pause = _offline
 
@@ -394,48 +396,46 @@ func _build_ui() -> void:
 	# is what puts them inside the safe area.
 	sampler.touch = hud.touch
 
-	_pause = HungryMenus.install(screens, world, bridge, ui_config, settings, link if not _offline else null)
+	var _board := HungryMenus.install(screens, world, bridge, link if not _offline else null)
 
-	if _pause != null:
-		# Loadout, Settings and Controls are wired inside `install`, because each is only
-		# about the stack. Leaving is this client's decision and is matched by id here.
-		_pause.chosen.connect(func(id: StringName) -> void:
-			if id == HungryMenus.LEAVE:
-				_on_leave()
-			elif id == HungryMenus.HELP and help_menu != null:
-				var _closed := screens.pop(&"pause")
-				help_menu.open_help(null, not _offline)
-		)
+	# Escape, H and Leave are dot-menu's, built with the player's settings by the presentation
+	# layer. What is this game's is the Loadout page, first, because Escape is where a player
+	# goes to change what they bring in.
+	menu = presentation.menu_settings.menu if presentation != null and presentation.menu_settings != null else null
+	loadout_page = HungryMenus.loadout_page(bridge)
+	loadout_page.on_chosen(_on_loadout_chosen)
+	if menu != null:
+		var _l := menu.add_page(loadout_page.page, &"general")
+		loadout_page.on_redraw(menu.screen.refresh)
+		menu.overlays_changed.connect(func(_open: bool) -> void: _refresh_suspended())
 
-	# H opens help, as in every game of the family; the pause menu's Help opens the same.
-	help_menu = HungryHelp.build(layer)
-	if help_menu != null:
-		help_menu.overlays_changed.connect(func(_open: bool) -> void: _refresh_suspended())
-
-	var settings_screen := screens.screen(&"settings") as DotSettingsScreen
-
-	if settings_screen != null:
-		settings_screen.applied.connect(_on_settings_applied)
+	# A value changed in the menu or at the console reaches the config first (the
+	# presentation layer's handler is connected before this one), then what reads it.
+	if presentation != null and presentation.settings != null:
+		presentation.settings.changed.connect(func(_k: StringName, _v: Variant, _w: StringName) -> void: _apply_settings())
 
 	_apply_settings()
 
 	_wire_chat_window()
 
-	var loadout := screens.screen(&"loadout") as HungryMenus.LoadoutScreen
-
-	if loadout != null:
-		loadout.chosen.connect(_on_loadout_chosen)
-
 	hud.say(
 		"Move with the mouse — near is slow, far is fast.",
 		Color(0.70, 0.78, 0.90)
 	)
+	# The keys as they are bound now, from the table the Controls page rebinds.
+	var keys := presentation.menu_settings.bindings if presentation != null and presentation.menu_settings != null else HungryBindings.make()
 	hud.say(
-		"Space splits, W ejects, Q throws. Let go of the mouse to gather.",
+		"%s splits, %s ejects, %s throws. Let go of the mouse to gather." % [
+			keys.key_for(HungryBindings.SPLIT), keys.key_for(HungryBindings.EJECT),
+			keys.key_for(HungryBindings.THROW),
+		],
 		Color(0.70, 0.78, 0.90)
 	)
 	hud.say(
-		"Tab is the board, Enter is chat, Escape is the menu and your loadout.",
+		"%s is the board, %s is chat, %s is help, Escape is the menu and your loadout." % [
+			keys.key_for(HungryBindings.SCOREBOARD), keys.key_for(HungryBindings.CHAT),
+			keys.key_for(DotMenuBindings.HELP_ACTION),
+		],
 		Color(0.62, 0.68, 0.78)
 	)
 
@@ -632,13 +632,12 @@ func _on_hello(player_id: int) -> void:
 	if renderer != null:
 		renderer.local_player_id = player_id
 
-	# The screen opens on what the player is actually wearing rather than on the schema's
+	# The page opens on what the player is actually wearing rather than on the schema's
 	# default, which is what the server sent in the join.
-	var loadout := screens.screen(&"loadout") as HungryMenus.LoadoutScreen
 	var monster := world.monster_for(player_id)
 
-	if loadout != null and monster != null and monster.loadout != null:
-		loadout.show_loadout(monster.loadout)
+	if loadout_page != null and monster != null and monster.loadout != null:
+		loadout_page.show_loadout(monster.loadout)
 
 	_fetch_cosmetics(bridge.avatar_pack_url)
 
@@ -843,10 +842,6 @@ func _apply_settings() -> void:
 	if settings == null:
 		return
 
-	if sound != null:
-		sound.volume_db = settings.volume_db
-		sound.muted = settings.muted
-
 	if camera != null:
 		camera.follow_sec = settings.follow_sec
 		camera.zoom_with_size = settings.zoom_with_size
@@ -860,22 +855,6 @@ func _apply_settings() -> void:
 
 		if hud.feed != null:
 			hud.feed.max_lines = settings.feed_lines
-
-
-## [param _changed] is dot-ui's: the keys a settings MANAGER took back. This game hands the
-## screen a bare [HungryConfig], which the panel writes into directly, so the list is empty
-## and the config is already current by the time this runs.
-func _on_settings_applied(_changed: PackedStringArray) -> void:
-	_apply_settings()
-
-	var saved := settings.save()
-
-	if not saved.ok:
-		DotLog.result(CHANNEL, "could not save the settings", saved)
-		return
-
-	if hud != null:
-		hud.say("Settings saved.", Color(0.62, 0.78, 0.68))
 
 
 ## Sends a chosen loadout, and says what happens next.
@@ -1006,7 +985,7 @@ func _wire_console() -> void:
 func _refresh_suspended() -> void:
 	if sampler != null:
 		sampler.suspended = (presentation != null and presentation.swallows_input()) \
-			or (help_menu != null and help_menu.any_open())
+			or (menu != null and menu.any_open())
 
 
 ## dot-server's chat payload: what is carrying the conversation, and the server's own lines.
@@ -1112,19 +1091,10 @@ func _on_progress(state: Dictionary) -> void:
 	)
 
 
-func _on_leave() -> void:
-	if link != null and link.has_method("disconnect_from_server"):
-		link.call("disconnect_from_server", "left")
-	else:
-		get_tree().quit(0)
-
-
 # --- Input -----------------------------------------------------------------
 
-## The three keys that are not movement.
-##
-## Handled here rather than in [HungryInput] because they open screens, and which screens
-## exist is this file's business. [DotScreenStack] already owns the back key.
+## The talk key and the held scoreboard. Escape, H and the menu's keys are dot-menu's
+## ([HungrySettings]), which takes every key while anything of its is open.
 func _unhandled_input(event: InputEvent) -> void:
 	# [b]Voice first, and on both edges.[/b] Everything below this line is `is_pressed`,
 	# so a release handled there would never arrive — and a talk gate opened by a key-down
@@ -1135,25 +1105,13 @@ func _unhandled_input(event: InputEvent) -> void:
 
 	# The Tab board, HELD as in every game here (it used to toggle): up on the press, down
 	# on the release, which is why it is read before the press-only filter below.
-	if screens != null and _is_key(event, KEY_TAB) and not event.is_echo():
+	if screens != null and InputMap.has_action(HungryBindings.SCOREBOARD) \
+			and event.is_action(HungryBindings.SCOREBOARD) and not event.is_echo():
 		if event.is_pressed() and not screens.is_open(&"scoreboard"):
 			var _up := screens.push(&"scoreboard")
 		elif not event.is_pressed() and screens.is_open(&"scoreboard"):
 			var _down := screens.pop(&"scoreboard")
 		get_viewport().set_input_as_handled()
-		return
-
-	if screens == null or not event.is_pressed() or event.is_echo():
-		return
-
-	if _is_key(event, KEY_ESCAPE) and not screens.any_open():
-		screens.push(&"pause")
-		get_viewport().set_input_as_handled()
-
-
-static func _is_key(event: InputEvent, key: Key) -> bool:
-	var typed := event as InputEventKey
-	return typed != null and typed.physical_keycode == key
 
 
 func describe() -> Dictionary:

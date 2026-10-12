@@ -1,7 +1,6 @@
 extends Node
 
 const HungryBot := preload("../game/hungry_bot.gd")
-const HungryConfig := preload("../game/hungry_config.gd")
 const HungryContent := preload("../game/hungry_content.gd")
 const HungryContentSource := preload("../game/client/hungry_content_source.gd")
 const HungryEvents := preload("../game/net/hungry_events.gd")
@@ -38,7 +37,7 @@ const HungryWorld := preload("../game/hungry_world.gd")
 const SEED := 20260828
 const TICK_RATE := 60
 
-const CHECKS := 460
+const CHECKS := 446
 
 var _passed := 0
 var _failed := 0
@@ -5926,14 +5925,13 @@ func _test_interface() -> void:
 	hud.note(HungryEvents.Kind.DIED, {"first": 1, "second": 0, "extra": 0})
 	_check(hud.feed.line_count() >= 3, "the feed takes lines (%d)" % hud.feed.line_count())
 
-	var game_config := HungryConfig.new()
-	var pause := HungryMenus.install(stack, world, null, ui_config, game_config)
-	# Five, and it was six: chat left the stack when it became a `DotChatWindow`. A chat
-	# box is eight lines in a corner that has to leave the game visible behind it, which is
-	# a HUD widget rather than a modal screen.
+	var _board := HungryMenus.install(stack, world, null)
+	# One, and it was five: the pause, settings, controls and loadout screens are dot-menu's
+	# Escape menu now (HungrySettings), and chat left the stack long before, when it became a
+	# `DotChatWindow`. What is left is the held board.
 	_check(
-		stack.registered_ids().size() == 5,
-		"five screens register (%d)" % stack.registered_ids().size()
+		stack.registered_ids().size() == 1,
+		"only the Tab board is on the stack (%d)" % stack.registered_ids().size()
 	)
 
 	# The Tab board is dot-menu's: the world's monsters, in the world's order, held up by
@@ -5947,10 +5945,27 @@ func _test_interface() -> void:
 	var _down := stack.pop(&"scoreboard")
 	_check(board_screen != null and not board_screen.board.is_open(), "and goes when the stack takes it down")
 
-	# The loadout screen offers what the schema and this player's entitlements allow, and
-	# nothing else. A screen that filtered on its own would drift from the server the
-	# first time an unlock changed; one the server trusted would be a client choosing its
-	# own stats.
+	# The Loadout page offers what the schema and this player's entitlements allow, and
+	# nothing else. A page that filtered on its own would drift from the server the first
+	# time an unlock changed; one the server trusted would be a client choosing its own
+	# stats.
+	var lp := HungryMenus.loadout_page(null)
+	var lp_schema := HungryContent.loadout_schema()
+	var lp_offered := true
+	for slot in lp_schema.ordered_slots():
+		var lp_allowed := lp_schema.choices_for(slot.id, DotLoadoutEntitlements.none())
+		lp_offered = lp_offered and (lp.page.find_row(StringName("loadout_%s" % slot.id)).options.size() == lp_allowed.size())
+	_check(lp_offered, "the Loadout page offers exactly what the schema allows this player")
+	var lp_sent: Array = []
+	lp.on_chosen(func(l: DotLoadout) -> void: lp_sent.append(l))
+	var lp_trait := lp.page.find_row(StringName("loadout_%s" % HungryContent.SLOT_TRAIT))
+	var lp_other: Variant = lp_trait.options[-1][0] if lp_trait.options.size() > 1 else null
+	if lp_other != null:
+		lp_trait.setter.call(lp_other)
+	_check(lp_other == null or (lp_sent.size() == 1 and (lp_sent[0] as DotLoadout).item_in(HungryContent.SLOT_TRAIT) == StringName(str(lp_other))),
+		"and a choice is sent as it is made", str(lp_sent))
+	_check(lp.summary().contains("speed"), "with what the trait does, in numbers", lp.summary())
+
 	# The one readability affordance this genre cannot do without. Eating needs a ratio —
 	# a quarter bigger — and a quarter of a difference in *area* is about 12% of a
 	# difference in *width*, which nobody judges by eye under pressure. What the renderer
@@ -5979,83 +5994,6 @@ func _test_interface() -> void:
 	remove_child(renderer)
 	renderer.free()
 
-	# The settings screen has no layout code: DotSettingsPanel reads the config's own
-	# `@export` annotations and builds the editors from them, so a setting added to
-	# HungryConfig appears there and nothing else changes.
-	var settings := stack.screen(&"settings") as DotSettingsScreen
-	_check(settings != null, "the settings screen registers")
-	# dot-ui's screens rather than copies of them. This game carried its own pause menu and
-	# its own settings screen for as long as `DotPauseScreen` and `DotSettingsScreen` have
-	# existed, which is the duplication that addon was written to end.
-	_check(pause is DotPauseScreen, "the pause screen is the shared one")
-	_check(
-		pause.ids() == ([&"resume", &"loadout", &"settings", &"controls", HungryMenus.HELP, HungryMenus.LEAVE]
-			as Array[StringName]),
-		"and its ids come from its labels (%s)" % [pause.ids()]
-	)
-	# The button id IS the screen id for the three that open one, which is what makes the
-	# match in `install` a lookup rather than a second table.
-	for id in [&"loadout", &"settings", &"controls"]:
-		_check(
-			stack.screen(id) != null,
-			"a button called %s opens a screen registered under that id" % id
-		)
-
-	if settings != null:
-		_check(
-			settings.panel != null and settings.panel.bound_config() is HungryConfig,
-			"bound to this game's own config rather than the interface's"
-		)
-		_check(
-			settings.panel != null and settings.panel.editor_for("volume_db") != null,
-			"with an editor generated for a setting nobody laid out"
-		)
-		_check(
-			settings.panel != null and settings.panel.editor_for("show_minimap") != null,
-			"and for one of a different type"
-		)
-
-	# Settings survive a restart, which is the only reason to have them.
-	var saved_path := "user://hungry_settings_test.json"
-	DotPaths.remove_tree(saved_path)
-
-	var chosen := HungryConfig.new()
-	chosen.volume_db = -21.0
-	chosen.muted = true
-	chosen.show_names = false
-	chosen.follow_sec = 0.25
-
-	var written := chosen.save(saved_path)
-	_check(written.ok, "settings write", str(written.error))
-
-	var reloaded := HungryConfig.load_saved(saved_path)
-	_check(
-		is_equal_approx(reloaded.volume_db, -21.0) and reloaded.muted
-			and not reloaded.show_names,
-		"and come back (%s)" % reloaded.describe_summary()
-	)
-
-	# A first run has no file. That is not an error and must not read as one.
-	var fresh := HungryConfig.load_saved("user://hungry_settings_missing.json")
-	_check(
-		is_equal_approx(fresh.volume_db, HungryConfig.new().volume_db),
-		"a first run falls back to the defaults"
-	)
-
-	# A malformed one *is* an error, and starting from defaults silently would throw away
-	# everything a player had set with nothing on screen to say so.
-	var broken_path := "user://hungry_settings_broken.json"
-	DotPaths.write_text(broken_path, "{ this is not json")
-	var broken := HungryConfig.load_saved(broken_path)
-	_check(
-		broken != null and is_equal_approx(
-			broken.volume_db, HungryConfig.new().volume_db
-		),
-		"and a broken file falls back rather than failing to start"
-	)
-
-	DotPaths.remove_tree(saved_path)
-	DotPaths.remove_tree(broken_path)
 
 	# Being eaten means having nothing at all — no pieces, no position, nowhere for a
 	# camera to be. A camera left where you died is a black rectangle for three seconds
@@ -6093,55 +6031,34 @@ func _test_interface() -> void:
 		"and the HUD says whose eyes they are behind (%s)" % hud.status_label.text
 	)
 
-	var picker := stack.screen(&"loadout") as HungryMenus.LoadoutScreen
-	_check(picker != null, "the loadout screen registers")
-
-	if picker != null:
-		var offered := picker.current()
-		_check(
-			offered.item_in(HungryContent.SLOT_TRAIT) != &"",
-			"and offers a trait to a player who owns nothing (%s)"
-				% offered.item_in(HungryContent.SLOT_TRAIT)
-		)
-		_check(
-			offered.item_in(HungryContent.SLOT_TRAIT) != HungryContent.TRAIT_GREEDY,
-			"but not the one nobody has unlocked"
-		)
-		_check(
-			DotLoadoutValidator.validate(
-				offered, HungryContent.loadout_schema(), DotLoadoutEntitlements.none()
-			).ok,
-			"and what it produces is legal"
-		)
-
-		picker.allow(DotLoadoutEntitlements.of([HungryContent.TRAIT_GREEDY_UNLOCK]))
-		var greedy_offered := false
-
-		for index in range(
-			(picker._pickers[HungryContent.SLOT_TRAIT] as OptionButton).item_count
-		):
-			if StringName(str(
-				(picker._pickers[HungryContent.SLOT_TRAIT] as OptionButton)
-					.get_item_metadata(index)
-			)) == HungryContent.TRAIT_GREEDY:
-				greedy_offered = true
-
-		_check(greedy_offered, "which appears once it is unlocked")
-
-		var sent: Array[DotLoadout] = []
-		picker.chosen.connect(func(l: DotLoadout) -> void: sent.append(l))
-		picker._apply()
-		_check(sent.size() == 1, "and taking it in emits the choice")
+	var offered := HungryMenus.loadout_page(null).current()
+	_check(
+		offered.item_in(HungryContent.SLOT_TRAIT) != &"",
+		"the Loadout page offers a trait to a player who owns nothing (%s)"
+			% offered.item_in(HungryContent.SLOT_TRAIT)
+	)
+	_check(
+		offered.item_in(HungryContent.SLOT_TRAIT) != HungryContent.TRAIT_GREEDY,
+		"but not the one nobody has unlocked"
+	)
+	_check(
+		DotLoadoutValidator.validate(
+			offered, HungryContent.loadout_schema(), DotLoadoutEntitlements.none()
+		).ok,
+		"and what it produces is legal"
+	)
+	var unlocked := HungryMenus.loadout_page(null)
+	unlocked.allow(DotLoadoutEntitlements.of([HungryContent.TRAIT_GREEDY_UNLOCK]))
+	var greedy_offered := false
+	for option in unlocked.page.find_row(StringName("loadout_%s" % HungryContent.SLOT_TRAIT)).options:
+		greedy_offered = greedy_offered or option[0] == HungryContent.TRAIT_GREEDY
+	_check(greedy_offered, "which appears once it is unlocked")
 
 	# The scoreboard must not block input: it is held down during a live game, so it must
-	# not stop the player moving. The pause menu must, and must hide the HUD.
+	# not stop the player moving.
 	_check(stack.push(&"scoreboard").ok, "the scoreboard opens")
 	_check(not stack.screen(&"scoreboard").blocks_input, "without blocking input")
 	stack.pop(&"scoreboard")
-
-	_check(stack.push(&"pause").ok, "the pause menu opens")
-	_check(pause.blocks_input and pause.hides_below, "and does block, and hides the HUD")
-	stack.pop(&"pause")
 
 	# [b]Chat is no longer a screen on this stack.[/b] It was a modal `DotScreen` on Enter
 	# with one line edit in it — the only chat box of its kind in the family, with no log,

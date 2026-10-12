@@ -49,6 +49,12 @@ var command_source: Callable = Callable()
 ## action stuck down.
 var touch: HungryTouch = null
 
+## The mouse buttons for split and throw, actions of their own beside the keys. A key table
+## row puts one input on its action ([HungryBindings]), so a key and a button on one action
+## could not both be rebound; read here beside [member split_button] and [member action_button].
+var split_click: StringName = &"hungry_split_click"
+var action_click: StringName = &"hungry_throw_click"
+
 var _touch_at: Vector2 = Vector2.ZERO
 var _touching_screen: bool = false
 
@@ -77,14 +83,16 @@ func _ready() -> void:
 	_register_actions()
 
 
-## The three this game needs, added only if the project does not already have them.
+## The actions this game reads, added only if nothing has made them yet.
 ##
-## Convenient for a prototype and wrong for a shipped game, where the actions are the
-## project's and a player has rebound them. It only ever adds; it never rebinds one that
-## exists, which is what [DotBindingsPanel] is for.
+## A client's are made first by dot-menu's key table ([HungryBindings], applied from the
+## player's settings); this is for a suite or a tool with a sampler and no settings. It only
+## ever adds; it never rebinds one that exists.
 func _register_actions() -> void:
-	_ensure_action(&"hungry_split", KEY_SPACE, MOUSE_BUTTON_LEFT)
-	_ensure_action(&"hungry_throw", KEY_Q, MOUSE_BUTTON_RIGHT)
+	_ensure_action(&"hungry_split", KEY_SPACE, 0)
+	_ensure_action(split_click, KEY_NONE, MOUSE_BUTTON_LEFT)
+	_ensure_action(&"hungry_throw", KEY_Q, 0)
+	_ensure_action(action_click, KEY_NONE, MOUSE_BUTTON_RIGHT)
 	_ensure_action(&"hungry_boost", KEY_SHIFT, 0)
 	# W, which is free here because movement is the mouse. It is also where the genre puts
 	# it, and muscle memory from the genre is worth more than a tidier layout.
@@ -97,9 +105,10 @@ func _ensure_action(action: StringName, key: Key, button: int) -> void:
 
 	InputMap.add_action(action)
 
-	var event := InputEventKey.new()
-	event.physical_keycode = key
-	InputMap.action_add_event(action, event)
+	if key != KEY_NONE:
+		var event := InputEventKey.new()
+		event.physical_keycode = key
+		InputMap.action_add_event(action, event)
 
 	if button != 0:
 		var click := InputEventMouseButton.new()
@@ -140,10 +149,10 @@ func sample(_delta: float = 0.0) -> Dot2DCommand:
 	var touching_throw := touch != null and touch.throw_held
 
 	command.set_button(
-		Dot2DCommand.BUTTON_SPLIT, _held(split_button) or touching_split
+		Dot2DCommand.BUTTON_SPLIT, _held(split_button) or _held(split_click) or touching_split
 	)
 	command.set_button(
-		Dot2DCommand.BUTTON_ACTION, _held(action_button) or touching_throw
+		Dot2DCommand.BUTTON_ACTION, _held(action_button) or _held(action_click) or touching_throw
 	)
 	command.set_button(Dot2DCommand.BUTTON_BOOST, _held(boost_button))
 	command.set_button(Dot2DCommand.BUTTON_EJECT, _held(eject_button))

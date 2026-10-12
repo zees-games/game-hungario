@@ -14,8 +14,9 @@ const HungryWorld := preload("../game/hungry_world.gd")
 const HungryClient := preload("../game/client/hungry_client.gd")
 const HungryInput := preload("../game/client/hungry_input.gd")
 const HungryMonster := preload("../game/hungry_monster.gd")
-const HungryHelp := preload("../game/client/hungry_help.gd")
+const HungryBindings := preload("../game/client/hungry_bindings.gd")
 const HungryMenus := preload("../game/client/hungry_menus.gd")
+const HungrySettings := preload("../game/client/hungry_settings.gd")
 
 ## Settings, audio, effects, the console and the private arena.
 ##
@@ -31,7 +32,7 @@ const HungryMenus := preload("../game/client/hungry_menus.gd")
 ##
 ## Exits non-zero on any failure.
 
-const CHECKS := 113
+const CHECKS := 129
 
 var _passed := 0
 var _failed := 0
@@ -70,6 +71,7 @@ func _run() -> void:
 	_test_blind_and_beacon()
 	_test_board_makes_room()
 	_test_help()
+	_test_migration()
 
 	if not probe.is_empty():
 		_test_exits_clean(probe)
@@ -105,10 +107,8 @@ func _make() -> HungryPresentation:
 	p.name = "P%d" % _entered
 	p.config = HungryConfig.new()
 	p.sound = HungrySound.make()
-	add_child(p.sound)
-	add_child(p)
-	p.setup()
-	# A memory store, replacing the file one this game ships with.
+	# A memory store, in place of the file one this game ships with, and no old files to
+	# migrate.
 	#
 	# [b]A suite that writes to `user://` is a suite whose result depends on what the last
 	# run left there.[/b] This game already shipped that bug once: `dedicated` recorded
@@ -116,35 +116,37 @@ func _make() -> HungryPresentation:
 	# failing on its ninth run for a reason that had nothing to do with the code. Here it
 	# was subtler -- a value stored by the previous run made `set_value` a no-op, the
 	# signal never fired, and the check failed for a setting that was already correct.
-	p.settings.local_store = DotSettingsStoreMemory.new()
-	p.settings.load_now()
-	p.apply_all()
+	p.menu_settings = HungrySettings.new()
+	p.menu_settings.store = DotSettingsStoreMemory.new()
+	p.menu_settings.legacy_config_path = ""
+	p.menu_settings.legacy_bindings_path = ""
+	add_child(p.sound)
+	add_child(p)
+	p.setup()
 	return p
 
 
 # --- 1 ----------------------------------------------------------------------
 
 func _test_schema_is_the_config() -> void:
-	_section("The schema is HungryConfig, read rather than repeated")
+	_section("The schema is HungryConfig, read rather than repeated, beside dot-menu's stock")
 
 	var config := HungryConfig.new()
-	var schema := DotSettingsSchema.from_config(config, HungryPresentation.SCOPES)
+	var schema := HungrySettings.schema_for()
 
-	_check(schema.validate().ok, "a schema derived from the config validates")
-	_check(
-		schema.keys().size() == config.config_keys().size(),
-		"with one entry per config key (%d against %d)"
-		% [schema.keys().size(), config.config_keys().size()]
-	)
-	_check(schema.has(&"volume_db"), "including the volume")
+	_check(schema.validate().ok, "the document's schema validates")
+	var missing := PackedStringArray()
+	for key in config.config_keys():
+		if not schema.has(StringName(key)):
+			missing.append(key)
+	_check(missing.is_empty(), "with every config key in it (%s)" % ", ".join(missing))
 
-	var vol := schema.find(&"volume_db")
+	var follow := schema.find(&"follow_sec")
 	_check(
-		vol.min_value < vol.max_value,
+		follow != null and is_equal_approx(follow.max_value, 0.5),
 		"and its bounds come from the @export_range, so tightening the config tightens "
 		+ "the slider and the console at once"
 	)
-
 	_check(
 		schema.find(&"show_names").scope == DotSettingsDef.Scope.ACCOUNT,
 		"the scope is the one thing a config cannot say, so it is passed in"
@@ -153,16 +155,25 @@ func _test_schema_is_the_config() -> void:
 		schema.find(&"follow_sec").scope == DotSettingsDef.Scope.DEVICE,
 		"and a camera follow time stays with the machine, because it is about this screen"
 	)
+	_check(schema.has(&"master_volume") and schema.has(&"ui_theme") and schema.has(&"window_mode"),
+		"the stock settings are dot-menu's: the volumes, the theme, the window")
+	var applied_to_nothing := PackedStringArray()
+	for key in HungrySettings.NOT_APPLIED:
+		if schema.has(key):
+			applied_to_nothing.append(String(key))
+	_check(applied_to_nothing.is_empty() and not schema.has(&"volume_db"),
+		"and none this game cannot apply, nor a second volume (%s)" % ", ".join(applied_to_nothing))
 
 	var p := _make()
-	p.settings.set_value(&"volume_db", -20.0)
+	p.settings.set_value(&"follow_sec", 0.3)
 	_check(
-		is_equal_approx(p.config.volume_db, -20.0),
+		is_equal_approx(p.config.follow_sec, 0.3),
 		"a setting written through dot-settings reaches the config the game actually reads"
 	)
+	p.settings.set_value(&"master_volume", 0.25)
 	_check(
-		is_equal_approx(p.sound.volume_db, -20.0),
-		"and the bank, which is the value a player can hear"
+		is_equal_approx(p.audio.mixer.master, 0.25),
+		"and the master volume reaches dot-audio's mixer, which is the value a player can hear"
 	)
 	p.queue_free()
 	_done()
@@ -353,14 +364,15 @@ func _test_console() -> void:
 		"every setting is reachable from a keyboard (%s)" % ", ".join(missing)
 	)
 
-	p.console.submit("volume_db -30")
+	p.console.submit("follow_sec 0.4")
 	_check(
-		is_equal_approx(p.config.volume_db, -30.0),
+		is_equal_approx(p.config.follow_sec, 0.4),
 		"a console line writes the config, not a second copy of the value"
 	)
+	p.console.submit("master_volume 0.5")
 	_check(
-		is_equal_approx(p.sound.volume_db, -30.0),
-		"and the bank, because there is one path"
+		is_equal_approx(p.audio.mixer.master, 0.5),
+		"and a stock one the mixer, because there is one path"
 	)
 
 	p.queue_free()
@@ -690,34 +702,111 @@ func _check(condition: bool, what: String, detail: String = "") -> bool:
 	return condition
 
 
-## The family's rule since the first play test: H opens help in every game, nothing else is
-## on H, and the pause menu (this game's Escape menu) has Help and Leave.
+## The family's Escape menu: H opens help, Escape the menu with Help & commands and Leave, the
+## keys are a table whose rows rebind, and nothing but help is on H (or M, the map menu's).
 func _test_help() -> void:
-	_section("H opens dot-menu's help, and the pause menu has Help and Leave")
-	var menu := HungryHelp.build(self)
-	_check(menu != null and menu.bindings.key_for(DotMenuBindings.HELP_ACTION) == "H"
-		and menu.bindings.defaults_on("H").size() == 1, "help is on H, and no key of this game's is")
+	_section("Escape is dot-menu's menu: help on H, Help and Leave, keys that rebind")
+	var p := _make()
+	var menu := p.menu_settings.menu
+	_check(menu != null, "the presentation layer builds dot-menu's menu")
+	if menu == null:
+		p.queue_free()
+		_done()
+		return
+	var keys := p.menu_settings.bindings
+	_check(keys.key_for(DotMenuBindings.HELP_ACTION) == "H" and keys.defaults_on("H").size() == 1
+		and keys.defaults_on("M").is_empty(), "help is on H, and no key of this game's is on H or M")
 	menu.config.escape_grace_ms = 0
-	var h := InputEventKey.new()
-	h.physical_keycode = KEY_H
-	h.keycode = KEY_H
-	h.pressed = true
-	_check(menu.handle_event(h) and menu.help.is_open() and menu.help.about != ""
+	_check(menu.handle_event(_key(KEY_H)) and menu.help.is_open() and menu.help.about != ""
 		and menu.help.heading() == "How to play Hungario", "H opens the help screen, which says what the game is first")
-	var esc := InputEventKey.new()
-	esc.physical_keycode = KEY_ESCAPE
-	esc.pressed = true
-	_check(menu.handle_event(esc) and not menu.help.is_open() and not menu.is_open(),
-		"Escape closes it, and opens no menu of dot-menu's own")
-	_check(HungryMenus.PAUSE_BUTTONS.has("Help") and HungryMenus.PAUSE_BUTTONS.has("Leave"),
-		"the pause menu has Help and Leave")
-	var was := DotInputBinding.describe_action(&"hungry_split") if InputMap.has_action(&"hungry_split") else ""
-	var _j := DotInputBinding.apply(&"hungry_split", "J")
-	_check(menu.bindings.key_for(&"hungry_split") == "J", "a key rebound on the Controls screen is shown where it is now")
-	if was != "":
-		var _back := DotInputBinding.apply(&"hungry_split", was)
-	menu.free()
+	_check(menu.handle_event(_key(KEY_ESCAPE)) and not menu.any_open(), "Escape closes it")
+	_check(menu.handle_event(_key(KEY_ESCAPE)) and menu.is_open(), "and Escape opens the menu")
+	var actions: Array = []
+	for a in menu.screen.actions:
+		actions.append(a.get("id"))
+	_check(actions.has(&"help") and actions.has(&"leave"), "which has Help & commands and Leave", str(actions))
+	_check(menu.page(&"game") != null and menu.page(&"controls") != null and menu.page(&"audio") != null,
+		"a Game page beside the stock Video, Audio and Controls pages")
+	_check(menu.handle_event(_key(KEY_ESCAPE)) and not menu.any_open(), "and Escape closes it again")
+
+	# A rebinding is a setting: the Controls page writes it, the table puts it on the action,
+	# and the help screen shows the key it is on now.
+	p.settings.set_value(&"bind_split", "J")
+	_check(DotInputBinding.describe_action(HungryBindings.SPLIT) == "J" and keys.key_for(HungryBindings.SPLIT) == "J",
+		"a key rebound on the Controls page moves the action, and help shows it")
+	_check(InputMap.action_get_events(HungryBindings.SPLIT_CLICK).size() == 1
+		and InputMap.action_get_events(HungryBindings.SPLIT_CLICK)[0] is InputEventMouseButton,
+		"and the left button still splits: it is a row of its own")
+	p.settings.set_value(&"bind_help", "F1")
+	_check(DotInputBinding.describe_action(DotMenuBindings.HELP_ACTION) == "F1", "help itself is rebindable")
+	p.settings.reset_value(&"bind_split")
+	p.settings.reset_value(&"bind_help")
+	p.queue_free()
 	_done()
+
+
+## The files dot-ui's screens wrote are migrated into the document once, so nobody's settings
+## or keys go back to the defaults; and never again.
+func _test_migration() -> void:
+	_section("The old settings and keys are migrated once, and nothing is lost")
+	var config_path := "user://hungry_migration_test.json"
+	var keys_path := "user://hungry_migration_keys_test.json"
+	var _c := DotPaths.write_json(config_path, {
+		"volume_db": -14.0, "muted": false, "follow_sec": 0.25, "zoom_with_size": false,
+		"show_names": false, "feed_lines": 3,
+	})
+	var _k := DotPaths.write_json(keys_path, {"bindings": {
+		"hungry_split": [{"type": "key", "code": KEY_E, "physical": true}, {"type": "mouse", "button": MOUSE_BUTTON_MIDDLE}],
+		"hungry_eject": [{"type": "key", "code": KEY_R, "physical": true}],
+	}})
+	var store := DotSettingsStoreMemory.new()
+	# A version-1 document, as the old client left one: the console had set the feed length
+	# and net_stat, and that value was the one in force.
+	var _d := store.save_document(HungrySettings.APP_NAMESPACE, &"local", {"version": 1, "values": {"feed_lines": 5, "net_stat": 2}})
+
+	var s := HungrySettings.new()
+	s.store = store
+	s.legacy_config_path = config_path
+	s.legacy_bindings_path = keys_path
+	add_child(s)
+	var res := s.setup(null, false)
+	_check(res.ok, "a document migrates and loads", str(res.error) if not res.ok else "")
+	var m := s.settings
+	_check(is_equal_approx(m.get_float(&"follow_sec"), 0.25) and not m.get_bool(&"zoom_with_size", true)
+		and not m.get_bool(&"show_names", true), "the camera and interface choices come over")
+	_check(m.get_int(&"feed_lines") == 5 and m.get_int(&"net_stat") == 2,
+		"and the document wins where it had a value, which is what the player saw")
+	_check(is_equal_approx(m.get_float(&"master_volume"), db_to_linear(2.0 * -14.0 + 8.0)),
+		"the volume becomes the master volume at the loudness it had (%.3f)" % m.get_float(&"master_volume"))
+	_check(m.get_string(&"bind_split") == "E" and m.get_string(&"bind_split_click") == "Mouse 3"
+		and m.get_string(&"bind_eject") == "R", "the keys and the button come over, each to its own row",
+		"%s %s %s" % [m.get_string(&"bind_split"), m.get_string(&"bind_split_click"), m.get_string(&"bind_eject")])
+	var saved: Dictionary = store.load_document(HungrySettings.APP_NAMESPACE, &"local").value
+	_check(int(saved.get("version", 0)) == HungrySettings.SCHEMA_VERSION, "the document is saved at version 2")
+	s.queue_free()
+
+	# A second start, after the player put the camera back: the old file must not win again.
+	var _back := store.save_document(HungrySettings.APP_NAMESPACE, &"local", {"version": 2, "values": {"follow_sec": 0.1}})
+	var again := HungrySettings.migrate_store(store, HungrySettings.APP_NAMESPACE, config_path, keys_path)
+	_check(again.is_empty(), "and it never runs twice")
+	_check(FileAccess.file_exists(config_path) and FileAccess.file_exists(keys_path), "the old files are read, never deleted")
+
+	# A first run: nothing to migrate, nothing written.
+	var fresh := DotSettingsStoreMemory.new()
+	var none := HungrySettings.migrate_store(fresh, HungrySettings.APP_NAMESPACE, "", "")
+	_check(none.is_empty() and (fresh.load_document(HungrySettings.APP_NAMESPACE, &"local").value as Dictionary).is_empty(),
+		"a first run migrates nothing and writes nothing")
+	DotPaths.remove_tree(config_path)
+	DotPaths.remove_tree(keys_path)
+	_done()
+
+
+static func _key(code: Key) -> InputEventKey:
+	var k := InputEventKey.new()
+	k.physical_keycode = code
+	k.keycode = code
+	k.pressed = true
+	return k
 
 
 func _test_chat_box() -> void:

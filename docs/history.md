@@ -81,3 +81,7 @@ None of these was reachable from the other project's own suite. Details in [bugs
 ## "Mode vote in 1…" under an open ballot
 
 The countdown's every second lingered 1.5 s so a late tick would not blink it off, which left the last one on screen half a second into the ballot it announced (seen in a game_vote_all frame, 2026-10-11). The last second lingers exactly one (`VOTE_LAST_MSEC`); `headless_presentation` checks it.
+
+## A menu page that leaked itself
+
+The Loadout page, the first version of `HungryMenus.LoadoutPage` (2026-10-12), gave its rows getters and setters that read the page's own members. A lambda that touches a member holds the object that defines it, the object held the page, the page held the rows, and the rows held the lambdas: a ring of RefCounteds that nothing ever freed. Every suite passed; `sandbox` alone ended with "8 resources still in use at exit", which a clean clone of the previous commit did not. The rows now capture a dictionary of state and call static functions, and the page object is outside the ring.

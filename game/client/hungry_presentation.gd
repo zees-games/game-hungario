@@ -6,6 +6,7 @@ const HungryPaths := preload("../hungry_paths.gd")
 const HungryServices := preload("../hungry_services.gd")
 const HungrySound := preload("hungry_sound.gd")
 const HungrySoundSink := preload("hungry_sound_sink.gd")
+const HungrySettings := preload("hungry_settings.gd")
 
 ## Settings, audio, effects and a console — every one of them wired to something this game
 ## already had, rather than beside it.
@@ -21,7 +22,8 @@ const HungrySoundSink := preload("hungry_sound_sink.gd")
 ## - **dot-settings does not replace `HungryConfig`.**
 ##   [method DotSettingsSchema.from_config] reads it, so there is still one list — ranges
 ##   come from the `@export_range` hints, and the only thing added is the part a config
-##   genuinely cannot say, which is the scope.
+##   genuinely cannot say, which is the scope. The document, its stock keys and the Escape
+##   menu over it are dot-menu's ([HungrySettings]).
 ##
 ## Both are the same decision twice: **two copies of one list is this family's most
 ## repeated bug**, and an addon that makes you write a second one is an addon that has
@@ -41,22 +43,17 @@ const BEACON_SOUND := &"beacon"
 ## up from the bottom-left corner). headless_presentation measures the full log from here.
 const CHAT_MARGIN_BOTTOM := 84.0
 
-## Which of the config's keys follow the person rather than the machine.
-##
-## The one thing `HungryConfig` cannot say about itself. A camera follow time is about this
-## screen; a name plate preference and a feed length are about the person, and somebody who
-## set them here should not set them again in the next game.
-const SCOPES := {
-	&"show_names": DotSettingsDef.Scope.ACCOUNT,
-	&"show_threat": DotSettingsDef.Scope.ACCOUNT,
-	&"feed_lines": DotSettingsDef.Scope.ACCOUNT,
-	&"show_minimap": DotSettingsDef.Scope.ACCOUNT,
-}
-
+## The player's document, the one every row, console variable and key reads.
+## [member menu_settings]' manager.
 var settings: DotSettingsManager = null
 
-## The connection overlay (`net_stat` at the console). See [method DotMenuNetStat.follow].
-var net_stat: DotMenuNetStat = null
+## dot-menu's settings node: the document, what applies the stock keys, and the Escape menu
+## (with help on H, the Controls page, Leave and net_stat). Set one before [method setup] to
+## choose its store and its migration's files (a suite); otherwise it is built here.
+var menu_settings: HungrySettings = null
+
+## Whether [method setup] builds the menu. Off for a suite that wants the document alone.
+var with_menu: bool = true
 var audio: DotAudioManager = null
 var fx: DotFxManager = null
 ## The player's console. See [method DotConsoleKit.build] and [method _build_console].
@@ -98,7 +95,11 @@ func setup() -> DotResult:
 		return consoled
 
 	_build_chat()
-	net_stat = DotMenuNetStat.follow(self, settings)
+	menu_settings.bind_audio(audio)
+	menu_settings.bind_fx(fx)
+	if menu_settings.menu != null:
+		# While the chat line or the console has the keyboard, Escape and H are theirs.
+		menu_settings.menu.busy = swallows_input
 
 	# [b]And then every value is pushed once, which is the half that was missing.[/b]
 	# Everything below reacts to `changed`, and a value loaded from disk has not changed --
@@ -110,71 +111,35 @@ func setup() -> DotResult:
 	return DotResult.success(null)
 
 
-## Pushes every current setting at whatever reads it.
+## Pushes every current setting at whatever reads it: this game's keys here, the stock ones
+## through dot-menu's applier.
 ##
 ## Called once after building, and callable again after a document is replaced -- a load,
 ## a reset, or a server releasing its clamps.
 func apply_all() -> void:
 	for key in settings.schema.keys():
 		_on_setting_changed(key, settings.get_value(key), &"applied")
+	menu_settings.apply_all()
 
 
 # --- Settings ---------------------------------------------------------------
 
 func _build_settings() -> DotResult:
-	settings = DotSettingsManager.new()
-	settings.name = "Settings"
-	# Read out of the config rather than written beside it. Tightening a range in
-	# HungryConfig tightens the slider, the console and the stored document at once.
-	settings.schema = DotSettingsSchema.from_config(config, SCOPES)
-	settings.local_store = DotSettingsStoreFile.new("user://hungry_settings")
-	settings.app_namespace = &"game_hungario"
-	settings.shared_namespace = &"tmc_account"
-	# dot-menu's three net_stat settings, beside the config like the chat ones, and before
-	# the load so a stored level is read back. The console binds them by name. Top left by
-	# default: the top right is this game's leaderboard, the bottom corners its minimap and
-	# mass bar, and the top left only the message feed, which comes and goes.
-	var _net := DotMenuStock.declare_net_stat(settings.schema, &"top_left")
-	add_child(settings)
+	if menu_settings == null:
+		menu_settings = HungrySettings.new()
+	add_child(menu_settings)
 
-	var res := settings.setup()
+	var res := menu_settings.setup(null, with_menu)
 	if not res.ok:
 		return res.wrap("hungario's settings")
+	settings = menu_settings.settings
 
-	# And back into the config on the way in, because the config is what the game reads.
-	# A settings document that does not reach it is a document nothing consumes, which is
+	# And into the config on the way in, because the config is what the game reads. A
+	# settings document that does not reach it is a document nothing consumes, which is
 	# this family's single most repeated bug.
 	settings.schema.apply_to_config(config, settings.to_config().values())
-	_add_chat_settings()
 	settings.changed.connect(_on_setting_changed)
 	return DotResult.success(null)
-
-
-## The three chat settings, added BESIDE the config rather than read out of it.
-##
-## [b]Everything else here comes from [HungryConfig] on purpose[/b] — tightening a range
-## there tightens the slider, the console and the stored document at once — and these three
-## deliberately do not. A `DotConfig` is layered from a JSON file, the environment and the
-## command line, and a keyboard binding has no business arriving from a server's argv:
-## `HUNGRY_CHAT_OPEN_KEY=Q` in a container would rebind every player's chat key. What key
-## a person opens chat with is theirs, stored under `ACCOUNT` scope, and reaches nothing
-## that runs on a server.
-func _add_chat_settings() -> void:
-	settings.schema.add(DotSettingsDef.choice(
-		&"chat_window",
-		&"auto",
-		[&"auto", &"on", &"off"] as Array[StringName],
-		&"chat"
-	).with_scope(DotSettingsDef.Scope.ACCOUNT).with_description(
-		"auto hides the box on a server already carrying chat somewhere the player can "
-		+ "see it; on always draws it; off never does."
-	))
-	settings.schema.add(DotSettingsDef.binding(&"chat_open_key", "Y", &"chat").with_scope(
-		DotSettingsDef.Scope.ACCOUNT
-	))
-	settings.schema.add(DotSettingsDef.binding(&"chat_near_key", "U", &"chat").with_scope(
-		DotSettingsDef.Scope.ACCOUNT
-	).with_description("Opens chat on the proximity channel rather than on all."))
 
 
 func _on_setting_changed(key: StringName, value: Variant, _why: StringName) -> void:
@@ -188,32 +153,11 @@ func _on_setting_changed(key: StringName, value: Variant, _why: StringName) -> v
 		else:
 			config.set(key, value)
 
-	match key:
-		&"chat_window":
-			_apply_chat_visibility()
-		&"chat_open_key":
-			_bind_chat(chat_window.open_action if chat_window != null else &"", str(value))
-		&"chat_near_key":
-			_bind_chat(chat_window.team_action if chat_window != null else &"", str(value))
-		&"volume_db":
-			if sound != null:
-				sound.volume_db = float(value)
-			if audio != null:
-				# The mixer carries a LINEAR amplitude and the config carries decibels,
-				# which is the one conversion everybody gets wrong in the other direction:
-				# a 0..1 slider mapped straight onto dB is a control where everything
-				# below 0.9 is silence.
-				audio.mixer.master = clampf(db_to_linear(float(value)), 0.0, 1.0)
-				audio.mixer.apply_to_buses()
-		&"muted":
-			if sound != null:
-				sound.muted = bool(value)
-			if audio != null:
-				audio.mixer.master = 0.0 if bool(value) else clampf(
-					db_to_linear(config.volume_db), 0.0, 1.0
-				)
-		_:
-			pass
+	# The keys (chat among them) are dot-menu's applier's, from the table; the volumes and
+	# the comfort settings too. The chat box's switch is left to the game (dot-menu's
+	# `LEFT_TO_THE_GAME`).
+	if key == &"chat_window":
+		_apply_chat_visibility()
 
 
 # --- Audio ------------------------------------------------------------------
@@ -318,8 +262,9 @@ func _build_audio() -> DotResult:
 	audio = DotAudioManager.new()
 	audio.name = "Audio"
 	audio.catalogue = sound_catalogue()
+	# The volumes are the stock audio page's, set on this mixer by dot-menu's applier
+	# ([method HungrySettings.bind_audio]) in linear amplitude.
 	audio.mixer = DotAudioMixer.new()
-	audio.mixer.master = clampf(db_to_linear(config.volume_db), 0.0, 1.0)
 	audio.voices = HungrySound.VOICES
 	audio.apply_mixer_to_buses = false
 	# The seam. Everything above it is dot-audio's; the last four lines are this game's.
@@ -455,22 +400,6 @@ func _build_chat() -> void:
 	_chat_layer.add_child(chat_window)
 
 
-## Puts one binding from the settings document onto its action.
-##
-## Empty is left alone rather than applied: a settings file somebody cleared the field in
-## would otherwise unbind chat with no way to get it back from inside the game.
-func _bind_chat(action: StringName, text: String) -> void:
-	if action == &"" or text.strip_edges() == "":
-		return
-
-	var bound := DotInputBinding.apply(action, text)
-
-	if bound == "":
-		DotLog.warn(CHANNEL, "a chat key was not understood", {
-			"action": String(action), "binding": text
-		})
-
-
 ## The server said whether anything else is carrying this conversation.
 func set_chat_relayed(relayed: bool) -> void:
 	if _chat_relayed == relayed:
@@ -504,11 +433,11 @@ func _apply_chat_visibility() -> void:
 ## `audio`, ahead of the server's console so a listen server's own `quit` is not the one
 ## that answers.
 ##
-## [b]No menu to register with.[/b] The kit makes the panel one of a [DotMenu]'s overlays,
-## and this game's screens are [DotScreenStack]'s: [HungryClient] suspends its sampler on
-## the console's `visibility_changed` instead, as it does for the chat box.
+## The panel is one of the Escape menu's overlays, so Escape closes it and the menu knows it
+## is open. [HungryClient] still suspends its sampler on the console's `visibility_changed`,
+## as it does for the chat box.
 func _build_console() -> DotResult:
-	console = DotConsoleKit.build(self, settings)
+	console = DotConsoleKit.build(self, settings, menu_settings.menu)
 
 	var server_sources := console.sources().slice(1)
 	for s in server_sources:

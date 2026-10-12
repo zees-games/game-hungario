@@ -121,7 +121,7 @@ The vote for the next mode is [dot-vote](https://github.com/modcommunity/dot-vot
 `end_vote: false` turns the end-of-mode vote off, and `include_extend: false` takes "extend" off the ballot. dot-vote's README lists every setting.
 
 ### Player settings
-Volume, camera smoothing, zoom, the minimap, names, the kill feed and the threat rings are in the pause menu. They are saved to `user://cfg/hungry.json`.
+Escape opens the menu: your loadout, the camera, zoom, the minimap, names, the feed and the threat rings (Game), the window and frame rate, the volumes, and every key (Controls). H opens help. Settings are saved to `user://hungry_settings`; settings and keys saved by older versions are carried over the first time.
 
 ## Rider avatars
 The rider on your monster is your avatar from the platform. Its parts come from a signed content pack when the server has one, from the game itself when it doesn't, and are drawn from their colours when there is neither. To build and publish an avatar pack:
