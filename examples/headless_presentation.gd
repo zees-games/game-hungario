@@ -18,6 +18,7 @@ const HungryBindings := preload("../game/client/hungry_bindings.gd")
 const HungryMenus := preload("../game/client/hungry_menus.gd")
 const HungrySettings := preload("../game/client/hungry_settings.gd")
 const HungryFalls := preload("../game/client/hungry_falls.gd")
+const HungryVoice := preload("../game/client/hungry_voice.gd")
 const HungryPiece := preload("../game/hungry_piece.gd")
 
 ## Settings, audio, effects, the console and the private arena.
@@ -34,7 +35,7 @@ const HungryPiece := preload("../game/hungry_piece.gd")
 ##
 ## Exits non-zero on any failure.
 
-const CHECKS := 139
+const CHECKS := 143
 
 var _passed := 0
 var _failed := 0
@@ -180,6 +181,27 @@ func _test_schema_is_the_config() -> void:
 		"and the master volume reaches dot-audio's mixer, which is the value a player can hear"
 	)
 	p.queue_free()
+
+	# [b]The voice settings are the stock ones and reach the player's voice.[/b] Until
+	# 2026-10-12 they were left out as reaching nothing; the client's HungryVoice publishes its
+	# manager as dot_voice_client and dot-menu's applier binds it by that name, so the rows
+	# are real. Armed: drop the publish and the mode never reaches the manager.
+	_check(schema.has(&"voice_mode") and schema.has(&"voice_input_device") and schema.has(&"voice_volume"),
+		"the stock voice settings are declared: talk mode, microphone, voice volume")
+	var voice := HungryVoice.new()
+	voice.name = "VoiceP%d" % _entered
+	add_child(voice)
+	var _v := voice.setup(false)
+	var q := _make()
+	q.settings.set_value(&"voice_mode", &"open_mic")
+	_check(voice.manager != null and voice.manager.open_mic,
+		"an open microphone chosen on the Audio page reaches the client's published voice")
+	q.settings.set_value(&"voice_mode", &"push_to_talk")
+	_check(voice.manager != null and not voice.manager.open_mic, "and push to talk turns it back")
+	q.settings.set_value(&"voice_volume", 0.3)
+	_check(is_equal_approx(q.audio.mixer.voice, 0.3), "and the voice volume reaches the mixer's voice bus")
+	q.queue_free()
+	voice.queue_free()
 	_done()
 
 

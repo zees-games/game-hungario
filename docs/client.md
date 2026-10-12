@@ -34,7 +34,7 @@ The server names the pack in the hello (`hungry_avatar_pack`), so one client bui
 
 - **This game's own keys are still declared by `HungryConfig`** (`@export`s for the camera and the interface) and read out of it with `DotSettingsSchema.from_config`, so a range tightened there tightens the slider and the console at once. The presentation layer writes each change back into the config, and `HungryClient._apply_settings` pushes it at the camera, renderer and HUD. The config is never saved itself.
 - **The volume is the stock audio page** (`master_volume`, `sfx_volume`, `ui_volume`), set on dot-audio's mixer by the applier. The bank's own level stays at `HungrySound`'s default. The old `volume_db` was applied twice (each voice and the Master bus), so this game's master starts at 0.4, about the old loudness, not the family's 0.8.
-- **Stock keys nothing here applies are left out** (`HungrySettings.NOT_APPLIED`): render scale and field of view (2D), sensitivity and invert (the mouse is a pointer), and the voice mode, microphone and voice volume (`HungryVoice` is not published as `dot_voice_client`). The talk key is a table row.
+- **Stock keys nothing here applies are left out** (`HungrySettings.NOT_APPLIED`): render scale and field of view (2D), and sensitivity and invert (the mouse is a pointer). The voice mode, microphone and voice volume are on the Audio page: `HungryVoice` publishes its manager as `dot_voice_client`, so dot-menu's applier binds them and dot-chat's `sm` list mutes a player's voice, not only their lines (`sandbox` checks both, armed). The talk key is a table row.
 - **Pushed, not polled.** The camera, sound and renderer hold the value they were given; no dictionary lookups in the draw path.
 
 ### The migration from dot-ui's files

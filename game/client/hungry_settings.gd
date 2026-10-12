@@ -53,12 +53,11 @@ const SCOPES := {
 
 ## Stock keys nothing here could apply, left out so no row is a switch that does nothing:
 ## the world is 2D (no 3D render scale, no field of view), the mouse is a pointer and not a
-## look (no sensitivity, no invert), and `HungryVoice` is not published as `dot_voice_client`,
-## so the talk mode, the microphone and the voice volume would reach nothing. The talk key
-## itself is a row of the table.
+## look (no sensitivity, no invert). The voice settings (talk mode, microphone, voice volume)
+## are declared: `HungryVoice` publishes its manager as `dot_voice_client`, which dot-menu's
+## applier binds by that name. The talk key is a row of the table.
 const NOT_APPLIED: Array[StringName] = [
 	&"render_scale", &"field_of_view", &"sensitivity", &"invert_mouse",
-	&"voice_mode", &"voice_input_device", &"voice_volume",
 ]
 
 ## The master volume this game starts at: about the loudness the bank had when its own

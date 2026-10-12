@@ -91,6 +91,7 @@ Short forms; the reasoning is in the linked file.
 
 - One chat path: dot-server's chat is cancelled in `hook_pre`. The chat key is the player id, not the uid. [services](docs/services.md#chat)
 - Voice is proximity, with the interest range. [services](docs/services.md#voice)
+- `HungryVoice` publishes its manager as `dot_voice_client`: dot-menu's voice rows (Audio page) and dot-chat's `sm` list bind it by that name; `sandbox` and `headless_presentation` check both. [client](docs/client.md#settings-are-dot-menus-document)
 - Stats have one source: `DotStatsSchema`; every achievement stat must be declared. Boards are per mode. [services](docs/services.md#stats-boards-and-achievements)
 - The vote's director is advanced once a tick by the module; the swap is dot-server's `change_game`, not `DotMapSyncHost`. [services](docs/services.md#the-vote-and-dot-map)
 - The vote knows a mode by its game id (`HungryModule.game_id_of`), never the preset id, and its source is narrowed to the modes (`HungryMaps.ModeSource`): a server runs other games too. [services](docs/services.md#the-vote-and-dot-map)

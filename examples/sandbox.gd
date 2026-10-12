@@ -38,7 +38,7 @@ const SCOPE_KEY := "user://hungry_sandbox_scope.key"
 const SERVER_DIR := "user://hungry_sandbox_server"
 
 ## Every check this suite runs. See the guard at the end of [method _run].
-const CHECKS := 99
+const CHECKS := 102
 
 var _passed := 0
 var _failed := 0
@@ -109,6 +109,7 @@ func _run() -> void:
 			await _test_playing()
 			await _test_admin_over_the_socket()
 			await _test_chat()
+			await _test_voice_mute()
 			await _test_two_players()
 			await _test_game_change()
 			await _test_leaving()
@@ -1121,6 +1122,61 @@ func _test_blind_and_beacon_audience(module: HungryModule, theirs: int) -> void:
 			and _client.renderer.beacon_count() == 0 and _other.renderer.beacon_count() == 0
 	, 6.0)
 	_check(cleared, "and turning both off reaches both clients")
+
+
+## [b]The player's block list (`sm`) reaches this game's voice.[/b] dot-chat's DotChatSelfMute
+## binds whatever is published as `dot_voice_client`; until that was checked here, `sm` was
+## only ever shown muting voice in arena. Frames are handed to the real client's manager as
+## the bridge hands them, from a speaker the list maps to a key; the buffered sink (no audio
+## device here) says whether anything played. Armed: drop `HungryVoice`'s publish and the
+## first check fails; drop the list's binding and the second does.
+func _test_voice_mute() -> void:
+	_section("sm mutes a player's voice")
+
+	# The one client in this process so far, as in a real one (a second client publishes its
+	# own, and the registry holds the last).
+	var voice: Variant = _client.voice if _client != null else null
+	var manager: DotVoiceManager = voice.manager if voice != null else null
+	if not _check(manager != null and DotRegistry.get_service(&"dot_voice_client") == manager,
+			"the client's voice is published as dot_voice_client"):
+		_done()
+		return
+
+	var self_mute := DotChatSelfMute.new()
+	self_mute.path = "user://hungry_sandbox_self_mute.json"
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(self_mute.path))
+	const TALKER := 1_900_000_001
+	self_mute.set_roster([{"id": 9, "name": "Loud", "key": "loud-key", "peer": TALKER}], 2)
+	self_mute.attach_voice(DotRegistry.get_service(&"dot_voice_client"))
+
+	var talk := func() -> void:
+		var codec := DotVoiceCodec.instance_for(manager.config.codec_id)
+		for i in range(10):
+			var packet := DotVoicePacket.new()
+			packet.speaker = TALKER
+			packet.sequence = i
+			packet.starts_talk_spurt = i == 0
+			packet.sample_count = manager.config.frame_samples()
+			packet.codec_id = manager.config.codec_id
+			packet.payload = codec.encode(DotVoiceSourceBuffer.tone(
+				300.0, manager.config.frame_ms / 1000.0, manager.config.sample_rate, 0.4))
+			voice.receive(packet.to_bytes())
+
+	self_mute.set_muted({"key": "loud-key", "name": "Loud"}, true)
+	talk.call()
+	for _i in range(15):
+		await get_tree().process_frame
+	_check(manager.is_locally_muted(TALKER) and voice.heard_rms(TALKER) == 0.0,
+		"sm on a player: their voice frames arrive and are not played (rms %.3f)" % voice.heard_rms(TALKER))
+
+	self_mute.set_muted({"key": "loud-key", "name": "Loud"}, false)
+	talk.call()
+	var heard := await _until(func() -> bool: return voice.heard_rms(TALKER) > 0.0, 2.0)
+	_check(heard and not manager.is_locally_muted(TALKER),
+		"and unmuted, the same frames play (rms %.3f)" % voice.heard_rms(TALKER))
+
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(self_mute.path))
+	_done()
 
 
 func _test_game_change() -> void:

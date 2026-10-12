@@ -46,9 +46,9 @@ static func make() -> DotMenuBindings:
 	keys.add(CHAT, CHAT_SETTING, "Chat", "Y", "Communication", DotSettingsDef.Scope.ACCOUNT)
 	keys.add(CHAT_NEAR, CHAT_NEAR_SETTING, "Chat with nearby players", "U", "Communication",
 		DotSettingsDef.Scope.ACCOUNT)
-	# Push to talk: dot-voice's own action, which `HungryVoice` gates on. Added here rather than
-	# by `DotMenuSettings`, which adds it only beside the stock voice settings this game does
-	# not declare (see [HungrySettings]).
+	# Push to talk: dot-voice's own action, which `HungryVoice` gates on. Added here, in the
+	# Communication group beside the chat keys, so `DotMenuSettings` finds the row and does not
+	# add its own.
 	keys.add_voice("Communication")
 	keys.add(SCOREBOARD, &"bind_scoreboard", "Scoreboard (hold)", "Tab", "Interface")
 	return keys
