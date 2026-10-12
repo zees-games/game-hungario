@@ -671,10 +671,25 @@ func _watched_centre() -> Vector2:
 func _start_offline() -> void:
 	world.add_player(1, "You")
 
+	# Named from dot-bot's pool, as a server's are; never "Bot 3".
+	var roster := DotBotRoster.new()
+	var taken: Array = ["You"]
 	for index in range(offline_bots):
 		var id := 100 + index
-		world.add_player(id, "Bot %d" % (index + 1))
+		var bot_name := roster.next_name(taken)
+		taken.append(bot_name)
+		world.add_player(id, bot_name)
 		_bots.append(id)
+
+	# How well they play: `bot_difficulty` (and every `bot_*`) at the console, or
+	# `-- --bot_difficulty <preset>` at launch. The same settings a server binds as cvars.
+	var skill := DotBotSettings.of(world)
+	var args := OS.get_cmdline_user_args()
+	var at := args.find("--bot_difficulty")
+	if at >= 0 and at + 1 < args.size():
+		DotLog.result(CHANNEL, "bot difficulty from the command line", skill.set_difficulty(args[at + 1]))
+	if presentation != null and presentation.local_console != null:
+		var _bound := skill.bind_console(presentation.local_console)
 
 	DotLog.info(CHANNEL, "playing offline", {"bots": _bots.size()})
 

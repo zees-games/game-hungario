@@ -135,6 +135,9 @@ var _joined: Dictionary = {}
 var _bots: Dictionary = {}
 
 var _next_bot_id: int = BOT_ID_BASE
+
+## Gets the bots from the number there are to the number [DotBotQuota] wants, named.
+var _roster := DotBotRoster.new()
 var _tick: int = 0
 
 ## `hungry_bots`, the old fixed count, kept only as an alias. See [method _register_console].
@@ -1406,14 +1409,13 @@ func _drive_bots() -> void:
 		var slots: int = server.config.max_players if server != null and server.config != null else -1
 		wanted = _quota.wanted(humans, slots)
 
-	while _bots.size() < wanted:
-		if not _add_bot():
-			break
-
-	while _bots.size() > wanted:
-		var doomed: int = _bots.keys()[_bots.size() - 1]
-		world.remove_player(doomed)
-		_bots.erase(doomed)
+	# dot-bot's roster: named from its pool, never a person's name, newest out first.
+	var taken: Array = []
+	for id in world.player_ids():
+		var someone := world.monster_for(id)
+		if someone != null:
+			taken.append(someone.display_name)
+	var _kept := _roster.keep(wanted, _bots.keys(), _add_bot, _remove_bot, taken)
 
 	for bot_id in _bots.keys():
 		var monster := world.monster_for(int(bot_id))
@@ -1426,17 +1428,22 @@ func _drive_bots() -> void:
 		)
 
 
-func _add_bot() -> bool:
+func _remove_bot(doomed: Variant) -> void:
+	world.remove_player(int(doomed))
+	var _gone := _bots.erase(doomed)
+
+
+## Adds one bot called [param display_name]; its id, or 0 when the bridge refused.
+func _add_bot(display_name: String) -> int:
 	var bot_id := _next_bot_id
 	_next_bot_id += 1
 
 	var index := bot_id - BOT_ID_BASE
-	var display_name := "Bot %d" % (index + 1)
 	var added := bridge.add_player(0, bot_id, display_name)
 
 	if not added.ok:
 		log_warn("could not add a bot", {"error": str(added.error)})
-		return false
+		return 0
 
 	# Bots take turns through the traits and the throwables. Not for their sake — they
 	# play the same either way — but so that an operator watching a server full of them
@@ -1465,7 +1472,7 @@ func _add_bot() -> bool:
 		log_warn("a bot loadout was not legal", {"error": str(legal.error)})
 
 	_bots[bot_id] = display_name
-	return true
+	return bot_id
 
 
 func bot_count() -> int:
@@ -1627,6 +1634,10 @@ func _register_console() -> void:
 	# so a person alone on a server gets the game they get offline less one bot, and each
 	# person who joins takes a bot's place until there are six people and no bots.
 	_quota = DotBotQuota.install(self, DEFAULT_BOT_QUOTA)
+
+	# How well they play: dot-bot's `bot_difficulty` and its `bot_*` settings, on the world
+	# [HungryBot] reads them from (sight, reaction, throw aim).
+	var _bot_cvars := DotBotSettings.of(world).bind_cvars(add_cvar, DotConVar.FLAG_NOTIFY, add_command)
 
 	# [b]Deprecated: `hungry_bots` was a FIXED count[/b], and it is kept as an alias that
 	# means exactly that — `bot_quota N` in `fixed` mode — so a config or an operator who

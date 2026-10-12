@@ -40,7 +40,7 @@ Read the family [CLAUDE.md](../../CLAUDE.md) first; this file is only what is sp
 
 - `./game.sh` plays offline; `./game.sh online` runs a local server plus the browser client; `./game.sh test` parses everything and runs all seven suites. `./game.sh help` lists the rest.
 - `godot --path . -- --offline | --connect HOST:PORT | --touch` for the standalone client.
-- An empty server keeps six players in the arena with bots (dot-server's `DotBotQuota`, `bot_quota` in fill mode); each person who joins takes a bot's place. `bot_quota_mode fixed` keeps that many bots beside everybody; `hungry_bots N` is a deprecated alias for it.
+- An empty server keeps six players in the arena with bots (dot-server's `DotBotQuota`, `bot_quota` in fill mode); each person who joins takes a bot's place. `bot_quota_mode fixed` keeps that many bots beside everybody; `hungry_bots N` is a deprecated alias for it. Bots are named and counted through dot-bot's `DotBotRoster` (offline too: `DotBotNames`), and how well they play is dot-bot's `bot_difficulty` on the world, which `HungryBot` reads for sight, flee distance and throw aim; medium plays as before presets.
 - **Run `headless_round` after any change to dot-2d, and `headless_net` after any change to dot-net.** They are the only places that see replay determinism and client/server agreement under loss.
 - **`sandbox` is the suite that matters most**: two real clients on a real socket. See [docs/testing.md](docs/testing.md).
 - **Look at it.** No check reaches placement, scale or drawing: `tools/screenshot_map.sh <mode>` for levels (`--ballot` for the HUD under a ballot), `tools/screenshot_menus.sh` for screens ([docs/levels.md](docs/levels.md#looking-at-a-level)).

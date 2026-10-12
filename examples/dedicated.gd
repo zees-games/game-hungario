@@ -40,7 +40,7 @@ const SERVER_DIR := "user://hungry_dedicated"
 ## prints it to say which game this is, and nothing treats it as proof.
 const APP_URL := "hungario"
 
-const CHECKS := 229
+const CHECKS := 231
 
 var _passed := 0
 var _failed := 0
@@ -611,6 +611,17 @@ func _test_bots() -> void:
 	var wanted := maxi(HungryModule.DEFAULT_BOT_QUOTA - people, 0)
 	var defaulted := await _until(func() -> bool: return module.bot_count() == wanted)
 	_check(defaulted, "an empty server fills itself to the quota (%d of %d)" % [module.bot_count(), wanted])
+
+	var names: Array = []
+	for id in world.player_ids():
+		if world.monster_for(id) != null and id >= HungryModule.BOT_ID_BASE:
+			names.append(world.monster_for(id).display_name)
+	_check(not names.is_empty() and names.all(func(n: String) -> bool: return DotBotNames.POOL.has(n)),
+		"bots are named from dot-bot's pool, never numbered", str(names))
+	var difficulty := _server.console.execute("bot_difficulty hard")
+	var reached := DotBotSettings.of(world).difficulty() == "hard"
+	var _back := _server.console.execute("bot_difficulty medium")
+	_check(difficulty.ok and reached, "bot_difficulty is a cvar, and reaches the world the bots read it from")
 
 	var bots_before := module.bot_count()
 	var joined := module.bridge.add_player(0, 777, "Person")

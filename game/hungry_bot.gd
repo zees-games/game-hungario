@@ -19,10 +19,24 @@ const HungryWorld := preload("hungry_world.gd")
 ## a recorded round produces the same one. The little bit of variety that stops eight bots
 ## from moving as one body comes from hashing the id, which is the same trick
 ## [Dot2DScatter] uses to place a field.
+##
+## [b]How well it plays is dot-bot's `bot_difficulty`[/b] ([DotBotSettings] on the world: the
+## module binds the cvars, the offline client the console variables). Three of the settings
+## mean something on a plate: `bot_sight` scales how far it looks ([constant SIGHT] at medium),
+## `bot_reaction` how soon it runs from something that can eat it (the margin past six radii,
+## [constant FLEE_MARGIN] at medium, scaled by medium's reaction over this one's), and
+## `bot_aim_error` / `bot_aim_floor` how far off a throw leaves (degrees, either side, drawn
+## from the id and the tick so it stays deterministic).
 
 ## How far a bot looks, in world units. Roughly a screen, so it does not react to things
 ## a player could not see it react to.
 const SIGHT := 900.0
+
+## How far past six of its radii a threat makes a medium bot run, in world units.
+const FLEE_MARGIN := 180.0
+
+## The preset every scale is relative to, so medium plays as this file always did.
+static var _medium: DotBotProfile = DotBotProfile.new()
 
 ## How much bigger something has to be before it is worth running from. Slightly under
 ## the eat ratio, so a bot starts moving before it is actually in danger.
@@ -53,6 +67,8 @@ static func command_for(
 		return command
 
 	var origin := head.position()
+	var skill := DotBotSettings.of(world).profile
+	var sight := SIGHT * skill.sight / _medium.sight
 	var rules := world.tunables.mass_rules
 
 	var threat := Vector2.ZERO
@@ -73,7 +89,7 @@ static func command_for(
 	var snack_score := -INF
 
 	for grid_id in world.arena.grid.query_rect(
-		Rect2(origin - Vector2(SIGHT, SIGHT), Vector2(SIGHT, SIGHT) * 2.0), head.id
+		Rect2(origin - Vector2(sight, sight), Vector2(sight, sight) * 2.0), head.id
 	):
 		var at := world.arena.grid.position_of(grid_id)
 		var distance := origin.distance_to(at)
@@ -124,7 +140,7 @@ static func command_for(
 	var target := origin
 	var deciding := true
 
-	if threat_distance < head.radius() * 6.0 + 180.0:
+	if threat_distance < head.radius() * 6.0 + FLEE_MARGIN * clampf(_medium.reaction / maxf(skill.reaction, 0.05), 0.25, 3.0):
 		# Away from the threat, and biased along the wall rather than into it, because a
 		# bot that flees straight into a corner dies there every time.
 		var away := (origin - threat).normalized()
@@ -168,6 +184,8 @@ static func command_for(
 	target = _off_the_wall(target, world.arena.bounds, head.radius())
 
 	var offset := target - origin
+	if command.is_pressed(Dot2DCommand.BUTTON_ACTION):
+		offset = offset.rotated(deg_to_rad(_throw_error(monster.id, tick, skill)))
 	command.aim = offset.normalized() if offset.length_squared() > 0.000001 else Vector2.ZERO
 	command.reach = minf(offset.length(), HungryNetCommand.MAX_REACH)
 
@@ -190,6 +208,14 @@ static func _off_the_wall(target: Vector2, bounds: Rect2, radius: float) -> Vect
 		clampf(target.x, bounds.position.x + margin, bounds.end.x - margin),
 		clampf(target.y, bounds.position.y + margin, bounds.end.y - margin)
 	)
+
+
+## Degrees a throw leaves off its target: between `bot_aim_floor` and `bot_aim_error`, to
+## either side, drawn from the id and the quarter second so it is the same on a replay.
+static func _throw_error(id: int, tick: int, skill: DotBotProfile) -> float:
+	var h := Dot2DScatter._hash(id, 0x7A + tick / 16)
+	var size := lerpf(skill.aim_floor, skill.aim_error, Dot2DScatter._unit(h))
+	return size if Dot2DScatter._unit(Dot2DScatter._hash(h, 1)) < 0.5 else -size
 
 
 ## A stable value in [0, 1) for a bot, so eight of them do not orbit in lockstep.

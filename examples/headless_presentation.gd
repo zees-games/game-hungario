@@ -35,7 +35,7 @@ const HungryPiece := preload("../game/hungry_piece.gd")
 ##
 ## Exits non-zero on any failure.
 
-const CHECKS := 145
+const CHECKS := 147
 
 var _passed := 0
 var _failed := 0
@@ -425,6 +425,28 @@ func _test_console_stops_the_keys() -> void:
 	client.sampler = sampler
 	client._wire_chat_window()
 	client._wire_console()
+
+	# Offline bots: named from dot-bot's pool, and their difficulty at this console.
+	var solo := HungryWorld.new()
+	solo.name = "SoloWorld"
+	solo.preset = HungryPreset.classic()
+	solo.register_service = false
+	add_child(solo)
+	var _ready_world := solo.setup()
+	client.world = solo
+	client.offline_bots = 3
+	client._start_offline()
+	var solo_names: Array = []
+	for id in solo.player_ids():
+		if id >= 100:
+			solo_names.append(solo.monster_for(id).display_name)
+	_check(solo_names.size() == 3 and solo_names.all(func(n: String) -> bool: return DotBotNames.POOL.has(n)),
+		"offline bots are named from dot-bot's pool", str(solo_names))
+	var typed := p.console.submit("bot_difficulty nightmare")
+	_check(typed.ok and DotBotSettings.of(solo).difficulty() == "nightmare", "and bot_difficulty at the console sets how they play")
+	client.world = null
+	remove_child(solo)
+	solo.free()
 
 	Input.action_press(sampler.move_right)
 	Input.action_press(&"hungry_eject")

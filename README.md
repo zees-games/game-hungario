@@ -85,6 +85,7 @@ Settings are cvars. Set them in the server's config, on the command line, or liv
 ```
 bot_quota 6                   // players the arena is kept at with bots; each person who joins replaces one
 bot_quota_mode fill           // fill (as above), fixed (that many bots), per_player (that many per person) or off
+bot_difficulty medium         // easy, medium, hard or nightmare: how far bots see, how soon they run, how well they throw
 hungry_hunters_on 0           // release NPC hunters into the arena
 sv_ragdoll 1                  // an eaten monster goes down (deflates, folds, slams flat, or is thrown); 0 just shrinks it
 sv_ragdoll_reactions ""       // weights for limp, crumple, face_plant, headshot_launch (swallowed whole), power_launch; 0 turns one off
@@ -93,7 +94,7 @@ hungry_outgrown ""            // a monster stuck in a refuge it outgrew: accept,
 hungry_avatar_pack ""         // manifest URL for this server's rider content
 ```
 
-The bot cvars are the family's shared ones (dot-server's `DotBotQuota`). `hungry_bots N` still works and means what it did, N bots beside everybody: it sets `bot_quota N` and `bot_quota_mode fixed`. It is deprecated.
+The bot cvars are the family's shared ones (dot-server's `DotBotQuota`, and dot-bot's `bot_difficulty` with the `bot_*` settings it bundles; offline they are console variables, or `-- --bot_difficulty hard` at launch). `hungry_bots N` still works and means what it did, N bots beside everybody: it sets `bot_quota N` and `bot_quota_mode fixed`. It is deprecated.
 
 Console commands:
 

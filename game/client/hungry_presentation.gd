@@ -60,6 +60,10 @@ var fx: DotFxManager = null
 var console: DotConsoleController = null
 var console_panel: DotConsolePanel = null
 
+## This client's own commands in the console, where the offline client adds dot-bot's
+## `bot_difficulty` and `bot_*` variables.
+var local_console: DotConsoleLocal = null
+
 ## The in-game chat box. See [method _build_chat].
 var chat_window: DotChatWindow = null
 
@@ -458,7 +462,8 @@ func _build_console() -> DotResult:
 	var server_sources := console.sources().slice(1)
 	for s in server_sources:
 		console.remove_source(s)
-	console.add_source(_local_commands())
+	local_console = _local_commands()
+	console.add_source(local_console)
 	for s in server_sources:
 		console.add_source(s)
 
