@@ -1,5 +1,6 @@
 extends Node2D
 
+const HungryHelp := preload("hungry_help.gd")
 const HungryBot := preload("../hungry_bot.gd")
 const HungryCamera := preload("hungry_camera.gd")
 const HungryConfig := preload("../hungry_config.gd")
@@ -95,6 +96,8 @@ var settings: HungryConfig = null
 var link: Node = null
 
 var _pause: DotPauseScreen = null
+## dot-menu's help screen, on H and the pause menu's Help ([HungryHelp]).
+var help_menu: DotMenu = null
 var _offline: bool = false
 var _tick: int = 0
 var _board_accum: float = 0.0
@@ -399,7 +402,15 @@ func _build_ui() -> void:
 		_pause.chosen.connect(func(id: StringName) -> void:
 			if id == HungryMenus.LEAVE:
 				_on_leave()
+			elif id == HungryMenus.HELP and help_menu != null:
+				var _closed := screens.pop(&"pause")
+				help_menu.open_help(null, not _offline)
 		)
+
+	# H opens help, as in every game of the family; the pause menu's Help opens the same.
+	help_menu = HungryHelp.build(layer)
+	if help_menu != null:
+		help_menu.overlays_changed.connect(func(_open: bool) -> void: _refresh_suspended())
 
 	var settings_screen := screens.screen(&"settings") as DotSettingsScreen
 
@@ -994,7 +1005,8 @@ func _wire_console() -> void:
 ## a typed "w" eject mass.
 func _refresh_suspended() -> void:
 	if sampler != null:
-		sampler.suspended = presentation != null and presentation.swallows_input()
+		sampler.suspended = (presentation != null and presentation.swallows_input()) \
+			or (help_menu != null and help_menu.any_open())
 
 
 ## dot-server's chat payload: what is carrying the conversation, and the server's own lines.

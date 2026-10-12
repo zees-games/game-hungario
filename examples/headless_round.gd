@@ -5989,7 +5989,7 @@ func _test_interface() -> void:
 	# existed, which is the duplication that addon was written to end.
 	_check(pause is DotPauseScreen, "the pause screen is the shared one")
 	_check(
-		pause.ids() == ([&"resume", &"loadout", &"settings", &"controls", HungryMenus.LEAVE]
+		pause.ids() == ([&"resume", &"loadout", &"settings", &"controls", HungryMenus.HELP, HungryMenus.LEAVE]
 			as Array[StringName]),
 		"and its ids come from its labels (%s)" % [pause.ids()]
 	)

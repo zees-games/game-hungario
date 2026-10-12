@@ -29,11 +29,13 @@ const CHANNEL := "hungry.menus"
 ## (`const` rather than a `PackedStringArray(...)` call, which is not a constant expression
 ## in GDScript. It is converted at the one place it is handed over.)
 const PAUSE_BUTTONS: Array[String] = [
-	"Resume", "Loadout", "Settings", "Controls", "Leave",
+	"Resume", "Loadout", "Settings", "Controls", "Help", "Leave",
 ]
 
-## The id of the button this game's client acts on itself. See [method install].
+## The ids of the buttons this game's client acts on itself. See [method install]. Help opens
+## dot-menu's help screen (`HungryHelp`), the same one H opens, as in every game here.
 const LEAVE := &"leave"
+const HELP := &"help"
 
 
 ## Key bindings, with conflict detection and a file that survives a restart.
@@ -378,7 +380,7 @@ static func install(
 	# labels above and what happens when one is pressed.
 	var pause := DotPauseScreen.new()
 	pause.name = "Pause"
-	pause.half_size = Vector2(170.0, 150.0)
+	pause.half_size = Vector2(170.0, 170.0)
 
 	var built := pause.build(PackedStringArray(PAUSE_BUTTONS))
 

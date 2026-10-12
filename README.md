@@ -47,7 +47,8 @@ There are six modes:
 | **Q** | Throw what you are holding |
 | **Tab** (hold) | The scoreboard: every monster ranked by mass, with their pieces, how long they have been on the server and their ping |
 | **Y** / **U** | Chat / chat with nearby players |
-| **Esc** | Menu, settings and loadout |
+| **H** | Help: the goal, the modes and every key as you have it bound |
+| **Esc** | Menu: loadout, settings, controls, help and leave |
 
 On a phone, drag to steer, and there are buttons for split and throw.
 

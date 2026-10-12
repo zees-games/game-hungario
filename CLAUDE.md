@@ -52,6 +52,7 @@ Short forms; the reasoning is in the linked file.
 
 **Simulation**
 
+- **H is help** (`HungryHelp`: dot-menu's help screen only, with a display table of the `hungry_*` actions read live from the InputMap), so no `hungry_*` action may default to H; the pause menu has Help and Leave. `headless_presentation` checks it.
 - Every piece steers toward the pointer's **world point** (`HungryWorld.pointer_of`), never along one shared direction, or split pieces can never merge. [gameplay](docs/gameplay.md#a-player-is-a-set-and-the-pointer-is-a-point)
 - The arena size is part of every food position: `adopt_world_size` before `adopt_field_seed`. Slot indexes are never reused. [gameplay](docs/gameplay.md#four-fields-one-id-space-and-only-membership-travels)
 - Anything that changes speed must be readable on both ends: effects travel as piece flags, the trait in the join. [gameplay](docs/gameplay.md#effects-are-replicated-as-flags)
@@ -104,4 +105,4 @@ Short forms; the reasoning is in the linked file.
 ## Not converted yet
 
 - **dot-game**: the module extends `DotModule` and `HungryServices` is its own, not `DotGameModule`/`DotGameServices`. Not yet converted; dot-game's CLAUDE.md says to convert game-arena first.
-- **dot-menu**: only the Tab scoreboard uses it. The settings, pause, controls and loadout screens stay because this game's settings are a `DotConfig` and dot-menu's menu is a view of dot-settings; moving them changes how settings are stored. Deliberate for now. [client](docs/client.md#screens)
+- **dot-menu's Escape menu is not converted yet.** The Tab scoreboard and the help screen (H, and the pause menu's Help; `HungryHelp`) are dot-menu's; the pause, settings, controls and loadout screens are still dot-ui's, because this game's settings are a `DotConfig` and dot-menu's menu is a view of dot-settings, so converting moves where a player's settings are stored. Until it is, the help key is not rebindable here (dot-ui's rebinder lists `hungry_*` only). Queue item `fpt-hungario-dot-menu-1`. [client](docs/client.md#screens)

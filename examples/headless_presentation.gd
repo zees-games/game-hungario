@@ -14,6 +14,8 @@ const HungryWorld := preload("../game/hungry_world.gd")
 const HungryClient := preload("../game/client/hungry_client.gd")
 const HungryInput := preload("../game/client/hungry_input.gd")
 const HungryMonster := preload("../game/hungry_monster.gd")
+const HungryHelp := preload("../game/client/hungry_help.gd")
+const HungryMenus := preload("../game/client/hungry_menus.gd")
 
 ## Settings, audio, effects, the console and the private arena.
 ##
@@ -29,7 +31,7 @@ const HungryMonster := preload("../game/hungry_monster.gd")
 ##
 ## Exits non-zero on any failure.
 
-const CHECKS := 108
+const CHECKS := 113
 
 var _passed := 0
 var _failed := 0
@@ -67,6 +69,7 @@ func _run() -> void:
 	_test_the_vote_is_heard()
 	_test_blind_and_beacon()
 	_test_board_makes_room()
+	_test_help()
 
 	if not probe.is_empty():
 		_test_exits_clean(probe)
@@ -685,6 +688,36 @@ func _check(condition: bool, what: String, detail: String = "") -> bool:
 		print("  FAIL  %s" % what)
 		_failures.append(what if detail == "" else "%s — %s" % [what, detail])
 	return condition
+
+
+## The family's rule since the first play test: H opens help in every game, nothing else is
+## on H, and the pause menu (this game's Escape menu) has Help and Leave.
+func _test_help() -> void:
+	_section("H opens dot-menu's help, and the pause menu has Help and Leave")
+	var menu := HungryHelp.build(self)
+	_check(menu != null and menu.bindings.key_for(DotMenuBindings.HELP_ACTION) == "H"
+		and menu.bindings.defaults_on("H").size() == 1, "help is on H, and no key of this game's is")
+	menu.config.escape_grace_ms = 0
+	var h := InputEventKey.new()
+	h.physical_keycode = KEY_H
+	h.keycode = KEY_H
+	h.pressed = true
+	_check(menu.handle_event(h) and menu.help.is_open() and menu.help.about != ""
+		and menu.help.heading() == "How to play Hungario", "H opens the help screen, which says what the game is first")
+	var esc := InputEventKey.new()
+	esc.physical_keycode = KEY_ESCAPE
+	esc.pressed = true
+	_check(menu.handle_event(esc) and not menu.help.is_open() and not menu.is_open(),
+		"Escape closes it, and opens no menu of dot-menu's own")
+	_check(HungryMenus.PAUSE_BUTTONS.has("Help") and HungryMenus.PAUSE_BUTTONS.has("Leave"),
+		"the pause menu has Help and Leave")
+	var was := DotInputBinding.describe_action(&"hungry_split") if InputMap.has_action(&"hungry_split") else ""
+	var _j := DotInputBinding.apply(&"hungry_split", "J")
+	_check(menu.bindings.key_for(&"hungry_split") == "J", "a key rebound on the Controls screen is shown where it is now")
+	if was != "":
+		var _back := DotInputBinding.apply(&"hungry_split", was)
+	menu.free()
+	_done()
 
 
 func _test_chat_box() -> void:
