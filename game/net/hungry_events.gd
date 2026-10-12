@@ -530,6 +530,12 @@ const CHAT_KEY_BYTES := 48
 const CHAT_KIND_BITS := 4
 
 
+## Whether every [enum DotChatMessage.Kind] fits in [constant CHAT_KIND_BITS]. dot-chat owns
+## that enum, so it can grow under this game; headless_net reads this.
+static func chat_kinds_fit() -> bool:
+	return DotChatMessage.KIND_NAMES.size() <= (1 << CHAT_KIND_BITS)
+
+
 ## One chat line, from [method DotChatMessage.to_dictionary], plus who said it.
 ##
 ## [b]Encoded field by field rather than as JSON.[/b] A JSON body is a variable-length blob

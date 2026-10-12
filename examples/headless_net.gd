@@ -16,6 +16,7 @@ const HungryPreset := preload("../game/hungry_preset.gd")
 const HungryProjectile := preload("../game/hungry_projectile.gd")
 const HungryServices := preload("../game/hungry_services.gd")
 const HungryWorld := preload("../game/hungry_world.gd")
+const HungryRequest := preload("../game/net/hungry_request.gd")
 
 ## Runs a server and a client in one process and checks the netcode works.
 ##
@@ -36,7 +37,7 @@ const SNAPSHOT_RATE := 20
 const SEED := 20260828
 const CLIENT_PEER := 2
 
-const CHECKS := 159
+const CHECKS := 164
 
 var _passed := 0
 var _failed := 0
@@ -407,6 +408,22 @@ func _test_event_wire() -> void:
 	# dispatched, because the handler's `match` would silently fall through.
 	var bogus := HungryEvent.new(31, PackedByteArray())
 	_check(not bogus.validate().ok, "an unknown event kind is refused")
+
+	# A kind goes out in a fixed field the writer masks without a word, so one past it aliases a
+	# smaller kind: game-zombie-zone sent HURT and AMMO as HELLO and MAP that way.
+	_check(HungryEvent.fits(), "every event kind fits the event's kind field",
+		"%d kinds in %d bits" % [HungryEvents.Kind.size(), HungryEvent.KIND_BITS])
+	_check(HungryRequest.fits(), "every request kind fits the request's kind field",
+		"%d kinds in %d bits" % [HungryEvents.Ask.size(), HungryRequest.KIND_BITS])
+	_check(HungryEvents.chat_kinds_fit(), "every chat kind fits the chat line's kind field",
+		"%d kinds in %d bits" % [DotChatMessage.KIND_NAMES.size(), HungryEvents.CHAT_KIND_BITS])
+	_check(HungryHunters.wire_ids().size() <= (1 << HungryEvents.HUNTER_KIND_BITS),
+		"every hunter kind fits the hunter event's kind field",
+		"%d kinds in %d bits" % [HungryHunters.wire_ids().size(), HungryEvents.HUNTER_KIND_BITS])
+	_check(HungryHazards.wire_ids().size() <= (1 << HungryEvents.HAZARD_KIND_BITS),
+		"every hazard kind fits the hazard event's kind field",
+		"%d kinds in %d bits" % [HungryHazards.wire_ids().size(), HungryEvents.HAZARD_KIND_BITS])
+
 	_done()
 
 
