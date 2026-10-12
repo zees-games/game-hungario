@@ -55,6 +55,16 @@ var menu_settings: HungrySettings = null
 ## Whether [method setup] builds the menu. Off for a suite that wants the document alone.
 var with_menu: bool = true
 var audio: DotAudioManager = null
+
+## The arena's ambience bed: dot-audio's stock (generated, CC0; the addon's stock/CREDITS.md),
+## through a second manager on dot-audio's own Godot sink, because [HungrySoundSink] plays
+## this game's generated cues and nothing with a file. Nobody walks here, so no footsteps.
+var bed_audio: DotAudioManager = null
+var ambience: DotAudioAmbience = null
+
+## The bed under every mode: a wet, low room with something dripping, which is what a dish
+## of cells eating each other sounds like.
+const BED := &"amb_cave"
 var fx: DotFxManager = null
 ## The player's console. See [method DotConsoleKit.build] and [method _build_console].
 var console: DotConsoleController = null
@@ -294,6 +304,27 @@ func _build_audio() -> DotResult:
 	var res := audio.setup()
 	if not res.ok:
 		return res.wrap("hungario's audio")
+
+	var beds := DotAudioCatalogue.new()
+	DotAudioStock.add_to(beds)
+	bed_audio = DotAudioManager.new()
+	bed_audio.name = "BedAudio"
+	bed_audio.catalogue = beds
+	bed_audio.voices = 2
+	bed_audio.apply_mixer_to_buses = false
+	bed_audio.register_as_service = false
+	# No trim: measured with dot-audio's addons/dot_audio/tools/loudness.sh (-- --offline) the
+	# bed alone reads about -27 LUFS under this game's -8 dB master, a room under the cues.
+	add_child(bed_audio)
+	var bres := bed_audio.setup()
+	if not bres.ok:
+		return bres.wrap("hungario's ambience")
+	ambience = DotAudioAmbience.new()
+	ambience.name = "Ambience"
+	ambience.manager = bed_audio
+	ambience.fallback_bed = BED
+	add_child(ambience)
+	ambience.set_map_bed(BED)
 	return DotResult.success(null)
 
 

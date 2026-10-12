@@ -52,6 +52,7 @@ Short forms; the reasoning is in the linked file.
 
 **Simulation**
 
+- **The bed is dot-audio's, through a second manager** (`HungryPresentation.bed_audio` on dot-audio's Godot sink), because `HungrySoundSink` plays generated cues and no files. No footsteps: nobody walks. Measure with `addons/dot_audio/tools/loudness.sh -- --offline` (the main scene is the browser).
 - **Escape is dot-menu's menu** (`HungrySettings`, a `DotMenuSettings`): Loadout first, Game, the stock pages, Controls over `HungryBindings`, Help & commands (H) and Leave. Nothing in the table may default to H or M; `headless_presentation` checks it. [client](docs/client.md#screens)
 - Every piece steers toward the pointer's **world point** (`HungryWorld.pointer_of`), never along one shared direction, or split pieces can never merge. [gameplay](docs/gameplay.md#a-player-is-a-set-and-the-pointer-is-a-point)
 - The arena size is part of every food position: `adopt_world_size` before `adopt_field_seed`. Slot indexes are never reused. [gameplay](docs/gameplay.md#four-fields-one-id-space-and-only-membership-travels)
