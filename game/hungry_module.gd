@@ -144,6 +144,10 @@ var _quota: DotBotQuota = null
 var _cv_pack: DotConVar = null
 var _cv_auth_config: DotConVar = null
 var _cv_hunters: DotConVar = null
+
+## dot-player-char's `sv_ragdoll*` set: how an eaten monster goes down. The module's, because
+## the cvars outlive a mode change and the world does not; each world is handed this one.
+var ragdoll_rules: DotPlayerRagdollRules = DotPlayerRagdollRules.new()
 var _cv_hazards: DotConVar = null
 
 ## Who last said something. What `hungry_status` reports, off the accepted line.
@@ -180,6 +184,7 @@ func _module_load() -> DotResult:
 		)
 
 	_report_map(world)
+	world.ragdoll_rules = ragdoll_rules
 
 	var netted := _build_netcode()
 
@@ -316,6 +321,7 @@ func _module_game_changed(content_key: String) -> void:
 		return
 
 	world = next
+	world.ragdoll_rules = ragdoll_rules
 
 	# Everything that holds a world holds the new one. A layer left pointing at a freed
 	# scene is a use-after-free on the next tick, and the ones that hold *placements*
@@ -1636,6 +1642,12 @@ func _register_console() -> void:
 	# addon's.[/b] A mode about eating food and a mode about being hunted are different
 	# games, and turning one into the other silently because an addon was installed is
 	# exactly what a cvar exists to prevent.
+	# How an eaten monster goes down on every screen: the server picks each death's reaction
+	# from these (HungryWorld.decide_death); REPLICATED, because the clients draw the falls.
+	var _ragdolls := ragdoll_rules.bind_cvars(
+		add_cvar, DotConVar.FLAG_ARCHIVE | DotConVar.FLAG_NOTIFY | DotConVar.FLAG_REPLICATED
+	)
+
 	_cv_hunters = add_cvar("hungry_hunters_on", "0", "Release NPC hunters into the arena")
 	_cv_hunters.changed.connect(func(_old: String, value: String) -> void:
 		if hunters != null:

@@ -1184,8 +1184,10 @@ func _on_monster_burst(player_id: int, by_player: int, count: int) -> void:
 
 
 func _on_player_died(player_id: int, killer_id: int) -> void:
+	var monster := world.monster_for(player_id) if world != null else null
 	_broadcast(
-		HungryEvents.Kind.DIED, HungryEvents.write_pair(player_id, killer_id)
+		HungryEvents.Kind.DIED,
+		HungryEvents.write_died(player_id, killer_id, monster.death if monster != null else null)
 	)
 
 
@@ -1305,10 +1307,15 @@ func _on_event(message: DotNetMessage) -> void:
 		HungryEvents.Kind.IMPACT:
 			_apply_impact(reader)
 
-		HungryEvents.Kind.BURST, HungryEvents.Kind.DIED:
+		HungryEvents.Kind.BURST:
 			var pair := HungryEvents.read_pair(reader)
 			if bool(pair["ok"]):
 				cue.emit(event.kind, pair)
+
+		HungryEvents.Kind.DIED:
+			var died := HungryEvents.read_died(reader)
+			if bool(died["ok"]):
+				cue.emit(event.kind, died)
 
 		HungryEvents.Kind.BOARD:
 			board = HungryEvents.read_board(reader)

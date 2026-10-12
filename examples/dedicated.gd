@@ -40,7 +40,7 @@ const SERVER_DIR := "user://hungry_dedicated"
 ## prints it to say which game this is, and nothing treats it as proof.
 const APP_URL := "hungario"
 
-const CHECKS := 228
+const CHECKS := 229
 
 var _passed := 0
 var _failed := 0
@@ -592,6 +592,13 @@ func _test_bots() -> void:
 	# who joins takes a bot's place and the bot comes back when they leave. The person is
 	# put in through the bridge with peer zero, as a bot is, and `_drive_bots` is called
 	# rather than waited for, so the count is exact and nothing else moves under it.
+	# The sv_ragdoll* set: the server's, replicated (the clients draw the falls), and the one
+	# the world decides deaths from.
+	var weights := _server.console.find_cvar("sv_ragdoll_reactions")
+	_check(weights != null and weights.has_flag(DotConVar.FLAG_REPLICATED)
+			and module.world.ragdoll_rules == module.ragdoll_rules,
+		"sv_ragdoll_reactions is replicated, and the world picks deaths from the module's rules")
+
 	var quota := _server.console.find_cvar("bot_quota")
 	var quota_mode := _server.console.find_cvar("bot_quota_mode")
 	_check(

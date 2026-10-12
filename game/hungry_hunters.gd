@@ -734,7 +734,7 @@ func _resolve_eating() -> void:
 						"player": monster.id, "mass": snappedf(piece.mass(), 0.1),
 					})
 					piece_hunted.emit(monster.id, piece.mass())
-					world.devour_piece(piece.id)
+					world.devour_piece(piece.id, at)
 					break
 				elif piece.mass() >= hunter_mass * ratio:
 					# The player eats the hunter. Through the spawner's own death path,

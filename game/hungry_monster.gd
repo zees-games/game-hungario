@@ -132,6 +132,10 @@ var best_mass: float = 0.0
 ## Whether they are in the world at all.
 var alive: bool = false
 
+## How their last piece went down when they were eaten: the server's pick
+## ([method HungryWorld.decide_death]), carried on DIED. Null before a death.
+var death: DotPlayerDeath = null
+
 ## Their last command, repeated when none arrives.
 ##
 ## A dropped input packet should read as "still holding the mouse there", which is what

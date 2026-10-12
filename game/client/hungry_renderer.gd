@@ -4,6 +4,7 @@ extends Node2D
 const HungryBeacon := preload("hungry_beacon.gd")
 const HungryContent := preload("../hungry_content.gd")
 const HungryContentSource := preload("hungry_content_source.gd")
+const HungryFalls := preload("hungry_falls.gd")
 const HungryField := preload("../hungry_field.gd")
 const HungryHazards := preload("../hungry_hazards.gd")
 const HungryHunters := preload("../hungry_hunters.gd")
@@ -78,6 +79,10 @@ var threat_colour := Color(0.92, 0.20, 0.24, 0.90)
 ## real content and content is a scene.
 var _riders: Dictionary = {}
 
+## Where eaten monsters go down ([HungryFalls]): this node's first child, so a fall draws over
+## the arena and under every rider. Built in [method _ready].
+var falls: HungryFalls = null
+
 ## What is in the arena besides the players. Read, never written — a renderer that nudged
 ## one would be a renderer fighting the simulation, and the symptom is a stutter nobody
 ## can locate.
@@ -139,6 +144,20 @@ func _ready() -> void:
 	_font = ThemeDB.fallback_font
 	z_index = -1
 
+	falls = HungryFalls.new()
+	falls.name = "Falls"
+	falls.rider_fn = func(id: int) -> Node2D:
+		var rider: Node2D = _riders.get(id)
+		return rider if rider != null and is_instance_valid(rider) else null
+	falls.alive_fn = func(id: int) -> bool:
+		var monster := world.monster_for(id) if world != null else null
+		return monster != null and monster.alive and monster.piece_count() > 0
+	falls.colour_fn = func(id: int) -> Color:
+		var monster := world.monster_for(id) if world != null else null
+		return monster.colour if monster != null else Color.WHITE
+	add_child(falls)
+	move_child(falls, 0)
+
 
 func _process(delta: float) -> void:
 	if not Engine.is_editor_hint():
@@ -187,7 +206,13 @@ func beacon_count() -> int:
 
 
 func bind(p_world: HungryWorld, p_camera: Camera2D, p_player_id: int) -> void:
+	if world != null and world.piece_destroyed.is_connected(_on_piece_destroyed):
+		world.piece_destroyed.disconnect(_on_piece_destroyed)
 	world = p_world
+	# Every piece that leaves, remembered for a moment: the eaten one is gone from the world
+	# a message before the death that says whose last it was.
+	if world != null:
+		world.piece_destroyed.connect(_on_piece_destroyed)
 	camera = p_camera
 	local_player_id = p_player_id
 
@@ -686,6 +711,11 @@ func _place_rider(monster: HungryMonster, piece: HungryPiece, mine: bool = false
 		add_child(rider)
 
 	rider.wear(monster.avatar)
+	# Alive again after a fall moved, turned, shrank or hid it ([HungryFall]).
+	rider.visible = true
+	rider.rotation = 0.0
+	rider.scale = Vector2.ONE
+	rider.modulate = Color.WHITE
 	rider.position = _at(piece, mine)
 	rider.resize(clampf(piece.radius() * 0.55, 10.0, 90.0))
 	rider.queue_redraw()
@@ -743,6 +773,11 @@ func _catalogue() -> DotAvatarCatalogue:
 		content.install(_shared_catalogue)
 
 	return _shared_catalogue
+
+
+func _on_piece_destroyed(piece: HungryPiece) -> void:
+	if falls != null:
+		falls.note_piece(piece)
 
 
 ## Drops the rider of a player who has left.

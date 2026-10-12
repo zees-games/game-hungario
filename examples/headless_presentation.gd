@@ -17,6 +17,8 @@ const HungryMonster := preload("../game/hungry_monster.gd")
 const HungryBindings := preload("../game/client/hungry_bindings.gd")
 const HungryMenus := preload("../game/client/hungry_menus.gd")
 const HungrySettings := preload("../game/client/hungry_settings.gd")
+const HungryFalls := preload("../game/client/hungry_falls.gd")
+const HungryPiece := preload("../game/hungry_piece.gd")
 
 ## Settings, audio, effects, the console and the private arena.
 ##
@@ -32,7 +34,7 @@ const HungrySettings := preload("../game/client/hungry_settings.gd")
 ##
 ## Exits non-zero on any failure.
 
-const CHECKS := 133
+const CHECKS := 139
 
 var _passed := 0
 var _failed := 0
@@ -63,6 +65,7 @@ func _run() -> void:
 	_test_sound_is_still_the_bank()
 	_test_limits_the_bank_never_had()
 	_test_effects()
+	_test_a_fall()
 	_test_console()
 	_test_console_stops_the_keys()
 	_test_party()
@@ -1351,6 +1354,68 @@ func _exit_probe_seconds() -> int:
 ## `OS.execute`d so a hung copy cannot hold this run for ever, wrapped in coreutils
 ## `timeout` so a copy orphaned by an outer kill still dies on time, and drained on every
 ## pass because a full 64 KiB pipe blocks the copy's next print.
+## An eaten monster goes down the way the server picked: the last piece it lost, the
+## reaction's pose and its sounds, the server's styles. Armed by ignoring the rules (the
+## topple and hide checks fail) and by dropping a sound id from the sink (the sound check
+## fails: dot-audio decides to play it and the bank has nothing).
+func _test_a_fall() -> void:
+	_section("an eaten monster goes down")
+	var falls := HungryFalls.new()
+	root_add(falls)
+	var rider := Node2D.new()
+	falls.add_child(rider)
+	falls.rider_fn = func(_id: int) -> Node2D: return rider
+	falls.alive_fn = func(_id: int) -> bool: return false
+	var piece := HungryPiece.new()
+	piece.owner_id = 5
+	piece.state = Dot2DState.new()
+	piece.state.position = Vector2(300.0, 200.0)
+	piece.state.radius = 40.0
+	var heard: Array[StringName] = []
+	falls.sound.connect(func(id: StringName, _at: Vector2, _v: float) -> void: heard.append(id))
+
+	var crumple := DotPlayerDeath.new()
+	crumple.reaction = DotPlayerDeathReactions.CRUMPLE
+	falls.note_piece(piece)
+	var down = falls.fall(5, crumple)
+	_check(down != null and down.reaction.id == DotPlayerDeathReactions.CRUMPLE
+			and down.style == DotPlayerRagdollRules.Style.RAGDOLL,
+		"the last piece goes down with the server's reaction")
+	for _i in range(60):
+		down.advance(1.0 / 30.0)
+	_check(heard.has(DotPlayerDeathReactions.SOUND_SLUMP) and rider.scale.x < 0.9,
+		"its sound plays when it lands, and the rider sinks with it", str(heard))
+	_check(falls.fall(6, crumple) == null, "a piece this client never saw leave draws nothing")
+
+	falls.clear()
+	var _off := falls.rules.set_cvar("sv_ragdoll", "0")
+	falls.note_piece(piece)
+	var toppled = falls.fall(5, crumple)
+	_check(toppled != null and toppled.style == DotPlayerRagdollRules.Style.TOPPLE,
+		"the server's sv_ragdoll 0 is the still fallback")
+	var _on := falls.rules.set_cvar("sv_ragdoll", "1")
+	var _hide := falls.rules.set_cvar("sv_ragdoll_style", "hide")
+	rider.visible = true
+	falls.note_piece(piece)
+	_check(falls.fall(5, crumple) == null and not rider.visible,
+		"and hide draws no fall and no rider")
+
+	var sink_ids := HungrySoundSink.CUES.keys()
+	var catalogued := HungryPresentation.sound_catalogue()
+	var missing := PackedStringArray()
+	for id: StringName in [DotPlayerDeathReactions.SOUND_THUD, DotPlayerDeathReactions.SOUND_FACE_PLANT,
+			DotPlayerDeathReactions.SOUND_SLUMP, DotPlayerDeathReactions.SOUND_WHOOSH]:
+		if not sink_ids.has(String(id)) or catalogued.find(id) == null:
+			missing.append(String(id))
+	_check(missing.is_empty(), "dot-player-char's four death sounds are in the catalogue and the bank", ", ".join(missing))
+	falls.queue_free()
+	_done()
+
+
+func root_add(node: Node) -> void:
+	add_child(node)
+
+
 func _run_exit_probe() -> Array:
 	var seconds := _exit_probe_seconds()
 	print("(running this suite once more in a fresh process, to read what it leaves at exit — %d s allowed)" % seconds)

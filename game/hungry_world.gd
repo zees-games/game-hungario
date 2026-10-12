@@ -121,6 +121,11 @@ const WEDGED_DEPTH := 1.0
 var field: HungryField = null
 var match_node: DotMatch = null
 var tunables: Dot2DTunables = null
+
+## What an eaten monster does on every screen, and which death reactions the server allows:
+## dot-player-char's `sv_ragdoll*` set. The module hands this world its own (bound to the
+## cvars, which outlive a mode change); offline it is the stock set. See [method decide_death].
+var ragdoll_rules: DotPlayerRagdollRules = DotPlayerRagdollRules.new()
 var motor: Dot2DMotor = null
 
 ## The throwables a monster may carry. dot-loadout's, so the server can check one
@@ -812,7 +817,7 @@ func _shed_outgrown() -> void:
 ##
 ## Returns false when there is no such piece, which is a real sequence rather than an
 ## error: two hunters can reach one piece on the same tick.
-func devour_piece(piece_id: int) -> bool:
+func devour_piece(piece_id: int, from: Vector2 = Vector2(NAN, NAN)) -> bool:
 	var piece: HungryPiece = _pieces.get(piece_id)
 
 	if piece == null:
@@ -820,6 +825,7 @@ func devour_piece(piece_id: int) -> bool:
 
 	var monster := monster_for(piece.owner_id)
 	var lost := piece.mass()
+	var where := piece.position()
 
 	_destroy_piece(piece)
 
@@ -828,6 +834,10 @@ func devour_piece(piece_id: int) -> bool:
 	# the respawn queue never runs and they watch an empty arena for ever.
 	if monster != null and monster.piece_count() == 0 and monster.alive:
 		monster.alive = false
+		# Away from whatever took it, when the caller said where that was (a hunter does);
+		# an admin's slay has no direction and the seed picks one.
+		var away := where - from if not is_nan(from.x) else Vector2.ZERO
+		monster.death = decide_death(monster.id, false, 0.0, lost, away)
 		player_died.emit(monster.id, 0)
 
 	piece_eaten.emit(0, piece.owner_id, lost)
@@ -1382,6 +1392,9 @@ func _resolve_pieces() -> void:
 
 func _absorb(eater: HungryPiece, victim: HungryPiece, rules: Dot2DMassRules) -> void:
 	var gained := victim.mass()
+	# Before the eater grows: how many times the victim's size it was is how hard it hit.
+	var ratio := eater.mass() / maxf(gained, 0.001)
+	var away := victim.position() - eater.position()
 
 	_grow(eater, rules.absorb(eater.mass(), gained))
 
@@ -1404,7 +1417,40 @@ func _absorb(eater: HungryPiece, victim: HungryPiece, rules: Dot2DMassRules) -> 
 		match_node.report_kill(
 			str(eater.owner_id), str(victim.owner_id), &"devoured", _tick
 		)
+		victim_monster.death = decide_death(
+			victim.owner_id, ratio >= SWALLOWED_WHOLE, power_of(ratio), gained, away
+		)
 		player_died.emit(victim.owner_id, eater.owner_id)
+
+
+# --- How an eaten monster goes down ------------------------------------------
+
+## Eaten by something at least this many times your mass: swallowed whole, which is this
+## game's headshot (dot-player-char's `needs_headshot`: the headshot launch).
+const SWALLOWED_WHOLE := 4.0
+
+## The mass ratio a [code]death_power[/code] of 0 and of 1 stand for. A power launch needs 0.5,
+## so it takes a monster ten times your size.
+const POWER_FROM_RATIO := 2.0
+const POWER_FULL_RATIO := 18.0
+
+
+## How powerful an eat was, 0 to 1, from the eater's mass over the victim's.
+static func power_of(ratio: float) -> float:
+	return clampf((ratio - POWER_FROM_RATIO) / (POWER_FULL_RATIO - POWER_FROM_RATIO), 0.0, 1.0)
+
+
+## The fall an eaten monster gets: dot-player-char's reaction rule over the server's
+## `sv_ragdoll_reactions`, seeded from the player and the tick so every client draws the same
+## one. [param mass] is what they lost (the damage), [param away] which way they were pushed
+## (on the plane; it travels as x and z, a 2D world being dot-npc's XZ plane). Authority only:
+## a client draws the one that came on DIED and never picks.
+func decide_death(player_id: int, swallowed: bool, power: float, mass: float, away: Vector2) -> DotPlayerDeath:
+	return DotPlayerDeath.decide(
+		ragdoll_rules.reactions() if ragdoll_rules != null else DotPlayerDeathReactions.stock(),
+		swallowed, mass, Vector3(away.x, 0.0, away.y),
+		DotPlayerDeath.seed_of(player_id, _tick), null, power
+	)
 
 
 ## Removes a piece the authority says is gone. Client side.

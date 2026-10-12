@@ -37,7 +37,7 @@ const HungryWorld := preload("../game/hungry_world.gd")
 const SEED := 20260828
 const TICK_RATE := 60
 
-const CHECKS := 446
+const CHECKS := 449
 
 var _passed := 0
 var _failed := 0
@@ -1003,6 +1003,33 @@ func _test_devouring() -> void:
 		world.match_node.scoreboard.find("1").kills == 1,
 		"and dot-match recorded the kill"
 	)
+
+	# How the last piece goes down on every screen: picked here, once (dot-player-char's
+	# rule over the server's weights), and pushed away from the eater. Armed by deciding
+	# nothing in `_absorb` (null) and by measuring power the wrong way round (the shares).
+	_check(
+		small.death != null and DotPlayerDeathReactions.stock().find(small.death.reaction) != null
+			and small.death.direction.length() > 0.9 and small.death.damage > 0.0,
+		"the eaten monster's fall is the server's pick, with a push",
+		str(small.death.describe()) if small.death != null else "none"
+	)
+	world.ragdoll_rules.reaction_weights = "limp=0,face_plant=0,crumple=0,headshot_launch=0"
+	var thrown := world.decide_death(5, false, HungryWorld.power_of(12.0), 30.0, Vector2.RIGHT)
+	var nudged := world.decide_death(5, false, HungryWorld.power_of(3.0), 30.0, Vector2.RIGHT)
+	_check(
+		thrown.reaction == DotPlayerDeathReactions.POWER_LAUNCH
+			and nudged.reaction == DotPlayerDeathReactions.LIMP,
+		"a monster ten times your size can throw you, one three times cannot",
+		"%s / %s" % [thrown.reaction, nudged.reaction]
+	)
+	world.ragdoll_rules.reaction_weights = "limp=0,face_plant=0,crumple=0,power_launch=0"
+	var whole := world.decide_death(5, true, 0.0, 30.0, Vector2.RIGHT)
+	_check(
+		whole.reaction == DotPlayerDeathReactions.HEADSHOT_LAUNCH
+			and world.decide_death(5, false, 0.0, 30.0, Vector2.RIGHT).reaction == DotPlayerDeathReactions.LIMP,
+		"swallowed whole is this game's headshot",
+	)
+	world.ragdoll_rules.reaction_weights = ""
 
 	# Respawning is dot-match's, driven from a tick count rather than a timer.
 	for _i in range(int(TICK_RATE * 5)):

@@ -63,6 +63,12 @@ enum Cue {
 	## An administrator's beacon, once a second. Appended, so every cue above keeps its
 	## number.
 	BEACON,
+	## An eaten monster going down ([HungryFall]): dot-player-char's four death sounds, under
+	## their ids, made here like every other noise in this game. Appended.
+	FALL_THUD,
+	FALL_SMACK,
+	FALL_SLUMP,
+	FALL_WHOOSH,
 }
 
 ## Volume in decibels, applied to every voice. A game whose sound cannot be turned down is
@@ -120,6 +126,13 @@ func build() -> void:
 		# second is never heard as a ballot's count, which is high and flat, or as a fruit,
 		# which rises.
 		Cue.BEACON: bake(620.0, 440.0, 0.12, 0.30, 0.0),
+		# A fall: low and gritty, because a body is not a tone. The thud lands, the smack
+		# is shorter and noisier (a face on the floor), the slump is long and soft, and the
+		# whoosh is nearly all noise, rising, because it is air.
+		Cue.FALL_THUD: bake(150.0, 60.0, 0.18, 0.45, 0.55),
+		Cue.FALL_SMACK: bake(260.0, 90.0, 0.11, 0.50, 0.80),
+		Cue.FALL_SLUMP: bake(170.0, 80.0, 0.30, 0.36, 0.35),
+		Cue.FALL_WHOOSH: bake(300.0, 900.0, 0.30, 0.26, 0.92),
 	}
 
 	for index in range(VOICES):

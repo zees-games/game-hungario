@@ -255,6 +255,22 @@ static func sound_catalogue() -> DotAudioCatalogue:
 	ping.max_distance = 3200.0
 	c.add(ping)
 
+	# An eaten monster going down ([HungryFall]): dot-player-char's four sound ids, made by
+	# this game's bank like everything else. Placed, and no further than a fruit: a death on
+	# the other side of the arena is not yours. Under the three that change everything.
+	for id: StringName in [DotPlayerDeathReactions.SOUND_THUD, DotPlayerDeathReactions.SOUND_FACE_PLANT,
+			DotPlayerDeathReactions.SOUND_SLUMP, DotPlayerDeathReactions.SOUND_WHOOSH]:
+		var fall := DotAudioDef.new()
+		fall.id = id
+		fall.generated = true
+		fall.kind = DotAudioDef.Kind.POSITIONAL_2D
+		fall.bus = &"SFX"
+		fall.max_concurrent = 3
+		fall.cooldown_ms = 60
+		fall.priority = 55
+		fall.max_distance = 2000.0
+		c.add(fall)
+
 	return c
 
 
@@ -539,6 +555,13 @@ func on_pickup() -> void:
 
 func on_throw() -> void:
 	audio.play(&"throw")
+
+
+## An eaten monster's fall made a sound ([HungryFall]), at [param at].
+func on_body(id: StringName, at: Vector2, volume: float) -> int:
+	if audio == null:
+		return 0
+	return audio.play_at_2d(id, at, clampf(volume, 0.3, 1.0))
 
 
 func on_died() -> void:

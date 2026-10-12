@@ -354,6 +354,31 @@ func _build_view() -> void:
 	world.player_died.connect(_on_player_died)
 	world.monster_burst.connect(_on_monster_burst)
 
+	_wire_falls()
+
+
+## How an eaten monster goes down here: the renderer's [HungryFalls] under the server's
+## `sv_ragdoll*` rules (followed through the link; offline the world's own), its sounds through
+## the presentation layer. The deaths come from [method _on_player_died] offline and from the
+## DIED cue connected; either way the reaction is the authority's pick.
+func _wire_falls() -> void:
+	if renderer == null or renderer.falls == null:
+		return
+	if bridge == null:
+		renderer.falls.rules = world.ragdoll_rules
+	else:
+		renderer.falls.rules = ragdoll_rules
+		if link != null:
+			var _following := ragdoll_rules.follow_cvars(link)
+	renderer.falls.sound.connect(func(id: StringName, at: Vector2, volume: float) -> void:
+		if presentation != null:
+			var _played := presentation.on_body(id, at, volume)
+	)
+
+
+## The server's `sv_ragdoll*` set on a connected client: this end draws the falls.
+var ragdoll_rules: DotPlayerRagdollRules = DotPlayerRagdollRules.new()
+
 
 ## Settings, audio, effects and the console, over the config and the bank this game has.
 func _build_presentation() -> void:
@@ -749,6 +774,10 @@ func _on_cue(kind: int, data: Dictionary) -> void:
 	if hud != null:
 		hud.note(kind, data)
 
+	# Every death on screen goes down the way the server picked, heard or not.
+	if kind == HungryEvents.Kind.DIED and renderer != null and renderer.falls != null:
+		var _fell := renderer.falls.fall(int(data.get("first", 0)), data.get("death"))
+
 	if sound == null:
 		return
 
@@ -870,6 +899,10 @@ func _on_projectile_thrown(shot: HungryProjectile) -> void:
 
 
 func _on_player_died(player_id: int, killer_id: int) -> void:
+	if renderer != null and renderer.falls != null:
+		var monster := world.monster_for(player_id)
+		var _fell := renderer.falls.fall(player_id, monster.death if monster != null else null)
+
 	if sound == null:
 		return
 

@@ -56,6 +56,7 @@ Short forms; the reasoning is in the linked file.
 - Every piece steers toward the pointer's **world point** (`HungryWorld.pointer_of`), never along one shared direction, or split pieces can never merge. [gameplay](docs/gameplay.md#a-player-is-a-set-and-the-pointer-is-a-point)
 - The arena size is part of every food position: `adopt_world_size` before `adopt_field_seed`. Slot indexes are never reused. [gameplay](docs/gameplay.md#four-fields-one-id-space-and-only-membership-travels)
 - Anything that changes speed must be readable on both ends: effects travel as piece flags, the trait in the join. [gameplay](docs/gameplay.md#effects-are-replicated-as-flags)
+- An eaten monster's fall is the server's pick (`HungryWorld.decide_death`, on DIED last and optional), drawn in 2D by `HungryFalls` from the last piece the client saw leave. [gameplay](docs/gameplay.md#an-eaten-monster-goes-down-the-way-the-server-picked)
 - Eating is not dot-combat; throwables are, through `HungryCombat`, and `damage_gate` stays optional. [gameplay](docs/gameplay.md#throwables-are-dot-combat-eating-is-not)
 - Loadouts: entitlements default to nothing; refuse an illegal loadout on the way in; takes effect next spawn. [gameplay](docs/gameplay.md#what-a-player-brings-in)
 - A hunter brain seeds from `npc.seed` (per spawn), never `npc.instance_id` (an identity whose value moves with every allocation). dot-npc `docs/runtime.md`

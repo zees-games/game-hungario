@@ -37,7 +37,7 @@ const SNAPSHOT_RATE := 20
 const SEED := 20260828
 const CLIENT_PEER := 2
 
-const CHECKS := 166
+const CHECKS := 170
 
 var _passed := 0
 var _failed := 0
@@ -82,6 +82,7 @@ func _run() -> void:
 		_test_field_replication()
 		_test_splitting_replicates()
 		_test_throw_replicates()
+		_test_death_carries_its_fall()
 		_test_interest()
 		_test_blind_and_beacon()
 		_test_avatar()
@@ -1275,6 +1276,48 @@ func _test_splitting_replicates() -> void:
 		_client_bridge.piece_count() < pieces_before,
 		"a piece that goes away is despawned everywhere"
 	)
+	_done()
+
+
+## A death goes down the same way on every screen: DIED carries the server's pick
+## (dot-player-char's DotPlayerDeath), last and optional. Armed by dropping the fall from
+## `write_died` (the reaction checks fail) and by reading it unconditionally (the bare check
+## fails: an older server's DIED would read garbage).
+func _test_death_carries_its_fall() -> void:
+	_section("a death carries its fall")
+
+	var fall := DotPlayerDeath.new()
+	fall.reaction = DotPlayerDeathReactions.CRUMPLE
+	fall.roll_seed = 4242
+	fall.damage = 37.0
+	fall.direction = Vector3(0.0, 0.0, -1.0)
+	var read := HungryEvents.read_died(DotNetReader.new(HungryEvents.write_died(9, 3, fall)))
+	var carried: DotPlayerDeath = read.get("death")
+	_check(bool(read["ok"]) and int(read["first"]) == 9 and int(read["second"]) == 3
+			and carried != null and carried.reaction == fall.reaction and carried.roll_seed == 4242
+			and carried.direction.distance_to(fall.direction) < 0.05,
+		"DIED round-trips the victim, the eater and the fall", str(read))
+	var bare := HungryEvents.read_died(DotNetReader.new(HungryEvents.write_pair(9, 3)))
+	_check(bool(bare["ok"]) and int(bare["first"]) == 9 and not bare.has("death"),
+		"and an older server's pair reads as a death with no fall", str(bare))
+
+	var heard: Array[Dictionary] = []
+	var on_cue := func(kind: int, data: Dictionary) -> void:
+		if kind == HungryEvents.Kind.DIED:
+			heard.append(data)
+	_client_bridge.cue.connect(on_cue)
+	var monster := _server_world.monster_for(7)
+	var before: DotPlayerDeath = monster.death
+	monster.death = fall
+	_server_bridge._on_player_died(7, 0)
+	_steps(2)
+	monster.death = before
+	_client_bridge.cue.disconnect(on_cue)
+	_check(heard.size() == 1 and int(heard[0].get("first", -1)) == 7,
+		"the death reaches the client", str(heard))
+	_check(heard.size() == 1 and heard[0].get("death") != null
+			and (heard[0]["death"] as DotPlayerDeath).reaction == DotPlayerDeathReactions.CRUMPLE,
+		"with the server's reaction, so every client draws the same fall")
 	_done()
 
 

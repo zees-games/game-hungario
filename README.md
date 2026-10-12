@@ -86,6 +86,8 @@ Settings are cvars. Set them in the server's config, on the command line, or liv
 bot_quota 6                   // players the arena is kept at with bots; each person who joins replaces one
 bot_quota_mode fill           // fill (as above), fixed (that many bots), per_player (that many per person) or off
 hungry_hunters_on 0           // release NPC hunters into the arena
+sv_ragdoll 1                  // an eaten monster goes down (deflates, folds, slams flat, or is thrown); 0 just shrinks it
+sv_ragdoll_reactions ""       // weights for limp, crumple, face_plant, headshot_launch (swallowed whole), power_launch; 0 turns one off
 hungry_hazards_count 0        // rocks scattered into the arena at load
 hungry_outgrown ""            // a monster stuck in a refuge it outgrew: accept, cap or eject (empty: the mode's own)
 hungry_avatar_pack ""         // manifest URL for this server's rider content

@@ -49,6 +49,13 @@ const CUES := {
 	HungryEvents.CUE_VOTE_COUNT: HungrySound.Cue.VOTE_COUNT,
 	# An administrator's beacon. See `HungryPresentation.BEACON_SOUND`.
 	"beacon": HungrySound.Cue.BEACON,
+	# An eaten monster going down: dot-player-char's sound ids (DotPlayerDeathReactions.SOUND_*,
+	# spelled out because this table's keys are Strings; headless_presentation checks they
+	# match), this bank's noises.
+	"ragdoll.thud": HungrySound.Cue.FALL_THUD,
+	"ragdoll.face_plant": HungrySound.Cue.FALL_SMACK,
+	"ragdoll.slump": HungrySound.Cue.FALL_SLUMP,
+	"ragdoll.whoosh": HungrySound.Cue.FALL_WHOOSH,
 }
 
 var sound: HungrySound = null

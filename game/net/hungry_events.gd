@@ -38,7 +38,9 @@ enum Kind {
 	IMPACT,
 	## Somebody was burst.
 	BURST,
-	## Somebody was devoured.
+	## Somebody was devoured: a pair (victim, eater), then how the last piece goes down
+	## (dot-player-char's [DotPlayerDeath], the server's pick), last and optional. See
+	## [method write_died].
 	DIED,
 	## The leaderboard.
 	BOARD,
@@ -439,6 +441,33 @@ static func read_pair(reader: DotNetReader) -> Dictionary:
 		"second": reader.read_varint(),
 		"extra": reader.read_varint(),
 	}
+	out["ok"] = reader.ok()
+	return out
+
+
+## [constant Kind.DIED]'s body: [method write_pair]'s, then the fall when there is one. Last and
+## optional, so a client that reads only the pair reads a death without it, and one that reads
+## the fall from an older server's DIED finds no bytes and reads none.
+static func write_died(player_id: int, killer_id: int, death: DotPlayerDeath = null) -> PackedByteArray:
+	var writer := _writer()
+	writer.write_varint(player_id)
+	writer.write_varint(killer_id)
+	writer.write_varint(0)
+	if death != null:
+		death.write_to(writer)
+	return writer.to_bytes()
+
+
+## [method read_pair]'s keys, and [code]death[/code] when the server sent one.
+static func read_died(reader: DotNetReader) -> Dictionary:
+	var out := {
+		"first": reader.read_varint(),
+		"second": reader.read_varint(),
+		"extra": reader.read_varint(),
+	}
+	# A byte or more left is the fall; less is the padding to the last byte.
+	if reader.bits_remaining() >= 8:
+		out["death"] = DotPlayerDeath.read_from(reader)
 	out["ok"] = reader.ok()
 	return out
 
