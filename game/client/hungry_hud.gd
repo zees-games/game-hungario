@@ -330,8 +330,8 @@ func build(p_world: HungryWorld, p_bridge: HungryNetBridge, p_player_id: int) ->
 	# Under the blind, which is the first child. See [member blind_overlay].
 	move_child(minimap, 0)
 
-	# Top centre, full width: the strip centres its plate on its own middle. The theme is
-	# the piece's own, so the Labels' outline theme on this HUD stays theirs.
+	# Top centre, full width: the strip centres its plate on its own middle. Its own theme is
+	# the accent; the plate and words are the menu theme's, set on this HUD by the menu.
 	strip = DotScoreStrip.new()
 	strip.name = "Clock"
 	strip.theme = piece_theme()
@@ -677,27 +677,35 @@ func _refresh_mass() -> void:
 	mass_label.text = "%d mass" % int(monster.mass() if monster != null else 0.0)
 
 
-## The clock's colours in this game's palette: a deep navy plate, so the white time reads
-## over the pale pastel sky, ringed in the same dark outline every Label here has
-## ([constant TEXT_OUTLINE_COLOUR], from ab14971). Static so a render tool can use it.
+## This game's accent over whichever theme the player picked in the menu: the gold as the
+## pieces' highlight, a light edge on their plates. The plate, the words and their outline are
+## the theme's (dark by default), so a light or high-contrast theme can change them; until the
+## first play test (2026-10-11) this was a fixed navy plate. Static so a render tool can use it.
 static func piece_theme() -> Theme:
 	var t := Theme.new()
 	var type := DotHudPiece.THEME_TYPE
-	t.set_color(&"plate", type, Color(0.07, 0.10, 0.22, 0.72))
 	t.set_color(&"plate_edge", type, Color(1.0, 1.0, 1.0, 0.22))
-	t.set_color(&"ink", type, TEXT_OUTLINE_COLOUR)
-	t.set_color(&"text", type, Color(0.97, 0.98, 1.0))
 	t.set_color(&"highlight", type, Color(1.0, 0.85, 0.40))
-	t.set_color(&"low", type, Color(1.0, 0.36, 0.30))
 	return t
 
 
 ## The theme every [Label] in this HUD inherits: an outline, so text is readable over
-## the pale arena. The leaderboard's cells are Labels and inherit it too.
+## the pale arena. The leaderboard's cells are Labels and inherit it too. The outline's
+## colour is the menu theme's ink once the menu follows this HUD (see [method accent_theme]);
+## this one is what a HUD with no menu draws.
 static func hud_theme() -> Theme:
 	var out := Theme.new()
 	out.set_constant(&"outline_size", &"Label", TEXT_OUTLINE)
 	out.set_color(&"font_outline_color", &"Label", TEXT_OUTLINE_COLOUR)
+	return out
+
+
+## What `HungryClient` hands dot-menu's `follow_hud` with this HUD: the pieces' accent and the
+## Labels' outline width, laid over the theme the player picked, which then restyles the whole
+## HUD live (Christian's first play test: a darker HUD a player can change in the menu).
+static func accent_theme() -> Theme:
+	var out := piece_theme()
+	out.set_constant(&"outline_size", &"Label", TEXT_OUTLINE)
 	return out
 
 

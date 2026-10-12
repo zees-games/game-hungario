@@ -489,6 +489,10 @@ func _build_ui() -> void:
 	loadout_page.on_chosen(_on_loadout_chosen)
 	if menu != null:
 		var _l := menu.add_page(loadout_page.page, &"general")
+		# The HUD in the menu's theme and at the player's HUD size, live (dot-menu's
+		# `follow_hud`, by name for a client shell older than it).
+		if hud != null and menu.has_method(&"follow_hud"):
+			menu.call(&"follow_hud", hud, HungryHud.accent_theme())
 		loadout_page.on_redraw(menu.screen.refresh)
 		menu.overlays_changed.connect(func(_open: bool) -> void: _refresh_suspended())
 		# M: the six modes (dot-menu's map menu). Solo a choice starts that mode now; connected

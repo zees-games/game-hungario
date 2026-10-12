@@ -35,7 +35,7 @@ const HungryPiece := preload("../game/hungry_piece.gd")
 ##
 ## Exits non-zero on any failure.
 
-const CHECKS := 143
+const CHECKS := 145
 
 var _passed := 0
 var _failed := 0
@@ -1136,6 +1136,26 @@ func _test_board_makes_room() -> void:
 		"%s for %.2f s, under '%s'" % [hud.strip.clock, remaining, hud.strip.under_text()]
 	)
 	_check(not hud.strip.covered, "and a ballot down the right leaves it alone")
+
+	# Christian's first play test: a darker HUD by default, restyled live by the menu's theme.
+	var settings := HungrySettings.new()
+	settings.legacy_config_path = ""
+	settings.legacy_bindings_path = ""
+	add_child(settings)
+	var _built: Variant = settings.setup(DotSettingsStoreMemory.new())
+	settings.menu.follow_hud(hud, HungryHud.accent_theme())
+	var plate := hud.strip.colour(&"plate")
+	_check(plate.get_luminance() < 0.1 and plate.a >= 0.7 and hud.strip.colour(&"highlight") == Color(1.0, 0.85, 0.40),
+		"the HUD is dark by default, in the menu's theme, with this game's gold as its accent", str(plate))
+	var _t: Variant = settings.settings.set_value(&"ui_theme", &"contrast")
+	var contrast: DotMenuPalette = settings.menu.palette()
+	_check(contrast.id == &"contrast" and hud.strip.colour(&"plate") == contrast.hud_plate
+		and hud.vote_label.get_theme_color(&"font_outline_color") == contrast.hud_ink
+		and hud.vote_label.get_theme_constant(&"outline_size") == HungryHud.TEXT_OUTLINE,
+		"a theme picked in the menu reaches the clock and every Label's outline at once")
+	_t = settings.settings.set_value(&"ui_theme", &"midnight")
+	settings.menu.unfollow_hud(hud)
+	settings.queue_free()
 	_check(
 		hud.vote_label.offset_top >= HungryHud.STRIP_TOP + DotScoreStrip.H,
 		"the vote countdown sits under the clock's plate, not on it",
