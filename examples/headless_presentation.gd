@@ -32,7 +32,7 @@ const HungrySettings := preload("../game/client/hungry_settings.gd")
 ##
 ## Exits non-zero on any failure.
 
-const CHECKS := 129
+const CHECKS := 133
 
 var _passed := 0
 var _failed := 0
@@ -58,6 +58,7 @@ func _run() -> void:
 	if not _is_exit_probe():
 		probe = await _run_exit_probe()
 
+	await _test_the_mode_list()
 	_test_schema_is_the_config()
 	_test_sound_is_still_the_bank()
 	_test_limits_the_bank_never_had()
@@ -703,7 +704,7 @@ func _check(condition: bool, what: String, detail: String = "") -> bool:
 
 
 ## The family's Escape menu: H opens help, Escape the menu with Help & commands and Leave, the
-## keys are a table whose rows rebind, and nothing but help is on H (or M, the map menu's).
+## keys are a table whose rows rebind, and nothing but help is on H (or but the map menu on M).
 func _test_help() -> void:
 	_section("Escape is dot-menu's menu: help on H, Help and Leave, keys that rebind")
 	var p := _make()
@@ -715,7 +716,8 @@ func _test_help() -> void:
 		return
 	var keys := p.menu_settings.bindings
 	_check(keys.key_for(DotMenuBindings.HELP_ACTION) == "H" and keys.defaults_on("H").size() == 1
-		and keys.defaults_on("M").is_empty(), "help is on H, and no key of this game's is on H or M")
+		and keys.key_for(DotMenuBindings.MAPS_ACTION) == "M" and keys.defaults_on("M").size() == 1,
+		"help is on H and the mode list on M, and no key of this game's is on either")
 	menu.config.escape_grace_ms = 0
 	_check(menu.handle_event(_key(KEY_H)) and menu.help.is_open() and menu.help.about != ""
 		and menu.help.heading() == "How to play Hungario", "H opens the help screen, which says what the game is first")
@@ -915,7 +917,52 @@ func _test_chat_box() -> void:
 	_done()
 
 
-# --- The mode vote ----------------------------------------------------------
+# --- M, the modes -------------------------------------------------------------
+
+## The family's rule since the first play test: M opens the mode list, and solo a choice
+## starts that mode now, as a fresh client on its preset (a mode is a game here). A whole
+## offline client, because that is what is replaced. The server's half is dot-vote's map menu
+## over this game's mode vote (dot-vote's suite, and `dedicated`).
+func _test_the_mode_list() -> void:
+	_section("M opens the mode list, and solo a choice starts that mode")
+	var holder := Node.new()
+	add_child(holder)
+	var client: HungryClient = (load("res://game/client/hungry_client.tscn") as PackedScene).instantiate()
+	client.force_offline = true
+	client.offline_bots = 0
+	holder.add_child(client)
+	for _i in 6:
+		await get_tree().process_frame
+	var menu: DotMenu = client.menu
+	_check(menu != null and client.mode_rows().size() == 6 and client.mode_rows()[0]["current"],
+		"six modes, Classic playing", str(client.mode_rows().size()))
+	if menu == null:
+		holder.queue_free()
+		_done()
+		return
+	menu.close_all()
+	_check(menu.handle_event(_key(KEY_M)) and menu.picker.is_open() and menu.picker.items.size() == 6, "M opens the list")
+	var _k := menu.handle_event(_key(KEY_2))
+	for _i in 6:
+		await get_tree().process_frame
+	var fresh := holder.get_child(0) as HungryClient if holder.get_child_count() > 0 else null
+	_check(fresh != null and fresh != client and fresh.world != null and fresh.world.preset.id == &"frenzy"
+		and holder.get_child_count() == 1, "choosing Frenzy plays it now, in a fresh client in the old one's place",
+		str(fresh.world.preset.id) if fresh != null and fresh.world != null else "none")
+	# Through the warmup and the countdown into a round: the old client's world is gone, and
+	# nothing of it (spawn points, services) may be what the new one's match reaches for.
+	for _i in 600:
+		await get_tree().physics_frame
+		if fresh != null and fresh.world != null and fresh.world.match_node.is_live():
+			break
+	_check(fresh != null and is_instance_valid(fresh) and fresh.world.match_node.is_live(),
+		"and its round goes live")
+	holder.queue_free()
+	await get_tree().process_frame
+	_done()
+
+
+# --- The mode vote ----------------------------------------------------------# --- The mode vote ----------------------------------------------------------
 
 ## The vote's cues, played through this game's own generated bank, and its countdown drawn.
 ##

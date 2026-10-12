@@ -103,8 +103,8 @@ Short forms; the reasoning is in the linked file.
 - The round clock is dot-ui's `DotScoreStrip` (`HungryHud.strip`, colours from `HungryHud.piece_theme()`), so the pack needs a client shell with dot-ui API level 4; `headless_presentation` checks the derived requires.json and that the clock, the ballot and the full chat log do not meet. [client](docs/client.md#the-round-clock)
 - The arena is a pale pastel sky (`HungryRenderer`'s colour fields, opaque clouds); anything drawn on it is saturated or dark, never white. [client](docs/client.md#rendering)
 - `project.godot` carries no comments: the editor drops them, and any key left at its default, the first time it saves the file, so the reasons for its settings live here. The renderer is `gl_compatibility`, not Forward+, because Forward+ does not run in a browser and the point of this game is that a stranger can click a link and play it. Texture imports keep `detect_3d/compress_to=0` (`[importer_defaults]`) so the editor never re-imports one VRAM-compressed on a first open.
+- **M is the mode list** (dot-menu's map menu): solo `HungryClient.mode_rows()` and `change_mode_offline()` play the chosen mode as a fresh client on its preset in the old one's place (`replaced`, which `examples/play.gd` follows), because a mode is a whole game here; on a server dot-vote's map menu over the mode vote changes it with `changegame` for the owner's `sv_map_menu_flag` and gives anybody else a vote. No key of this game's may default to M; `headless_presentation` and `dedicated` check it.
 
 ## Not converted yet
 
 - **dot-game**: the module extends `DotModule` and `HungryServices` is its own, not `DotGameModule`/`DotGameServices`. Not yet converted; dot-game's CLAUDE.md says to convert game-arena first.
-- **No map menu on M yet**: `HungrySettings.map_menu` is off until the modes are handed to dot-menu's `use_maps`. Queue item `fpt-family-map-menu-1`.

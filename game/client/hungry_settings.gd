@@ -96,11 +96,8 @@ func _init() -> void:
 	bindings = HungryBindings.make()
 	# The pointer is the control in this game and the client keeps it visible.
 	manage_pointer = false
-	# No M yet: the modes change by the players' vote, and nothing here hands dot-menu a list
-	# and a change (`use_maps`), so the key would open nothing. That is queue item
-	# fpt-family-map-menu-1, which turns this on with the list. By name: `map_menu` is dot-menu
-	# API 5, and a shell with level 4 (which has no M to turn off) still parses this.
-	set(&"map_menu", false)
+	# M is the mode list (dot-menu's map menu, on by default): `HungryClient._build_ui` hands it
+	# the six modes and the change.
 	config = DotMenuConfig.new()
 	config.brand_name = "Hungario"
 	# Top left: the top right is the leaderboard's, the bottom corners the minimap's and the
@@ -267,7 +264,7 @@ static func fill_help(help: DotMenuHelp) -> void:
 	help.add_section("Mouse", [["Point", "Steer: the further the cursor, the faster; on yourself to pull your pieces together"]], &"keys")
 	help.add_text("Fruit and throwables", "Fruit gives you eight seconds of something: rush (faster), maw (eat players closer to your size) or rind (absorbs one burst). A pepper bursts whoever it hits into five pieces, a frostberry slows them, and a lure drops a ring of food where it lands.")
 	help.add_text("Loadout", "Escape, then Loadout: a starting throwable and a trait. The server checks it, and it takes effect the next time you spawn.")
-	help.add_text("Modes", "Classic, the square arena. Frenzy, small and fast. Gauntlet, a long narrow corridor. Warrens, rocks and refuges. Reef, a wall with four channels. Shallows, posts whose gaps narrow toward the middle. The players vote for the next mode.")
+	help.add_text("Modes", "Classic, the square arena. Frenzy, small and fast. Gauntlet, a long narrow corridor. Warrens, rocks and refuges. Reef, a wall with four channels. Shallows, posts whose gaps narrow toward the middle. The players vote for the next mode; M lists them (solo it changes now).")
 
 
 ## This game's own page: the camera and what is drawn over the arena, the keys

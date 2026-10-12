@@ -50,6 +50,10 @@ const HungryWorld := preload("../hungry_world.gd")
 
 const CHANNEL := "hungry.client"
 
+## Solo, the map menu changed the mode: [param fresh] is the client now playing it, in this
+## one's place. Whatever held this client holds that one instead.
+signal replaced(fresh: Node)
+
 ## Registry name [DotClientLink] publishes itself under.
 const LINK_SERVICE := &"dot_client_link"
 
@@ -62,6 +66,11 @@ const BOARD_INTERVAL_SEC := 0.5
 
 ## Play alone against bots even if a link is available. Set by `--offline`.
 @export var force_offline: bool = false
+
+## The mode an offline client plays, by preset id. What the map menu (M) changes solo: a mode
+## is a whole game here (a server switches between them with `changegame`), so solo it is a
+## fresh client on the new preset ([method change_mode_offline]).
+@export var offline_preset: StringName = &"classic"
 
 var world: HungryWorld = null
 var net: DotNetManager = null
@@ -158,7 +167,7 @@ func _ready() -> void:
 func _build() -> DotResult:
 	world = HungryWorld.new()
 	world.name = "World"
-	world.preset = HungryPreset.classic()
+	world.preset = HungryPreset.for_id(offline_preset) if _offline else HungryPreset.classic()
 	world.tick_rate = HungryContent.TICK_RATE
 	# Authoritative only when there is nobody else to be. A client that resolved its own
 	# eating would be a client that decides what it weighs.
@@ -364,6 +373,55 @@ func _build_presentation() -> void:
 		settings = presentation.config
 
 
+## The six modes, as the map menu (M) lists them solo: `{id, name, detail, current}`.
+func mode_rows() -> Array:
+	var out: Array = []
+	for id in MODE_IDS:
+		var preset := HungryPreset.for_id(id)
+		out.append({"id": String(id), "name": preset.display_name, "detail": MODE_BLURBS.get(id, ""),
+			"current": world != null and world.preset != null and world.preset.id == id})
+	return out
+
+
+## The preset ids, in the order the help screen describes them.
+const MODE_IDS: Array[StringName] = [&"classic", &"frenzy", &"gauntlet", &"warrens", &"reef", &"shallows"]
+const MODE_BLURBS := {
+	&"classic": "The square arena.", &"frenzy": "Small and fast.", &"gauntlet": "A long narrow corridor.",
+	&"warrens": "Rocks and refuges.", &"reef": "A wall with four channels.",
+	&"shallows": "Posts whose gaps narrow toward the middle.",
+}
+
+
+## Solo: plays [param id] now, as a fresh client on that preset in this one's place, which is
+## what a server's mode change is (a game change). Deferred, because the menu that asked is
+## this client's own child and is still handling the key.
+func change_mode_offline(id: StringName) -> DotResult:
+	if not _offline:
+		return DotResult.fail(DotError.CODE_STATE, "The server changes the mode.")
+	if not MODE_IDS.has(id):
+		return DotResult.fail(DotError.CODE_INVALID, "There is no mode called '%s'." % id)
+	_replace_with.call_deferred(id)
+	DotLog.info(CHANNEL, "mode changed from the map menu", {"mode": String(id)})
+	return DotResult.success(id)
+
+
+func _replace_with(id: StringName) -> void:
+	var parent := get_parent()
+	if parent == null:
+		return
+	var packed: Variant = load(scene_file_path) if scene_file_path != "" else null
+	var fresh: Node = (packed as PackedScene).instantiate() if packed is PackedScene else (get_script() as GDScript).new()
+	fresh.set(&"force_offline", true)
+	fresh.set(&"offline_bots", offline_bots)
+	fresh.set(&"offline_preset", id)
+	var at := get_index()
+	parent.remove_child(self)
+	queue_free()
+	parent.add_child(fresh)
+	parent.move_child(fresh, at)
+	replaced.emit(fresh)
+
+
 func _build_ui() -> void:
 	ui_config = DotUiConfig.new()
 	ui_config.allow_pause = _offline
@@ -408,6 +466,15 @@ func _build_ui() -> void:
 		var _l := menu.add_page(loadout_page.page, &"general")
 		loadout_page.on_redraw(menu.screen.refresh)
 		menu.overlays_changed.connect(func(_open: bool) -> void: _refresh_suspended())
+		# M: the six modes (dot-menu's map menu). Solo a choice starts that mode now; connected
+		# the server decides, by the owner's `sv_map_menu_flag`, and anybody without it gets a
+		# vote instead (dot-vote's map menu, over this game's mode vote). By name, so a client
+		# shell older than the map menu still runs the game without it.
+		if menu.has_method(&"use_maps"):
+			var maps: Variant = menu.call(&"use_maps", mode_rows, change_mode_offline)
+			if maps is Object:
+				(maps as Object).set(&"title", "Change mode")
+				(maps as Object).set(&"noun", "modes")
 
 	# A value changed in the menu or at the console reaches the config first (the
 	# presentation layer's handler is connected before this one), then what reads it.
@@ -432,9 +499,9 @@ func _build_ui() -> void:
 		Color(0.70, 0.78, 0.90)
 	)
 	hud.say(
-		"%s is the board, %s is chat, %s is help, Escape is the menu and your loadout." % [
+		"%s is the board, %s is chat, %s is help, %s the modes, Escape is the menu and your loadout." % [
 			keys.key_for(HungryBindings.SCOREBOARD), keys.key_for(HungryBindings.CHAT),
-			keys.key_for(DotMenuBindings.HELP_ACTION),
+			keys.key_for(DotMenuBindings.HELP_ACTION), DotInputBinding.describe_action(&"dot_menu_maps"),
 		],
 		Color(0.62, 0.68, 0.78)
 	)

@@ -263,8 +263,18 @@ func _spawn_client(offline: bool) -> void:
 	client = (packed as PackedScene).instantiate() as HungryClient
 	client.force_offline = offline
 	_root.add_child(client)
+	_follow(client)
 
 	DotLog.info(CHANNEL, "playing", {"offline": offline})
+
+
+## Keeps [member client] on the client playing: solo, M's mode change puts a fresh one in
+## this one's place.
+func _follow(playing: HungryClient) -> void:
+	playing.replaced.connect(func(fresh: Node) -> void:
+		client = fresh as HungryClient
+		if client != null:
+			_follow(client))
 
 
 ## Runs for `--seconds N` and then exits 0. Zero, the default, means forever.

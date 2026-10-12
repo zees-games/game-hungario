@@ -40,7 +40,7 @@ const SERVER_DIR := "user://hungry_dedicated"
 ## prints it to say which game this is, and nothing treats it as proof.
 const APP_URL := "hungario"
 
-const CHECKS := 226
+const CHECKS := 228
 
 var _passed := 0
 var _failed := 0
@@ -1798,6 +1798,22 @@ func _test_vote() -> void:
 		"a corridor is unavailable at this head count"
 	)
 	_check(maps.available(&"hungry_classic"), "and a square is not")
+
+	# The map menu's server half (M): the modes of this ballot, a player offered a vote and
+	# staff the change (a mode change is `changegame`, the source's own apply, which this
+	# suite does not run: it would replace the game under the rest of it).
+	var menu_half: Object = maps.commands.get("map_menu") if maps.commands != null else null
+	var player := DotCmdContext.new()
+	player.source = DotCmdContext.Source.CHAT
+	var staff := DotCmdContext.new()
+	staff.source = DotCmdContext.Source.CHAT
+	staff.permissions = PackedStringArray(["generic"])
+	var offer: Dictionary = menu_half.call("offer", player) if menu_half != null else {"maps": []}
+	_check(menu_half != null and _server.console.find_command("mapmenu") != null
+		and (offer["maps"] as Array).size() == modes and not bool(offer.get("allowed", true)) and bool(offer.get("vote", false)),
+		"M lists every mode, and a player is offered a vote", str((offer["maps"] as Array).map(func(r: Dictionary) -> String: return str(r["id"]))))
+	_check(menu_half != null and bool((menu_half.call("offer", staff) as Dictionary)["allowed"]),
+		"and staff (the default sv_map_menu_flag) the change")
 
 	var next := maps.next_in_rotation()
 	_check(next != &"", "something is next in the rotation (%s)" % String(next))
