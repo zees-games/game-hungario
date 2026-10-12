@@ -46,6 +46,19 @@ const CULL_MARGIN := 120.0
 ## The camera, for the cull rectangle. Any [Camera2D] will do.
 @export var camera: Camera2D = null
 
+## The clock this machine's own monster is predicted on (dot-net's `DotNetClock`), for its
+## render alpha; null offline. See [method HungryPiece.frame_alpha].
+var render_clock: Object = null
+
+## Whether every monster is simulated on this machine (offline: the bots too), so every one
+## is drawn between its ticks. Connected, only your own is: everybody else's pieces are moved
+## once a frame by dot-net's interpolator.
+var all_simulated_here: bool = false
+
+## This frame's alpha through the tick, read once in [method _draw].
+var _alpha: float = 1.0
+
+
 ## Draw everybody's name above their monster. A player's setting; off is quieter and, in
 ## a crowd, considerably more readable.
 @export var show_names: bool = true
@@ -216,6 +229,7 @@ func _draw() -> void:
 		return
 
 	var view := _view()
+	_alpha = HungryPiece.frame_alpha(render_clock)
 
 	_draw_ground(view)
 	# The level's geometry under the food, over the ground. Before the field for the same
@@ -536,7 +550,7 @@ func _draw_monsters(view: Rect2) -> void:
 			# Grown by the piece's own radius, because a monster wide enough to fill the
 			# screen has its centre well outside the view rectangle while most of it is
 			# inside — culling on the centre alone makes the biggest player invisible.
-			if not view.grow(piece.radius()).has_point(piece.position()):
+			if not view.grow(piece.radius()).has_point(_at(piece, mine)):
 				continue
 
 			_draw_piece(monster, piece, mine, rider_piece)
@@ -544,7 +558,7 @@ func _draw_monsters(view: Rect2) -> void:
 			if show_threat and not mine and my_biggest > 0.0:
 				_draw_threat(piece, my_biggest)
 
-		_place_rider(monster, rider_piece)
+		_place_rider(monster, rider_piece, mine)
 		_draw_name(monster, rider_piece, mine)
 
 
@@ -556,6 +570,7 @@ func _draw_piece(
 ) -> void:
 	var body := monster.colour
 	var flags := piece.state.flags
+	var at := _at(piece, mine)
 
 	if (flags & HungryContent.FLAG_FROSTED) != 0:
 		body = body.lerp(Color(0.55, 0.80, 1.0), 0.45)
@@ -566,11 +581,11 @@ func _draw_piece(
 	# A corona, so a monster reads as a body of light in a sky rather than a flat disc laid
 	# on top of one. One extra circle per piece, and pieces are counted in dozens.
 	draw_circle(
-		piece.position(), piece.radius() * 1.15, Color(body.r, body.g, body.b, 0.13)
+		at, piece.radius() * 1.15, Color(body.r, body.g, body.b, 0.13)
 	)
-	draw_circle(piece.position(), piece.radius(), body)
+	draw_circle(at, piece.radius(), body)
 	draw_arc(
-		piece.position(),
+		at,
 		piece.radius(),
 		0.0,
 		TAU,
@@ -581,13 +596,13 @@ func _draw_piece(
 
 	if (flags & HungryContent.FLAG_RUSH) != 0:
 		draw_arc(
-			piece.position(), piece.radius() + 6.0, 0.0, TAU, 48,
+			at, piece.radius() + 6.0, 0.0, TAU, 48,
 			HungryContent.FRUIT_COLOURS[int(HungryContent.Fruit.RUSH)], 2.0
 		)
 
 	if (flags & HungryContent.FLAG_RIND) != 0:
 		draw_arc(
-			piece.position(), piece.radius() + 11.0, 0.0, TAU, 48,
+			at, piece.radius() + 11.0, 0.0, TAU, 48,
 			HungryContent.FRUIT_COLOURS[int(HungryContent.Fruit.RIND)], 2.0
 		)
 
@@ -596,7 +611,7 @@ func _draw_piece(
 	# being told how long is the least readable part of this genre.
 	if piece != rider_piece and (flags & HungryContent.FLAG_MERGE_READY) != 0:
 		draw_arc(
-			piece.position(), piece.radius() * 0.72, 0.0, TAU, 32,
+			at, piece.radius() * 0.72, 0.0, TAU, 32,
 			Color(1.0, 1.0, 1.0, 0.35), 1.5
 		)
 
@@ -641,16 +656,25 @@ func _draw_threat(piece: HungryPiece, my_biggest: float) -> void:
 
 	if my_biggest >= mass * rules.eat_ratio:
 		draw_arc(
-			piece.position(), piece.radius() + 4.0, 0.0, TAU, 40, prey_colour, 2.0
+			_at(piece, false), piece.radius() + 4.0, 0.0, TAU, 40, prey_colour, 2.0
 		)
 	elif mass >= my_biggest * rules.eat_ratio:
 		draw_arc(
-			piece.position(), piece.radius() + 4.0, 0.0, TAU, 40, threat_colour, 2.0
+			_at(piece, false), piece.radius() + 4.0, 0.0, TAU, 40, threat_colour, 2.0
 		)
 
 
+## Where [param piece] is drawn this frame: between its ticks when this machine simulates it
+## (your own, or everybody offline), else where it is, which for a remote piece is where the
+## interpolator put it this frame.
+func _at(piece: HungryPiece, mine: bool) -> Vector2:
+	if mine or all_simulated_here:
+		return piece.drawn_position(_alpha)
+	return piece.position()
+
+
 ## Keeps one rider node per player, on the piece the flags say carries it.
-func _place_rider(monster: HungryMonster, piece: HungryPiece) -> void:
+func _place_rider(monster: HungryMonster, piece: HungryPiece, mine: bool = false) -> void:
 	if piece == null:
 		return
 
@@ -662,7 +686,7 @@ func _place_rider(monster: HungryMonster, piece: HungryPiece) -> void:
 		add_child(rider)
 
 	rider.wear(monster.avatar)
-	rider.position = piece.position()
+	rider.position = _at(piece, mine)
 	rider.resize(clampf(piece.radius() * 0.55, 10.0, 90.0))
 	rider.queue_redraw()
 
@@ -674,7 +698,7 @@ func _draw_name(monster: HungryMonster, piece: HungryPiece, mine: bool) -> void:
 	var size := clampi(int(piece.radius() * 0.34), 11, 34)
 	var text := monster.display_name
 	var width := _font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x
-	var at := piece.position() + Vector2(-width * 0.5, piece.radius() + float(size) + 4.0)
+	var at := _at(piece, mine) + Vector2(-width * 0.5, piece.radius() + float(size) + 4.0)
 
 	# Dark on a light sky, with a white lift under it: the white names of the dark-sky look
 	# vanished into the pale floor.

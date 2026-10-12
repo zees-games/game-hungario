@@ -37,7 +37,7 @@ const SNAPSHOT_RATE := 20
 const SEED := 20260828
 const CLIENT_PEER := 2
 
-const CHECKS := 164
+const CHECKS := 166
 
 var _passed := 0
 var _failed := 0
@@ -88,6 +88,7 @@ func _run() -> void:
 		_test_interpolation()
 		_test_loadout()
 		_test_direction_enforced()
+		_test_drawn_through_a_slip()
 		_test_vote_wire()
 		_test_loss()
 		_test_game_change()
@@ -914,6 +915,82 @@ func _test_prediction() -> void:
 		"and predicts tick N where the server simulated tick N (median %.3f over %d ticks)"
 			% [median, gaps.size()]
 	)
+	_done()
+
+
+## Your own monster is drawn between its ticks at the clock's render alpha, and a physics
+## frame the clock's drift leaves with no tick, or with two, is drawn through: frames drawn a
+## third of the way through a tick, with one of each forced, beside a control drawn at that
+## third alone (the engine's fraction, how it would be drawn without the clock). A frame is
+## stalled under half the steady step, doubled over one and a half.
+func _test_drawn_through_a_slip() -> void:
+	_section("your own monster is drawn through a frame with no tick, or two")
+	var command := Dot2DCommand.new()
+	command.aim = Vector2.RIGHT
+	command.reach = 900.0
+	_steps(20, command)
+
+	var clock := _client_net.clock
+	var dt := 1.0 / float(TICK_RATE)
+	var piece := _client_world.monster_for(7).rider_piece()
+	var drawn: Array[Vector2] = []
+	var control: Array[Vector2] = []
+	var frame := func() -> void:
+		drawn.append(piece.drawn_position(clock.render_alpha(0.33, dt)))
+		control.append(piece.drawn_position(0.33))
+
+	for _i in range(6):
+		_step(command)
+		frame.call()
+	# A physics frame with no tick: the clock's time comes up short of one.
+	var _none := clock.advance(0.0)
+	frame.call()
+	for _i in range(6):
+		_step(command)
+		frame.call()
+	# A physics frame with two: the server runs its extra tick, and the client's clock is
+	# handed a tick's time more before the frame's own.
+	_tick += 1
+	_server_bridge.server_tick(_tick)
+	_flush()
+	clock.set(&"_accumulator", float(clock.get(&"_accumulator")) + dt)
+	_step(command)
+	frame.call()
+	for _i in range(6):
+		_step(command)
+		frame.call()
+
+	var judge := func(points: Array[Vector2]) -> Array:
+		var steps: Array[float] = []
+		for i in range(1, points.size()):
+			steps.append(points[i].distance_to(points[i - 1]))
+		var sorted := steps.duplicate()
+		sorted.sort()
+		var steady: float = sorted[sorted.size() / 2]
+		var stalled := 0
+		var doubled := 0
+		for s in steps:
+			if s < steady * 0.5:
+				stalled += 1
+			elif s > steady * 1.5:
+				doubled += 1
+		return [stalled, doubled, steady]
+
+	var on_clock: Array = judge.call(drawn)
+	var alone: Array = judge.call(control)
+	_check(
+		int(alone[0]) >= 1 and int(alone[1]) >= 1,
+		"the control (a fraction alone) stalls on the frame with no tick and doubles on the one with two",
+		"%d stalled, %d doubled" % [alone[0], alone[1]]
+	)
+	_check(
+		int(on_clock[0]) == 0 and int(on_clock[1]) == 0,
+		"drawn at the clock's render alpha, no frame stalls or doubles (steady %.2f units a frame)" % float(on_clock[2]),
+		"%d stalled, %d doubled" % [on_clock[0], on_clock[1]]
+	)
+	# Standing still while the clock takes the forced tick back up, so the next section
+	# starts from a settled clock.
+	_steps(90)
 	_done()
 
 

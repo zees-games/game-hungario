@@ -3,6 +3,7 @@ extends Dot2DCameraRig
 
 const HungryCamera := preload("hungry_camera.gd")
 const HungryMonster := preload("../hungry_monster.gd")
+const HungryPiece := preload("../hungry_piece.gd")
 
 ## Frames a monster: the whole set of it, not one piece.
 ##
@@ -39,6 +40,11 @@ var position_source: Callable = Callable()
 ## A node rather than a position because [Dot2DCameraRig] follows a [Node2D] and smooths
 ## toward it; feeding it a position directly would mean reimplementing the smoothing.
 var _anchor: Node2D = null
+
+## The clock the followed monster is predicted on (dot-net's `DotNetClock`), null offline: the
+## camera follows the monster as it is drawn this frame (`HungryMonster.drawn_centre`), not
+## where its last tick left it, which stepped under the drawn pieces.
+var render_clock: Object = null
 
 
 static func framing(source: Callable, arena: Dot2DArena) -> HungryCamera:
@@ -86,7 +92,7 @@ func _process(delta: float) -> void:
 		if watched != null:
 			_anchor.global_position = watched as Vector2
 		elif monster != null and monster.alive:
-			_anchor.global_position = monster.centre()
+			_anchor.global_position = monster.drawn_centre(HungryPiece.frame_alpha(render_clock))
 
 	super._process(delta)
 

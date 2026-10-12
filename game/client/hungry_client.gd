@@ -507,6 +507,18 @@ func _process(delta: float) -> void:
 		# quantise every remote monster's motion to 60 Hz and undo the point of it.
 		net.interpolate_frame()
 
+	# Your own monster is drawn between its ticks at the clock's render alpha, not the
+	# engine's fraction: the clock stretches and shrinks its ticks while it settles on the
+	# server, so a physics frame now and then runs no tick or two, and drawn at the engine's
+	# fraction it stood still on one frame and moved double on the next. Offline every
+	# physics frame is one tick and every monster, the bots too, is simulated here.
+	var clock: Object = net.clock if not _offline and net != null and net.is_running() else null
+	if renderer != null:
+		renderer.render_clock = clock
+		renderer.all_simulated_here = _offline
+	if camera != null:
+		camera.render_clock = clock
+
 	_watch_mass()
 
 	if presentation != null:

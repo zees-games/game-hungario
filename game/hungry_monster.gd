@@ -186,6 +186,23 @@ func centre() -> Vector2:
 	return sum / total
 
 
+## [method centre] as a frame [param alpha] through the last tick draws it: every piece at
+## [method HungryPiece.drawn_position]. For a monster this machine simulates; what the camera
+## follows, so it moves with the drawn pieces rather than in tick steps under them.
+func drawn_centre(alpha: float) -> Vector2:
+	var total := 0.0
+	var sum := Vector2.ZERO
+
+	for piece in pieces:
+		sum += piece.drawn_position(alpha) * piece.mass()
+		total += piece.mass()
+
+	if total <= 0.0:
+		return Vector2.ZERO
+
+	return sum / total
+
+
 ## The radius of a circle containing every piece. What the camera frames.
 func spread_radius() -> float:
 	if pieces.is_empty():

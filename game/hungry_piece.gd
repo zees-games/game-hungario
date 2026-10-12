@@ -66,6 +66,47 @@ func position() -> Vector2:
 	return state.position
 
 
+## Where this piece stood when its last tick began, and the tick before that: what a frame is
+## drawn between (see [method drawn_position]). Recorded by [method HungryWorld.simulate_piece],
+## on a client only for its own predicted pieces; NAN until a tick has run.
+var drawn_from: Vector2 = Vector2(NAN, NAN)
+var drawn_two_back: Vector2 = Vector2(NAN, NAN)
+
+
+## Where a frame [param alpha] of the way through this piece's last tick draws it, for a piece
+## this machine simulates: between the last two ticks, on along the last step past 1 and
+## between the two before below 0 (a connected client's alpha is dot-net's
+## `DotNetClock.render_alpha`, -1 to 2 for a moment after a physics frame that ran no tick or
+## two). The tick's own position when nothing has been recorded.
+##
+## [b]A predicted piece was drawn where its tick left it[/b], so at 144 Hz against 60 ticks it
+## stood still on more than half the frames and jumped on the rest.
+func drawn_position(alpha: float) -> Vector2:
+	if not drawn_from.is_finite():
+		return state.position
+	var step := state.position - drawn_from
+	# A jump of more than a body's width in one tick is a teleport (a respawn reusing the
+	# piece, a correction), never motion to draw through.
+	if step.length() > maxf(state.radius * 2.0, 64.0):
+		return state.position
+	if alpha > 1.0:
+		return state.position + step * minf(alpha - 1.0, 1.0)
+	if alpha < 0.0:
+		if not drawn_two_back.is_finite():
+			return drawn_from
+		return drawn_two_back.lerp(drawn_from, maxf(alpha + 1.0, 0.0))
+	return drawn_from.lerp(state.position, alpha)
+
+
+## How far through its tick a frame drawn now is: [param clock]'s `render_alpha()` (dot-net's
+## `DotNetClock`, asked by name so a shell older than it draws at the engine's fraction), else
+## the engine's physics fraction, which is exact offline where every physics frame is a tick.
+static func frame_alpha(clock: Object) -> float:
+	if clock != null and is_instance_valid(clock) and clock.has_method(&"render_alpha"):
+		return float(clock.call(&"render_alpha"))
+	return clampf(Engine.get_physics_interpolation_fraction(), 0.0, 1.0)
+
+
 ## Sets the mass and the radius together.
 ##
 ## Going through [Dot2DMassRules] rather than assigning [member Dot2DState.mass] is not

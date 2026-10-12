@@ -954,6 +954,11 @@ func simulate_piece(
 
 	var used := command if command != null else Dot2DCommand.new()
 
+	# What a frame is drawn between: where this tick starts, and where the last one did.
+	# Here, on the prediction path, so a replay leaves them as the last replayed tick's.
+	piece.drawn_two_back = piece.drawn_from
+	piece.drawn_from = piece.state.position
+
 	motor.tunables = _tunables_for(monster, tick_value) if monster != null else tunables
 	motor.simulate(
 		piece.state,
@@ -1140,6 +1145,11 @@ func _simulate_monsters(commands: Dictionary, delta: float) -> void:
 			# is what its prediction replays.
 			if is_authority:
 				Dot2DAdminModifiers.adopt(piece.state, monster.admin)
+
+			# What a frame is drawn between, as [method simulate_piece] records it: offline
+			# every monster is simulated here, the bots included.
+			piece.drawn_two_back = piece.drawn_from
+			piece.drawn_from = piece.state.position
 
 			motor.simulate(
 				piece.state, command_for_piece(command, piece, pointer), delta, _tick
