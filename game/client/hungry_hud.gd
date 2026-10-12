@@ -42,9 +42,15 @@ var mass_bar: DotStatBar = null
 var mass_label: Label = null
 var leaderboard: DotTableView = null
 var feed: DotFeedView = null
-var clock_label: Label = null
+## The round clock, dot-ui's: the time on its plate, or the match's state as the line under
+## it while there is no time to count. See [method piece_theme] for its colours.
+##
+## [b]A [DotScoreStrip] with no scores[/b], because this is a free-for-all whose standings are
+## the leaderboard. It was a centred `Label` writing "%d:%02d" with the floor, so a round with
+## half a second left said 0:00; the strip rounds up. Decided 2026-10-11 (hud-pieces).
+var strip: DotScoreStrip = null
 
-## The countdown before a mode-vote ballot, directly under the round clock.
+## The countdown before a mode-vote ballot, directly under the round clock's plate.
 ##
 ## [b]Not the feed, although the feed is where this game's notices go.[/b] The feed holds
 ## five lines, and a countdown is one line a second: a five-second one would push out the
@@ -87,8 +93,7 @@ const BLIND_COLOUR := Color(0.01, 0.01, 0.015)
 ## player's own row last when they are not in the top few — the strip a shooter's HUD shows
 ## while a menu has the right of the screen. [b]Not moved left[/b]: beside a 360 px column it
 ## ran into the round clock at the top centre. [b]Not faded[/b]: who is winning is what a
-## player is deciding a vote with.
-const COVER_GROUP := &"dot_hud_cover"
+## player is deciding a vote with. The group is read by [method DotHudPiece.covered_rect].
 
 ## The leaderboard's corner, in this HUD's own coordinates from the top-right.
 ## Pixels of dark outline behind every line of HUD text: the labels (through
@@ -100,6 +105,13 @@ const COVER_GROUP := &"dot_hud_cover"
 ## HUD drew before, vanishes into the sky (see docs/client.md, Rendering).
 const TEXT_OUTLINE := 5
 const TEXT_OUTLINE_COLOUR := Color(0.05, 0.07, 0.14, 0.9)
+
+## Seconds left at which the clock turns the theme's `low` red.
+const LOW_CLOCK_SEC := 10.0
+
+## Where the strip starts, and where the vote countdown starts under its plate.
+const STRIP_TOP := 10.0
+const VOTE_TOP := STRIP_TOP + DotScoreStrip.H + 6.0
 
 const BOARD_LEFT := -280.0
 const BOARD_RIGHT := -16.0
@@ -316,13 +328,15 @@ func build(p_world: HungryWorld, p_bridge: HungryNetBridge, p_player_id: int) ->
 	# Under the blind, which is the first child. See [member blind_overlay].
 	move_child(minimap, 0)
 
-	clock_label = Label.new()
-	clock_label.name = "Clock"
-	clock_label.set_anchors_preset(Control.PRESET_CENTER_TOP)
-	clock_label.offset_top = 10.0
-	clock_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	clock_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(clock_label)
+	# Top centre, full width: the strip centres its plate on its own middle. The theme is
+	# the piece's own, so the Labels' outline theme on this HUD stays theirs.
+	strip = DotScoreStrip.new()
+	strip.name = "Clock"
+	strip.theme = piece_theme()
+	strip.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
+	strip.offset_top = STRIP_TOP
+	strip.offset_bottom = STRIP_TOP + DotScoreStrip.H + 28.0
+	add_child(strip)
 
 	vote_label = Label.new()
 	vote_label.name = "VoteCountdown"
@@ -332,8 +346,8 @@ func build(p_world: HungryWorld, p_bridge: HungryNetBridge, p_player_id: int) ->
 	# "Runoff in 3…" at any font this HUD uses, and under the clock rather than over it.
 	vote_label.offset_left = -200.0
 	vote_label.offset_right = 200.0
-	vote_label.offset_top = 38.0
-	vote_label.offset_bottom = 62.0
+	vote_label.offset_top = VOTE_TOP
+	vote_label.offset_bottom = VOTE_TOP + 24.0
 	vote_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	vote_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	vote_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.40))
@@ -523,27 +537,11 @@ static func _top_and_me(rows: Array[Dictionary], room: int) -> Array[Dictionary]
 ## [b]Through the canvas transforms, both ways.[/b] The panel is on the shell's canvas layer
 ## and this HUD is inset by the safe area and scaled by the interface scale, so a rect read
 ## as-is is in the wrong space on any phone and at any scale but one.
+##
+## dot-ui's reading of the group ([method DotHudPiece.covered_rect]), which this HUD used to
+## do by hand: the same transforms, and the same skip of this HUD's own children.
 func covered_rect() -> Rect2:
-	if not is_inside_tree():
-		return Rect2()
-
-	var to_me := get_global_transform_with_canvas().affine_inverse()
-	var out := Rect2()
-
-	for node in get_tree().get_nodes_in_group(COVER_GROUP):
-		var other := node as Control
-
-		if other == null or not other.is_visible_in_tree() or other == self or is_ancestor_of(other):
-			continue
-
-		var rect := to_me * (other.get_global_transform_with_canvas() * Rect2(Vector2.ZERO, other.size))
-
-		if not rect.has_area():
-			continue
-
-		out = rect if not out.has_area() else out.merge(rect)
-
-	return out
+	return DotHudPiece.covered_rect(self)
 
 
 ## Shrinks the board to the rows that fit above whatever covers its corner, and gives it the
@@ -640,7 +638,7 @@ func present_blind(delta: float) -> void:
 
 
 func _refresh_clock() -> void:
-	if clock_label == null:
+	if strip == null:
 		return
 
 	var behaviour := bridge.match_behaviour() if bridge != null else null
@@ -656,10 +654,11 @@ func _refresh_clock() -> void:
 		remaining = world.match_node.seconds_remaining()
 		state = String(DotMatch.State.keys()[world.match_node.state])
 
-	clock_label.text = (
-		state if remaining < 0.0
-		else "%d:%02d" % [int(remaining) / 60, int(remaining) % 60]
-	)
+	if remaining < 0.0:
+		# No time to count (warmup, between rounds): no plate, the state's words under it.
+		strip.show_clock("", false, state.capitalize())
+	else:
+		strip.show_clock(DotScoreStrip.clock_text(remaining), remaining <= LOW_CLOCK_SEC)
 
 
 func _refresh_vote() -> void:
@@ -674,6 +673,21 @@ func _refresh_mass() -> void:
 	var monster := _me()
 	# Not lagged like the bar: the number is the current value (DotStatBar's rule).
 	mass_label.text = "%d mass" % int(monster.mass() if monster != null else 0.0)
+
+
+## The clock's colours in this game's palette: a deep navy plate, so the white time reads
+## over the pale pastel sky, ringed in the same dark outline every Label here has
+## ([constant TEXT_OUTLINE_COLOUR], from ab14971). Static so a render tool can use it.
+static func piece_theme() -> Theme:
+	var t := Theme.new()
+	var type := DotHudPiece.THEME_TYPE
+	t.set_color(&"plate", type, Color(0.07, 0.10, 0.22, 0.72))
+	t.set_color(&"plate_edge", type, Color(1.0, 1.0, 1.0, 0.22))
+	t.set_color(&"ink", type, TEXT_OUTLINE_COLOUR)
+	t.set_color(&"text", type, Color(0.97, 0.98, 1.0))
+	t.set_color(&"highlight", type, Color(1.0, 0.85, 0.40))
+	t.set_color(&"low", type, Color(1.0, 0.36, 0.30))
+	return t
 
 
 ## The theme every [Label] in this HUD inherits: an outline, so text is readable over
@@ -742,6 +756,7 @@ func describe() -> Dictionary:
 		"rows": leaderboard.row_count() if leaderboard != null else 0,
 		"board_room": _board_room,
 		"feed": feed.line_count() if feed != null else 0,
+		"clock": strip.describe() if strip != null else null,
 		"vote": vote_label.text if vote_label != null else "",
 		"blind": blind_overlay.modulate.a if blind_overlay != null else 0.0,
 		"touch": touch.describe() if touch != null else null,

@@ -29,7 +29,7 @@ const HungryMonster := preload("../game/hungry_monster.gd")
 ##
 ## Exits non-zero on any failure.
 
-const CHECKS := 103
+const CHECKS := 108
 
 var _passed := 0
 var _failed := 0
@@ -930,6 +930,46 @@ func _test_board_makes_room() -> void:
 			and int(shown.front()[&"rank"]) == 1,
 		"the leader first and this player's own row last, with their real rank",
 		str(shown.map(func(r: Dictionary) -> String: return "%s:%s" % [r[&"rank"], r[&"name"]]))
+	)
+
+	# The clock is dot-ui's DotScoreStrip, top centre, clear of the ballot's column.
+	hud._refresh_clock()
+	hud.strip.refresh_cover()
+	var remaining := world.match_node.seconds_remaining() if world.match_node != null else -1.0
+	_check(
+		(hud.strip.clock == DotScoreStrip.clock_text(remaining)) if remaining >= 0.0 else hud.strip.under_text() != "",
+		"the round clock is DotScoreStrip's, rounded up",
+		"%s for %.2f s, under '%s'" % [hud.strip.clock, remaining, hud.strip.under_text()]
+	)
+	_check(not hud.strip.covered, "and a ballot down the right leaves it alone")
+	_check(
+		hud.vote_label.offset_top >= HungryHud.STRIP_TOP + DotScoreStrip.H,
+		"the vote countdown sits under the clock's plate, not on it",
+		"%.0f against %.0f" % [hud.vote_label.offset_top, HungryHud.STRIP_TOP + DotScoreStrip.H]
+	)
+
+	# The chat box's full log at 1280 x 720 (DotChatWindow's own sizes, lifted by this game's
+	# margin) against the ballot and the clock: the three things up at a vote's end.
+	var chat := DotChatWindow.new()
+	var log_top := HungryPresentation.CHAT_MARGIN_BOTTOM + chat.entry_height \
+		+ float(chat.max_lines) * (chat.line_height + chat.line_gap)
+	var chat_rect := Rect2(chat.margin_left, 720.0 - log_top, chat.width, log_top - HungryPresentation.CHAT_MARGIN_BOTTOM)
+	chat.free()
+	var clock_rect := Rect2(hud.strip.position + hud.strip.footprint().position, hud.strip.footprint().size)
+	var ballot_rect := Rect2(ballot.position, ballot.size)
+	_check(
+		not chat_rect.intersects(ballot_rect) and not chat_rect.intersects(clock_rect) and not ballot_rect.intersects(clock_rect),
+		"the chat box, the ballot and the clock do not meet",
+		"chat %s, ballot %s, clock %s" % [chat_rect, ballot_rect, clock_rect]
+	)
+
+	# A pack naming the strip does not parse on a shell whose dot-ui predates it, so the
+	# requires.json dot-ci derives must ask for dot-ui 4, and nothing may lower it.
+	var asks := DotAddonApi.derive()
+	_check(
+		int(asks.get("dot_ui", 0)) >= 4 and not FileAccess.file_exists("res://" + DotAddonApi.FLOOR_FILE),
+		"the pack asks a shell for dot-ui level 4, the glance pieces",
+		str(asks.get("dot_ui"))
 	)
 
 	ballot.position = Vector2(904.0, 400.0)

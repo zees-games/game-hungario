@@ -37,6 +37,10 @@ static var FX_DIR := HungryPaths.rebase("res://scenes/fx")
 ## The ping an administrator's beacon makes. See [method sound_catalogue].
 const BEACON_SOUND := &"beacon"
 
+## How far up the chat box starts: above the mass bar and the carry line (HungryHud, 74 px
+## up from the bottom-left corner). headless_presentation measures the full log from here.
+const CHAT_MARGIN_BOTTOM := 84.0
+
 ## Which of the config's keys follow the person rather than the machine.
 ##
 ## The one thing `HungryConfig` cannot say about itself. A camera follow time is about this
@@ -447,7 +451,7 @@ func _build_chat() -> void:
 	# Lifted above the mass bar and the carry line (HungryHud, 74 px up from the bottom-left
 	# corner). At the stock 16 the newest chat lines, a vote's ballot and countdown among
 	# them, were drawn over the bar and the bar over them.
-	chat_window.margin_bottom = 84.0
+	chat_window.margin_bottom = CHAT_MARGIN_BOTTOM
 	_chat_layer.add_child(chat_window)
 
 

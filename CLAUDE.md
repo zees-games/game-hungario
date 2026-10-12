@@ -93,10 +93,11 @@ Short forms; the reasoning is in the linked file.
 - The vote's director is advanced once a tick by the module; the swap is dot-server's `change_game`, not `DotMapSyncHost`. [services](docs/services.md#the-vote-and-dot-map)
 - The vote knows a mode by its game id (`HungryModule.game_id_of`), never the preset id, and its source is narrowed to the modes (`HungryMaps.ModeSource`): a server runs other games too. [services](docs/services.md#the-vote-and-dot-map)
 - Chat lines go to the chat box, and to the feed only when there is no box; the box sits above the mass bar.
-- The leaderboard shrinks above any visible `dot_hud_cover` Control over its corner (the shell's ballots); read the group by its string, never a dot-ui constant. [client](docs/client.md#the-leaderboard-makes-room-for-a-ballot) [client](docs/client.md#chat-box)
+- The leaderboard shrinks above any visible `dot_hud_cover` Control over its corner (the shell's ballots), read through `DotHudPiece.covered_rect`. [client](docs/client.md#the-leaderboard-makes-room-for-a-ballot) [client](docs/client.md#chat-box)
 - dot-audio does not replace `HungrySound` and dot-settings does not replace `HungryConfig`; `apply_all()` after building the layer. [client](docs/client.md#the-presentation-layer-and-what-it-deliberately-does-not-duplicate)
 - Chat key settings sit beside the config, never in it (argv must not rebind players). [client](docs/client.md#chat-box)
 - Do not build the world in `SceneTree._initialize`; tools seed on the first frame. [testing](docs/testing.md#traps-the-suites-have-hit)
+- The round clock is dot-ui's `DotScoreStrip` (`HungryHud.strip`, colours from `HungryHud.piece_theme()`), so the pack needs a client shell with dot-ui API level 4; `headless_presentation` checks the derived requires.json and that the clock, the ballot and the full chat log do not meet. [client](docs/client.md#the-round-clock)
 - The arena is a pale pastel sky (`HungryRenderer`'s colour fields, opaque clouds); anything drawn on it is saturated or dark, never white. [client](docs/client.md#rendering)
 
 ## Not converted yet
