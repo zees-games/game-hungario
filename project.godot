@@ -11,8 +11,8 @@ config_version=5
 [application]
 
 config/name="game-hungario"
-config/features=PackedStringArray("4.7")
 run/main_scene="res://examples/play.tscn"
+config/features=PackedStringArray("4.7")
 
 [audio]
 
@@ -24,10 +24,13 @@ window/size/viewport_width=1280
 window/size/viewport_height=720
 window/stretch/mode="canvas_items"
 
+[importer_defaults]
+
+texture={
+"detect_3d/compress_to": 0
+}
+
 [rendering]
 
-; Compatibility, not Forward+: Forward+ does not run in a browser, and this game's
-; whole point is that a stranger can click a link and play it.
 renderer/rendering_method="gl_compatibility"
 renderer/rendering_method.mobile="gl_compatibility"
-textures/canvas_textures/default_texture_filter=1

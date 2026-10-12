@@ -99,6 +99,7 @@ Short forms; the reasoning is in the linked file.
 - Do not build the world in `SceneTree._initialize`; tools seed on the first frame. [testing](docs/testing.md#traps-the-suites-have-hit)
 - The round clock is dot-ui's `DotScoreStrip` (`HungryHud.strip`, colours from `HungryHud.piece_theme()`), so the pack needs a client shell with dot-ui API level 4; `headless_presentation` checks the derived requires.json and that the clock, the ballot and the full chat log do not meet. [client](docs/client.md#the-round-clock)
 - The arena is a pale pastel sky (`HungryRenderer`'s colour fields, opaque clouds); anything drawn on it is saturated or dark, never white. [client](docs/client.md#rendering)
+- `project.godot` carries no comments: the editor drops them, and any key left at its default, the first time it saves the file, so the reasons for its settings live here. The renderer is `gl_compatibility`, not Forward+, because Forward+ does not run in a browser and the point of this game is that a stranger can click a link and play it. Texture imports keep `detect_3d/compress_to=0` (`[importer_defaults]`) so the editor never re-imports one VRAM-compressed on a first open.
 
 ## Not converted yet
 
