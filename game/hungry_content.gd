@@ -273,7 +273,7 @@ static func tunables() -> Dot2DTunables:
 
 ## The three relationships the whole game balances on. See [Dot2DMassRules].
 static func mass_rules() -> Dot2DMassRules:
-	var rules := Dot2DMassRules.agar()
+	var rules := Dot2DMassRules.cell_eating()
 
 	rules.base_radius = 8.0
 	# Area is radius squared, so twice the mass is root-two the width. This is what
