@@ -136,9 +136,21 @@ const ASKED_WINDOW_MSEC := 750
 var _watching: int = 0
 var _bots: Array[int] = []
 
+## The loading cover (dot-core). Closed until the local monster exists, so nobody sees an
+## empty field or steers before the server has placed them. See [method _ready].
+var gate: DotLoadGate = null
+
 
 func _ready() -> void:
 	DotLog.info(CHANNEL, "client starting")
+
+	# First, so the cover is up before anything below draws. A 2D game: no camera node to
+	# wait for, and the player is a monster in the world, not a node, so nothing is frozen;
+	# `_sample` and the offline tick check the gate instead.
+	gate = DotLoadGate.new()
+	gate.require_camera = false
+	add_child(gate)
+	gate.require(&"spawned", _local_monster_exists, "Joining")
 
 	link = DotRegistry.get_node_service(LINK_SERVICE)
 	_offline = force_offline or link == null \
@@ -162,6 +174,10 @@ func _ready() -> void:
 		link.connect("spawned", bridge.ask_for_world, CONNECT_ONE_SHOT)
 	else:
 		bridge.ask_for_world()
+
+
+func _local_monster_exists() -> bool:
+	return world != null and world.monster_for(_local_player()) != null
 
 
 func _build() -> DotResult:
@@ -702,7 +718,10 @@ func _start_offline() -> void:
 ## a split's first half lands a snapshot before the second — so the change is only
 ## attributed to a key the player actually pressed a moment ago.
 func _sample(delta: float = 0.0) -> Dot2DCommand:
-	var command := sampler.sample(delta)
+	# Nothing is steered or split behind the cover. A neutral command, not a skipped one,
+	# because the tick still needs something to send.
+	var command := Dot2DCommand.new() if gate != null and not gate.is_open() \
+		else sampler.sample(delta)
 	var now := Time.get_ticks_msec()
 
 	for button in [Dot2DCommand.BUTTON_SPLIT, Dot2DCommand.BUTTON_EJECT]:
@@ -718,6 +737,11 @@ func _asked_recently(button: int) -> bool:
 
 
 func _tick_offline(_delta: float) -> void:
+	# The bots do not wait for a cover: a round that ran while it was up would be a round
+	# the player starts already losing.
+	if gate != null and not gate.is_open():
+		return
+
 	_tick += 1
 
 	var commands: Dictionary = {1: _sample()}
