@@ -491,7 +491,7 @@ func _test_client_scene() -> void:
 	)
 	_check(_client.hud != null, "and a HUD")
 	_check(
-		_client.screens != null and _client.screens.screen(&"scoreboard") != null
+		_client.screens != null and _client.platform.board != null
 			and _client.menu != null and _client.menu.page(&"loadout") != null,
 		"and its Tab board and dot-menu's Escape menu, Loadout first"
 	)

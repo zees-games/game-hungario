@@ -55,8 +55,6 @@ const CHANNEL := "hungry.client"
 signal replaced(fresh: Node)
 
 ## Registry name [DotClientLink] publishes itself under.
-const LINK_SERVICE := &"dot_client_link"
-
 ## How often the leaderboard is rebuilt. It is a table of [Label]s and the numbers on it
 ## change slowly; rebuilding it per frame is most of a frame's layout budget for nothing.
 const BOARD_INTERVAL_SEC := 0.5
@@ -136,9 +134,11 @@ const ASKED_WINDOW_MSEC := 750
 var _watching: int = 0
 var _bots: Array[int] = []
 
-## The loading cover (dot-core). Closed until the local monster exists, so nobody sees an
-## empty field or steers before the server has placed them. See [method _ready].
-var gate: DotLoadGate = null
+## The platform layer (dot-game's [DotGameClient]): the loading cover, closed until the local
+## monster exists so nobody sees an empty field or steers before the server has placed them;
+## the settings, the Escape menu, the console, Tab and M; the pointer rules and the browser's
+## filesystem flush. See [method _ready].
+var platform: DotGameClient = null
 
 
 func _ready() -> void:
@@ -146,15 +146,19 @@ func _ready() -> void:
 
 	# First, so the cover is up before anything below draws. A 2D game: no camera node to
 	# wait for, and the player is a monster in the world, not a node, so nothing is frozen;
-	# `_sample` and the offline tick check the gate instead.
-	gate = DotLoadGate.new()
-	gate.require_camera = false
-	add_child(gate)
-	gate.require(&"spawned", _local_monster_exists, "Joining")
-
-	link = DotRegistry.get_node_service(LINK_SERVICE)
-	_offline = force_offline or link == null \
-		or "--offline" in OS.get_cmdline_user_args()
+	# the sampler is held and the offline tick waits instead. The cursor is the control, so
+	# the platform never captures it.
+	platform = DotGameClient.new()
+	platform.name = "Platform"
+	platform.force_offline = force_offline
+	platform.require_camera = false
+	platform.capture_pointer = false
+	platform.scoreboard_action = HungryBindings.SCOREBOARD
+	platform.spawned_text = "Joining"
+	platform.spawned_fn = _local_monster_exists
+	add_child(platform)
+	link = platform.link
+	_offline = platform.offline
 
 	var built := _build()
 
@@ -398,9 +402,25 @@ var ragdoll_rules: DotPlayerRagdollRules = DotPlayerRagdollRules.new()
 
 ## Settings, audio, effects and the console, over the config and the bank this game has.
 func _build_presentation() -> void:
+	# The platform's settings and console first: the presentation binds audio and effects to
+	# the document it builds and adds this game's commands to the console it builds.
+	platform.settings = HungrySettings.new()
+	platform.busy_fn = func() -> bool: return presentation != null and presentation.swallows_input()
+	platform.board_snapshot_fn = HungryMenus.solo_snapshot
+	# M: the six modes. Solo a choice starts that mode now; connected the server decides, by
+	# the owner's `sv_map_menu_flag`, and anybody without it gets a vote instead.
+	platform.maps_rows_fn = mode_rows
+	platform.maps_change_fn = change_mode_offline
+	platform.maps_title = "Change mode"
+	platform.maps_noun = "modes"
+	DotLog.result(CHANNEL, "the platform", platform.setup())
+	platform.input_blocked_changed.connect(_suspend_input)
+	_suspend_input(platform.is_input_blocked())
+
 	presentation = HungryPresentation.new()
 	presentation.name = "Presentation"
 	presentation.client = self
+	presentation.platform = platform
 	presentation.sound = sound
 	# The SAME config object the rest of the client reads, not a copy. dot-settings owns
 	# the persistence and the scopes; `HungryConfig` stays the declaration, so there is
@@ -408,7 +428,6 @@ func _build_presentation() -> void:
 	presentation.config = settings if settings != null else HungryConfig.new()
 	add_child(presentation)
 	DotLog.result(CHANNEL, "the presentation layer", presentation.setup())
-	_wire_console()
 
 	if settings == null:
 		settings = presentation.config
@@ -495,7 +514,8 @@ func _build_ui() -> void:
 	# is what puts them inside the safe area.
 	sampler.touch = hud.touch
 
-	var _board := HungryMenus.install(screens, world, bridge, link if not _offline else null)
+	if platform.board is DotMenuScoreboard:
+		HungryMenus.dress_board(platform.board as DotMenuScoreboard, world, bridge)
 
 	# Escape, H and Leave are dot-menu's, built with the player's settings by the presentation
 	# layer. What is this game's is the Loadout page, first, because Escape is where a player
@@ -505,21 +525,11 @@ func _build_ui() -> void:
 	loadout_page.on_chosen(_on_loadout_chosen)
 	if menu != null:
 		var _l := menu.add_page(loadout_page.page, &"general")
-		# The HUD in the menu's theme and at the player's HUD size, live (dot-menu's
-		# `follow_hud`, by name for a client shell older than it).
+		# The HUD in the menu's theme and at the player's HUD size, live. The HUD is built after
+		# the platform's setup, so it is handed over here rather than as `platform.hud`.
 		if hud != null and menu.has_method(&"follow_hud"):
 			menu.call(&"follow_hud", hud, HungryHud.accent_theme())
 		loadout_page.on_redraw(menu.screen.refresh)
-		menu.overlays_changed.connect(func(_open: bool) -> void: _refresh_suspended())
-		# M: the six modes (dot-menu's map menu). Solo a choice starts that mode now; connected
-		# the server decides, by the owner's `sv_map_menu_flag`, and anybody without it gets a
-		# vote instead (dot-vote's map menu, over this game's mode vote). By name, so a client
-		# shell older than the map menu still runs the game without it.
-		if menu.has_method(&"use_maps"):
-			var maps: Variant = menu.call(&"use_maps", mode_rows, change_mode_offline)
-			if maps is Object:
-				(maps as Object).set(&"title", "Change mode")
-				(maps as Object).set(&"noun", "modes")
 
 	# A value changed in the menu or at the console reaches the config first (the
 	# presentation layer's handler is connected before this one), then what reads it.
@@ -659,11 +669,10 @@ func _process(delta: float) -> void:
 		if hud != null:
 			hud.refresh_leaderboard()
 
-		var board := screens.screen(&"scoreboard") as HungryMenus.ScoreboardScreen \
-			if screens != null else null
+		var board := platform.board as DotMenuScoreboard
 
-		if board != null and screens.is_open(&"scoreboard"):
-			board.refresh()
+		if board != null and board.is_open():
+			board.redraw()
 
 
 ## Where the camera is looking, which is where the listener is.
@@ -718,10 +727,9 @@ func _start_offline() -> void:
 ## a split's first half lands a snapshot before the second — so the change is only
 ## attributed to a key the player actually pressed a moment ago.
 func _sample(delta: float = 0.0) -> Dot2DCommand:
-	# Nothing is steered or split behind the cover. A neutral command, not a skipped one,
-	# because the tick still needs something to send.
-	var command := Dot2DCommand.new() if gate != null and not gate.is_open() \
-		else sampler.sample(delta)
+	# Nothing is steered or split behind the cover: the sampler is suspended while the platform
+	# blocks input, and hands back a neutral command, which the tick still needs to send.
+	var command := sampler.sample(delta)
 	var now := Time.get_ticks_msec()
 
 	for button in [Dot2DCommand.BUTTON_SPLIT, Dot2DCommand.BUTTON_EJECT]:
@@ -739,7 +747,7 @@ func _asked_recently(button: int) -> bool:
 func _tick_offline(_delta: float) -> void:
 	# The bots do not wait for a cover: a round that ran while it was up would be a round
 	# the player starts already losing.
-	if gate != null and not gate.is_open():
+	if not platform.is_shown():
 		return
 
 	_tick += 1
@@ -1101,11 +1109,7 @@ func _wire_chat_window() -> void:
 	window.opened.connect(func(_channel: StringName) -> void:
 		if voice != null:
 			voice.release()
-
-		_refresh_suspended()
 	)
-
-	window.closed.connect(func() -> void: _refresh_suspended())
 
 	var client_link := DotRegistry.get_service(&"dot_client_link")
 
@@ -1113,22 +1117,12 @@ func _wire_chat_window() -> void:
 		client_link.connect("chat_received", _on_server_chat_state)
 
 
-## The console is the chat box's bug again: built by [DotConsoleKit], which would register
-## it with a [DotMenu] so the menu's "something is open" stops the player. This game has no
-## DotMenu, so the console's own open and close drive the sampler here instead.
-func _wire_console() -> void:
-	if presentation == null or presentation.console == null:
-		return
-	presentation.console.visibility_changed.connect(func(_open: bool) -> void: _refresh_suspended())
-
-
-## The keys stop reaching the command while the chat box or the console has the keyboard,
-## and only come back when neither does: one closing while the other is open must not let
-## a typed "w" eject mass.
-func _refresh_suspended() -> void:
+## One handler for the sampler: the platform says when the cover, a menu, the console or the chat
+## line has the keyboard. Split, throw, boost and eject are keys, and "gg boost" would eject
+## the player's mass.
+func _suspend_input(blocked: bool) -> void:
 	if sampler != null:
-		sampler.suspended = (presentation != null and presentation.swallows_input()) \
-			or (menu != null and menu.any_open())
+		sampler.suspended = blocked
 
 
 ## dot-server's chat payload: what is carrying the conversation, and the server's own lines.
@@ -1236,7 +1230,7 @@ func _on_progress(state: Dictionary) -> void:
 
 # --- Input -----------------------------------------------------------------
 
-## The talk key and the held scoreboard. Escape, H and the menu's keys are dot-menu's
+## The talk key. The held Tab board is the platform's. Escape, H and the menu's keys are dot-menu's
 ## ([HungrySettings]), which takes every key while anything of its is open.
 func _unhandled_input(event: InputEvent) -> void:
 	# [b]Voice first, and on both edges.[/b] Everything below this line is `is_pressed`,
@@ -1245,16 +1239,6 @@ func _unhandled_input(event: InputEvent) -> void:
 	if voice != null and voice.handle_event(event):
 		get_viewport().set_input_as_handled()
 		return
-
-	# The Tab board, HELD as in every game here (it used to toggle): up on the press, down
-	# on the release, which is why it is read before the press-only filter below.
-	if screens != null and InputMap.has_action(HungryBindings.SCOREBOARD) \
-			and event.is_action(HungryBindings.SCOREBOARD) and not event.is_echo():
-		if event.is_pressed() and not screens.is_open(&"scoreboard"):
-			var _up := screens.push(&"scoreboard")
-		elif not event.is_pressed() and screens.is_open(&"scoreboard"):
-			var _down := screens.pop(&"scoreboard")
-		get_viewport().set_input_as_handled()
 
 
 func describe() -> Dictionary:

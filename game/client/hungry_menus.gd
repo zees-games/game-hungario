@@ -4,8 +4,8 @@ const HungryContent := preload("../hungry_content.gd")
 const HungryNetBridge := preload("../net/hungry_net_bridge.gd")
 const HungryWorld := preload("../hungry_world.gd")
 
-## What is on screen besides the HUD and dot-menu's Escape menu: the held Tab scoreboard on
-## dot-ui's screen stack, and the menu's Loadout page.
+## What is on screen besides the HUD and dot-menu's Escape menu: the Tab scoreboard's
+## dressing and the menu's Loadout page.
 ##
 ## [b]The Escape menu is dot-menu's[/b] ([HungrySettings]): Loadout, Game, the stock pages,
 ## the Controls page over [HungryBindings], Help & commands and Leave, as in every game of
@@ -13,86 +13,54 @@ const HungryWorld := preload("../hungry_world.gd")
 ## loadout screens over a `DotConfig` and a bindings file of their own; the settings and keys
 ## moved into the menu's document, and [HungrySettings] migrated the files.
 
-## The scoreboard. Transparent, and does not block input.
+## Dresses dot-menu's Tab board (the one [DotGameClient] holds on Tab) for this game: the
+## columns, the world's own rank order, and the rows from the world. [param bridge] names the
+## local player; null draws no "you".
 ##
-## Both matter: it is held down during a live game, so it must not stop the player moving
-## and must not hide what they are looking at. That is exactly the distinction between
-## [member DotScreen.blocks_input] and [member DotScreen.hides_below].
-class ScoreboardScreen extends DotScreen:
-	## The board itself: dot-menu's, drawn in its theme. This screen is only what puts it
-	## on the stack, so the stack still owns its place among the others.
-	var board: DotMenuScoreboard = null
+## The rows are the world's, every monster, bots included, ranked by mass, with the server's
+## time and ping merged in for the ones that are people. The roster the link feeds carries
+## those; solo the platform's snapshot is empty and `prepare` fills the rows.
+static func dress_board(board: DotMenuScoreboard, world: HungryWorld, bridge: HungryNetBridge) -> void:
+	board.title_text = "Hungario"
+	board.columns = [
+		{"key": &"rank", "title": "#", "width": 0.4, "kind": DotMenuScoreboard.KIND_NUMBER},
+		{"key": &"name", "title": "Monster", "width": 3.0},
+		{"key": &"mass", "title": "Mass", "kind": DotMenuScoreboard.KIND_NUMBER},
+		{"key": &"pieces", "title": "Pieces", "kind": DotMenuScoreboard.KIND_NUMBER},
+		{"key": &"seconds", "title": "Time", "kind": DotMenuScoreboard.KIND_DURATION},
+		{"key": &"ping", "title": "Ping", "kind": DotMenuScoreboard.KIND_PING},
+	]
+	board.sort_with = func(a: Dictionary, b: Dictionary) -> bool: return int(a.get("rank", 0)) < int(b.get("rank", 0))
+	board.prepare = func(snap: Dictionary) -> void: _rows_from_world(snap, world, bridge)
 
-	var _world: HungryWorld = null
-	var _bridge: HungryNetBridge = null
 
-	func _screen_id() -> StringName:
-		return &"scoreboard"
+## What the solo board is given to prepare: no roster, so no ping and no time.
+static func solo_snapshot() -> Dictionary:
+	return {"server": {"name": "Hungario"}, "players": []}
 
-	## [param link] is the client link: its roster carries each player's time on the server
-	## and ping, which no client knows for anybody else. Null draws the world alone.
-	func build(world: HungryWorld, bridge: HungryNetBridge, link: Object = null) -> void:
-		_world = world
-		_bridge = bridge
-		blocks_input = false
-		hides_below = false
-		mouse_mode = DotScreen.Mouse.INHERIT
-		mouse_filter = Control.MOUSE_FILTER_IGNORE
 
-		board = DotMenuScoreboard.new()
-		board.name = "Board"
-		board.title_text = "Hungario"
-		board.columns = [
-			{"key": &"rank", "title": "#", "width": 0.4, "kind": DotMenuScoreboard.KIND_NUMBER},
-			{"key": &"name", "title": "Monster", "width": 3.0},
-			{"key": &"mass", "title": "Mass", "kind": DotMenuScoreboard.KIND_NUMBER},
-			{"key": &"pieces", "title": "Pieces", "kind": DotMenuScoreboard.KIND_NUMBER},
-			{"key": &"seconds", "title": "Time", "kind": DotMenuScoreboard.KIND_DURATION},
-			{"key": &"ping", "title": "Ping", "kind": DotMenuScoreboard.KIND_PING},
-		]
-		# The world's own order (its leaderboard), so the rank column and the rows agree.
-		board.sort_with = func(a: Dictionary, b: Dictionary) -> bool: return int(a.get("rank", 0)) < int(b.get("rank", 0))
-		board.prepare = _rows_from_world
-		if link != null and link.has_signal(&"scoreboard_received"):
-			board.feed_from(link)
-		add_child(board)
-
-	func _on_push() -> void:
-		if board != null:
-			board.open()
-
-	func _on_pop() -> void:
-		if board != null:
-			board.close()
-
-	func refresh() -> void:
-		if board != null and board.is_open():
-			board.redraw()
-
-	## The rows are the world's — every monster, bots included, ranked by mass — with the
-	## server's time and ping merged in for the ones that are people.
-	func _rows_from_world(snap: Dictionary) -> void:
-		if _world == null:
-			return
-		var roster := {}
-		for r in (snap.get("players", []) as Array):
-			if r is Dictionary:
-				roster[int(r.get("id", 0))] = r
-		var me := _bridge.local_player_id if _bridge != null else 0
-		var rows: Array = []
-		var rank := 1
-		for monster in _world.leaderboard(20):
-			var known: Dictionary = roster.get(monster.id, {})
-			rows.append({
-				"id": monster.id, "rank": rank, "name": monster.display_name,
-				"mass": int(monster.mass()), "pieces": monster.piece_count(),
-				"seconds": int(known.get("seconds", -1)), "ping": int(known.get("ping", -1)),
-				"you": monster.id == me, "bot": not roster.is_empty() and known.is_empty(),
-			})
-			rank += 1
-		snap["players"] = rows
-		if not snap.has("server"):
-			snap["server"] = {"name": "Hungario"}
+static func _rows_from_world(snap: Dictionary, world: HungryWorld, bridge: HungryNetBridge) -> void:
+	if world == null:
+		return
+	var roster := {}
+	for r in (snap.get("players", []) as Array):
+		if r is Dictionary:
+			roster[int(r.get("id", 0))] = r
+	var me := bridge.local_player_id if bridge != null else 0
+	var rows: Array = []
+	var rank := 1
+	for monster in world.leaderboard(20):
+		var known: Dictionary = roster.get(monster.id, {})
+		rows.append({
+			"id": monster.id, "rank": rank, "name": monster.display_name,
+			"mass": int(monster.mass()), "pieces": monster.piece_count(),
+			"seconds": int(known.get("seconds", -1)), "ping": int(known.get("ping", -1)),
+			"you": monster.id == me, "bot": not roster.is_empty() and known.is_empty(),
+		})
+		rank += 1
+	snap["players"] = rows
+	if not snap.has("server"):
+		snap["server"] = {"name": "Hungario"}
 
 
 ## What you bring in: a starting throwable and a trait, as the Escape menu's first page.
@@ -219,18 +187,6 @@ class LoadoutPage extends RefCounted:
 		var redraw: Callable = state["redraw"]
 		if redraw.is_valid():
 			redraw.call_deferred()
-
-
-## Registers the held Tab scoreboard with a stack. [param link] is the client link (its
-## roster carries time on the server and ping); null draws the world alone.
-static func install(
-	stack: DotScreenStack, world: HungryWorld, bridge: HungryNetBridge, link: Object = null
-) -> ScoreboardScreen:
-	var scoreboard := ScoreboardScreen.new()
-	scoreboard.name = "Scoreboard"
-	scoreboard.build(world, bridge, link)
-	stack.register(scoreboard)
-	return scoreboard
 
 
 ## The Loadout page over [param bridge]'s schema (the server's), or this build's own.

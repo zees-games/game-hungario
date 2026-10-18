@@ -48,12 +48,14 @@ const CHAT_MARGIN_BOTTOM := 84.0
 var settings: DotSettingsManager = null
 
 ## dot-menu's settings node: the document, what applies the stock keys, and the Escape menu
-## (with help on H, the Controls page, Leave and net_stat). Set one before [method setup] to
-## choose its store and its migration's files (a suite); otherwise it is built here.
+## (with help on H, the Controls page, Leave and net_stat). It is [member platform]'s, so the
+## store and the migration's files are chosen on the node handed to the platform.
 var menu_settings: HungrySettings = null
 
-## Whether [method setup] builds the menu. Off for a suite that wants the document alone.
-var with_menu: bool = true
+## The platform layer ([DotGameClient]) that owns the settings node, the Escape menu and the
+## console. [HungryClient] hands in its own, set up already. Left null, [method setup] builds a
+## bare one (no cover, no pointer) around [member menu_settings], which is what a suite does.
+var platform: DotGameClient = null
 var audio: DotAudioManager = null
 
 ## The arena's ambience bed: dot-audio's stock (generated, CC0; the addon's stock/CREDITS.md),
@@ -95,6 +97,10 @@ func setup() -> DotResult:
 	if config == null:
 		config = HungryConfig.new()
 
+	if platform == null:
+		var made := _make_platform()
+		if not made.ok:
+			return made
 	var settled := _build_settings()
 	if not settled.ok:
 		return settled
@@ -111,9 +117,6 @@ func setup() -> DotResult:
 	_build_chat()
 	menu_settings.bind_audio(audio)
 	menu_settings.bind_fx(fx)
-	if menu_settings.menu != null:
-		# While the chat line or the console has the keyboard, Escape and H are theirs.
-		menu_settings.menu.busy = swallows_input
 
 	# [b]And then every value is pushed once, which is the half that was missing.[/b]
 	# Everything below reacts to `changed`, and a value loaded from disk has not changed --
@@ -138,14 +141,23 @@ func apply_all() -> void:
 
 # --- Settings ---------------------------------------------------------------
 
-func _build_settings() -> DotResult:
-	if menu_settings == null:
-		menu_settings = HungrySettings.new()
-	add_child(menu_settings)
+## A platform of this presentation's own, for a caller that has none: a suite, or a shot. No
+## cover and no pointer capture, because there is no game behind it.
+func _make_platform() -> DotResult:
+	platform = DotGameClient.new()
+	platform.name = "Platform"
+	platform.use_gate = false
+	platform.capture_pointer = false
+	platform.settings = menu_settings if menu_settings != null else HungrySettings.new()
+	platform.busy_fn = swallows_input
+	add_child(platform)
+	return platform.setup()
 
-	var res := menu_settings.setup(null, with_menu)
-	if not res.ok:
-		return res.wrap("hungario's settings")
+
+func _build_settings() -> DotResult:
+	menu_settings = platform.settings as HungrySettings
+	if menu_settings == null:
+		return DotResult.fail(DotError.CODE_STATE, "hungario's settings did not load")
 	settings = menu_settings.settings
 
 	# And into the config on the way in, because the config is what the game reads. A
@@ -487,16 +499,17 @@ func _apply_chat_visibility() -> void:
 			chat_window.enabled = not _chat_relayed
 
 
-## dot-console's kit: `help`, `clear`, `settings`, every setting by its own name, the
+## dot-console's kit, built by the platform: `help`, `clear`, `settings`, every setting by its own name, the
 ## in-process server's console, and the panel on layer 128. This game adds `quit` and
 ## `audio`, ahead of the server's console so a listen server's own `quit` is not the one
 ## that answers.
 ##
 ## The panel is one of the Escape menu's overlays, so Escape closes it and the menu knows it
-## is open. [HungryClient] still suspends its sampler on the console's `visibility_changed`,
-## as it does for the chat box.
+## is open; the platform blocks the input while it is.
 func _build_console() -> DotResult:
-	console = DotConsoleKit.build(self, settings, menu_settings.menu)
+	console = platform.console as DotConsoleController
+	if console == null:
+		return DotResult.fail(DotError.CODE_STATE, "hungario's console did not build")
 
 	var server_sources := console.sources().slice(1)
 	for s in server_sources:
@@ -506,7 +519,7 @@ func _build_console() -> DotResult:
 	for s in server_sources:
 		console.add_source(s)
 
-	console_panel = get_node_or_null(^"ConsoleLayer/ConsolePanel") as DotConsolePanel
+	console_panel = platform.get_node_or_null(^"ConsoleLayer/ConsolePanel") as DotConsolePanel
 	return DotResult.success(null)
 
 

@@ -32,7 +32,7 @@ Read the family [CLAUDE.md](../../CLAUDE.md) first; this file is only what is sp
 | `game/net/` | the dot-net bridge, piece and match entities, interest, events and requests |
 | `game/client/` | client scene, camera, renderer, HUD, input, touch, menus, sound, rider, browser, presentation; `hungry_settings.gd` (dot-menu's document, menu and the migration) and `hungry_bindings.gd` (the key table) |
 | `examples/` | the seven test suites, `play.tscn` (the standalone application) |
-| `tools/` | `screenshot_map.sh`, `screenshot_menus.sh`, `publish_avatars.tscn`, `loudness_pilot.gd` |
+| `tools/` | `screenshot_map.sh`, `screenshot_menus.sh`, `screenshot_cover.sh` (the loading cover, then the game), `publish_avatars.tscn`, `loudness_pilot.gd` |
 | `content/avatars/`, `scenes/fx/` | built-in rider parts, effect scenes |
 | `game.yml` | the descriptor that travels inside the published pack (Classic); the other modes' descriptors are in dot-server-deploy's `content/hungry_*` |
 
@@ -112,4 +112,4 @@ Short forms; the reasoning is in the linked file.
 
 ## Not converted yet
 
-- **dot-game**: the module extends `DotModule` and `HungryServices` is its own, not `DotGameModule`/`DotGameServices`. Not yet converted; dot-game's CLAUDE.md says to convert game-arena first.
+- **dot-game**: the server module extends `DotModule` and `HungryServices` is its own, not `DotGameModule`/`DotGameServices`. The client is on `DotGameClient` (API level 8, `HungryClient.platform`); the server half is not converted.

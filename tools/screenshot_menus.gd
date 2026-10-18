@@ -26,7 +26,6 @@ const HungrySound := preload("../game/client/hungry_sound.gd")
 const OUT_DIR := "res://screenshots"
 const SETTLE := 3
 
-var _stack: DotScreenStack = null
 var _world: HungryWorld = null
 var _seeded := false
 var _shots: Array[Dictionary] = []
@@ -41,14 +40,6 @@ func _initialize() -> void:
 	DotLog.set_level(DotLog.Level.ERROR)
 	DirAccess.make_dir_recursive_absolute(OUT_DIR)
 
-	_stack = DotScreenStack.new()
-	_stack.name = "Stack"
-	_stack.register_service = false
-	_stack.manage_mouse = false
-	_stack.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	root.add_child(_stack)
-	_stack.setup()
-
 	# A world with monsters of a spread of masses, through the real world rather than a
 	# hand-built row list: a picture of a dictionary is a picture of a dictionary.
 	var world := HungryWorld.new()
@@ -58,7 +49,6 @@ func _initialize() -> void:
 	world.setup()
 
 	_world = world
-	var _board := HungryMenus.install(_stack, world, null)
 
 	_shots = [
 		{"page": &"loadout", "file": "menu_loadout.png"},
@@ -67,7 +57,7 @@ func _initialize() -> void:
 		{"page": &"audio", "file": "menu_audio.png"},
 		{"page": &"controls", "file": "menu_controls.png"},
 		{"help": true, "file": "menu_help.png"},
-		{"id": &"scoreboard", "file": "menu_scoreboard.png"},
+		{"board": true, "file": "menu_scoreboard.png"},
 		# The console, open: the kit's panel, on the layer it puts it on.
 		{"console": true, "file": "console.png"},
 	]
@@ -127,7 +117,7 @@ func _process(_delta: float) -> bool:
 	var shot: Dictionary = _shots[_at]
 
 	if _wait == SETTLE:
-		_stack.clear()
+		_presentation.platform.board.call(&"close")
 		if _menu != null:
 			_menu.close_all()
 		if _presentation.console.is_open():
@@ -141,17 +131,12 @@ func _process(_delta: float) -> bool:
 			_menu.open_help()
 		elif shot.has("page"):
 			_menu.open(StringName(shot["page"]))
-		else:
-			var opened := _stack.push(StringName(shot["id"]))
-
-			if not opened.ok:
-				# Said out loud rather than saved as a grey rectangle. A screen registered
-				# under a name nothing pushes is exactly the bug this tool found in dot-ui,
-				# and a picture of an empty viewport is indistinguishable from a broken
-				# renderer.
-				push_error("could not open '%s': %s" % [shot["id"], opened.error.message])
-				_at += 1
-				return false
+		elif shot.has("board"):
+			# The Tab board, as the platform holds it: dressed for this game, fed by the world.
+			var board := _presentation.platform.board as DotMenuScoreboard
+			HungryMenus.dress_board(board, _world, null)
+			board.source = HungryMenus.solo_snapshot
+			board.open()
 
 	if _wait > 0:
 		_wait -= 1

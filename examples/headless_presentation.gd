@@ -410,7 +410,9 @@ func _test_console() -> void:
 ## Typing at the console must not steer, split or eject. The sampler polls the keys and the
 ## stick every tick, and a focused line edit does not stop `Input.is_action_pressed`; what
 ## stops it is the client suspending the sampler while the console is open. Driven through
-## the real wiring ([method HungryClient._wire_console]) with the keys held down.
+## the real wiring (the platform's `input_blocked_changed` into [method HungryClient._suspend_input]) with
+## the keys held down. The platform polls its busy hook once a frame; the suite has no frames between
+## steps, so it polls by hand.
 func _test_console_stops_the_keys() -> void:
 	_section("Held keys do not reach the command while the console is open")
 
@@ -424,7 +426,8 @@ func _test_console_stops_the_keys() -> void:
 	client.presentation = p
 	client.sampler = sampler
 	client._wire_chat_window()
-	client._wire_console()
+	client.platform = p.platform
+	p.platform.input_blocked_changed.connect(client._suspend_input)
 
 	# Offline bots: named from dot-bot's pool, and their difficulty at this console.
 	var solo := HungryWorld.new()
@@ -456,16 +459,19 @@ func _test_console_stops_the_keys() -> void:
 		"with nothing open, the held keys steer and eject (the control)", str(free_run.aim))
 
 	p.console.open()
+	p.platform._refresh_blocked()
 	var typing := sampler.sample()
 	_check(typing.aim == Vector2.ZERO and not typing.is_pressed(Dot2DCommand.BUTTON_EJECT),
 		"with the console open, the held keys do not move the player or eject", str(typing.aim))
 
 	p.chat_window.open()
 	p.console.close()
+	p.platform._refresh_blocked()
 	_check(sampler.sample().aim == Vector2.ZERO,
 		"closing the console while the chat box is still open keeps the player still")
 
 	p.chat_window.close()
+	p.platform._refresh_blocked()
 	_check(sampler.sample().aim.x > 0.5, "and with both closed the keys steer again")
 
 	Input.action_release(sampler.move_right)

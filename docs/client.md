@@ -60,14 +60,14 @@ Until 2026-10-12 the settings screen saved `HungryConfig` to `user://cfg/hungry.
 
 ## Screens
 
-**Escape is dot-menu's menu**, the same structure as every other game: Resume, the pages (Loadout, General, Game, Video, Audio, Controls, Advanced), Help & commands and Leave. H opens the help screen (the goal, the rules, and every key as bound now), and the "H Help" plate is in the top-left corner, with the feed moved under it. The only thing left on dot-ui's screen stack is the held Tab scoreboard.
+**Escape is dot-menu's menu**, the same structure as every other game: Resume, the pages (Loadout, General, Game, Video, Audio, Controls, Advanced), Help & commands and Leave. H opens the help screen (the goal, the rules, and every key as bound now), and the "H Help" plate is in the top-left corner, with the feed moved under it. The loading cover, the settings node, the menu, the console, Tab, M, the pointer and the web flush are `DotGameClient`'s (`HungryClient.platform`, dot-game API level 8); the client hands it `spawned_fn`, `busy_fn` (the chat line and the console), the mode rows for M and `HungryMenus.dress_board` for Tab, and suspends its sampler on `input_blocked_changed`. `HungryPresentation` takes its settings node and console from the platform (it builds a bare one for a suite).
 
 - **Loadout is the first page** (`HungryMenus.LoadoutPage`), live rows rather than settings: a loadout is the server's to accept, so each choice is sent as it is made and takes effect at the next spawn. It offers what `DotLoadoutSchema.choices_for` allows this player and nothing else. Its rows' callables capture a dictionary, never the page object: a row holding a callable bound to the object that holds the row is a cycle of RefCounteds, and the whole page leaked at exit (`sandbox`, 8 resources) until it did not.
 - **Game is this game's page** (`HungrySettings.game_page`): camera lag, zoom, threat rings, names, the minimap, message lines.
 - **The keys are `HungryBindings`' table**: split, eject, throw, boost, a mouse-button row each for split and throw, chat and nearby chat (still stored as `chat_open_key`/`chat_near_key`, ACCOUNT, so nobody's chat key reset), push to talk, the scoreboard, and dot-menu's help. Nothing may default to H or M; `headless_presentation` checks it.
-- **No M yet**: `map_menu` is off until the modes are handed to dot-menu (`use_maps`), queue item `fpt-family-map-menu-1`.
+- **M lists the six modes** through the platform's `maps_rows_fn` and `maps_change_fn`.
 - **Leave is stock**: off the server when connected, "Quit game" solo on a desktop, hidden solo in a browser.
-- **The scoreboard draws dot-menu's `DotMenuScoreboard`**: every monster, bots included, in the world's rank order, with the server's roster merged in by id for people (time on, ping). Tab is held (`hungry_scoreboard`, a table row). Sort by the world's rank, not by mass then name, or a draw reads 2, 3, 1.
+- **The scoreboard draws dot-menu's `DotMenuScoreboard`**: every monster, bots included, in the world's rank order, with the server's roster merged in by id for people (time on, ping). Tab is held by the menu (`hungry_scoreboard`, a table row, given to the platform as `scoreboard_action`). Sort by the world's rank, not by mass then name, or a draw reads 2, 3, 1.
 - **The rank column width is `0.4`.** An omitted width is an equal share, so a one-digit `#` would otherwise take as much room as the mass.
 
 ## Chat box

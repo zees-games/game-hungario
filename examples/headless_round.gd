@@ -37,7 +37,7 @@ const HungryWorld := preload("../game/hungry_world.gd")
 const SEED := 20260828
 const TICK_RATE := 60
 
-const CHECKS := 464
+const CHECKS := 462
 
 var _passed := 0
 var _failed := 0
@@ -6288,25 +6288,25 @@ func _test_interface() -> void:
 	hud.note(HungryEvents.Kind.DIED, {"first": 1, "second": 0, "extra": 0})
 	_check(hud.feed.line_count() >= 3, "the feed takes lines (%d)" % hud.feed.line_count())
 
-	var _board := HungryMenus.install(stack, world, null)
-	# One, and it was five: the pause, settings, controls and loadout screens are dot-menu's
-	# Escape menu now (HungrySettings), and chat left the stack long before, when it became a
-	# `DotChatWindow`. What is left is the held board.
-	_check(
-		stack.registered_ids().size() == 1,
-		"only the Tab board is on the stack (%d)" % stack.registered_ids().size()
-	)
+	# Nothing of this game's is on the stack now: the pause, settings, controls and loadout
+	# screens are dot-menu's Escape menu (HungrySettings), chat left the stack long before, when
+	# it became a `DotChatWindow`, and the Tab board is dot-menu's own, held by the platform.
+	_check(stack.registered_ids().is_empty(), "nothing of this game's is on the stack (%d)" % stack.registered_ids().size())
 
-	# The Tab board is dot-menu's: the world's monsters, in the world's order, held up by
-	# the stack while Tab is down.
-	var _up := stack.push(&"scoreboard")
-	var board_screen := stack.screen(&"scoreboard") as HungryMenus.ScoreboardScreen
-	var drawn: Array = board_screen.board.rows() if board_screen != null and board_screen.board != null else []
-	_check(board_screen != null and board_screen.board.is_open() and drawn.size() == world.leaderboard(20).size()
+	# The Tab board: the world's monsters, in the world's order, dressed by the game and held
+	# open by the platform while Tab is down (opened by hand here).
+	var board := DotMenuScoreboard.new()
+	add_child(board)
+	HungryMenus.dress_board(board, world, null)
+	board.source = HungryMenus.solo_snapshot
+	board.open()
+	var drawn: Array = board.rows()
+	_check(board.is_open() and drawn.size() == world.leaderboard(20).size()
 		and int(drawn[0].get("rank", 0)) == 1 if not drawn.is_empty() else false,
 		"the Tab board draws every monster, ranked as the world ranks them", str(drawn))
-	var _down := stack.pop(&"scoreboard")
-	_check(board_screen != null and not board_screen.board.is_open(), "and goes when the stack takes it down")
+	board.close()
+	_check(not board.is_open(), "and goes when it is closed")
+	board.queue_free()
 
 	# The Loadout page offers what the schema and this player's entitlements allow, and
 	# nothing else. A page that filtered on its own would drift from the server the first
@@ -6416,12 +6416,6 @@ func _test_interface() -> void:
 	for option in unlocked.page.find_row(StringName("loadout_%s" % HungryContent.SLOT_TRAIT)).options:
 		greedy_offered = greedy_offered or option[0] == HungryContent.TRAIT_GREEDY
 	_check(greedy_offered, "which appears once it is unlocked")
-
-	# The scoreboard must not block input: it is held down during a live game, so it must
-	# not stop the player moving.
-	_check(stack.push(&"scoreboard").ok, "the scoreboard opens")
-	_check(not stack.screen(&"scoreboard").blocks_input, "without blocking input")
-	stack.pop(&"scoreboard")
 
 	# [b]Chat is no longer a screen on this stack.[/b] It was a modal `DotScreen` on Enter
 	# with one line edit in it — the only chat box of its kind in the family, with no log,
