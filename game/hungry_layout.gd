@@ -61,6 +61,29 @@ const REEF := &"reef"
 const SHALLOWS := &"shallows"
 
 
+## A subscribed pack's map (solo only): `workshop:<entry id>`, its rocks read from a document
+## [HungryWorkshop] registered in [member documents]. Not in [method ids]: it has no design
+## rules to measure, a pack author's rocks are theirs.
+const WORKSHOP := &"workshop"
+
+## Entry id -> `PackedVector3Array` of `(x, y, r)` as FRACTIONS of the arena's smaller
+## half-extent, like every layout here is proportional so it fits whatever world it is in.
+static var documents: Dictionary = {}
+
+
+static func _workshop(bounds: Rect2, entry: String) -> HungryLayout:
+	var out := HungryLayout.new()
+	out.id = StringName("%s:%s" % [WORKSHOP, entry])
+	var rocks: PackedVector3Array = documents.get(entry, PackedVector3Array())
+	var half := minf(bounds.size.x, bounds.size.y) * 0.5
+	var centre := bounds.get_center()
+
+	for rock in rocks:
+		out.blocks.append(Vector3(centre.x + rock.x * half, centre.y + rock.y * half, rock.z * half))
+
+	return out
+
+
 ## Every layout that is a level, so a check can ask all of them the same question.
 ##
 ## [b]This list exists because of the failure it prevents rather than because anything
@@ -156,6 +179,8 @@ static func for_id(layout_id: StringName, bounds: Rect2) -> HungryLayout:
 			return _reef(bounds)
 		SHALLOWS:
 			return _shallows(bounds)
+		WORKSHOP:
+			return _workshop(bounds, variant_of(layout_id))
 		_:
 			return none()
 

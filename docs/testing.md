@@ -5,6 +5,7 @@
 | Suite | What it is for |
 | --- | --- |
 | `headless_round` | The game, offline: the motor, the field, eating, splitting and merging, every mode and level section, the reach sweeps, bots' travel, hunters on the navigation, the sound bank, the screens. **Run it after any change to dot-2d.** |
+| `headless_workshop` | Subscribed map packs against a fixture `DotContentIndex`: solo lists `Name [Pack]` and builds a world with the document's rocks, online lists none, an unaccepted kind and a bad document are left out, own ids win. |
 | `headless_stack` | `HungryPlayerStack` against a real 2D arena: the roster, the traits, the collision layout, the spawns. |
 | `headless_net` | The netcode over a loopback: two worlds replaying the same commands are bit-identical, a client and server stay within a few units under 25% packet loss, prediction against a rock, the admin flags' audiences. **Run it after any change to dot-net.** |
 | `dedicated` | A real `DotServer`: the console, the vote, achievements against declared stats, hunters hunting, `changelevel`, and *exiting clean* (no message script preloads itself; the suite re-run in a second process exits with no leak). |

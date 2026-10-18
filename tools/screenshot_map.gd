@@ -8,6 +8,7 @@ const HungrySound := preload("../game/client/hungry_sound.gd")
 const HungryHud := preload("../game/client/hungry_hud.gd")
 const HungryPreset := preload("../game/hungry_preset.gd")
 const HungryRenderer := preload("../game/client/hungry_renderer.gd")
+const HungryWorkshop := preload("../game/hungry_workshop.gd")
 const HungryWorld := preload("../game/hungry_world.gd")
 
 ## Renders one of this game's modes to `screenshots/` so a person can look at the level.
@@ -60,6 +61,7 @@ func _initialize() -> void:
 	var admin := false
 	var fx := false
 	var ballot := false
+	var workshop := false
 
 	for argument in OS.get_cmdline_user_args():
 		if argument.begins_with("--at="):
@@ -75,10 +77,32 @@ func _initialize() -> void:
 			fx = true
 		elif argument == "--ballot":
 			ballot = true
+		elif argument == "--workshop":
+			# A fixture pack map (solo), through the same workshop path the map menu uses.
+			workshop = true
+			wanted = &"ruin"
 		elif not argument.begins_with("-"):
 			wanted = StringName(argument)
 
 	var preset := HungryPreset.for_id(wanted)
+
+	if workshop:
+		DirAccess.make_dir_recursive_absolute("user://ws_shot/")
+		var doc := FileAccess.open("user://ws_shot/ruin.json", FileAccess.WRITE)
+		doc.store_string(JSON.stringify({"id": "ruin", "name": "Ruin", "preset": "classic", "blocks": [
+			[0.45, 0.0, 0.12], [0.35, 0.3, 0.07], [-0.5, 0.25, 0.14], [-0.2, -0.5, 0.1],
+			[0.1, -0.6, 0.06], [0.0, 0.0, 0.09],
+		]}))
+		doc.close()
+		var index := DotContentIndex.new()
+		index.set_session(DotContentIndex.SESSION_SOLO)
+		index.add_pack({"content_id": "fixture/ruins", "version": "1.0.0", "prefix": "user://ws_shot/",
+			"session": DotContentIndex.SESSION_SOLO, "source": &"subscription",
+			"provides": {"schema": 1, "title": "Fixture Pack", "kinds": ["map"], "entries": [
+				{"kind": "map", "id": "ruin", "name": "Ruin", "scene": "ruin.json", "map_kind": "arena"}]}})
+		var shop := HungryWorkshop.new()
+		shop.follow(index)
+		preset = shop.preset_for(&"ruin")
 
 	_world = HungryWorld.new()
 	_world.name = "World"

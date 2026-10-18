@@ -7,6 +7,7 @@ const HungryConfig := preload("../hungry_config.gd")
 const HungryContent := preload("../hungry_content.gd")
 const HungryContentSource := preload("hungry_content_source.gd")
 const HungryEvents := preload("../net/hungry_events.gd")
+const HungryLayout := preload("../hungry_layout.gd")
 const HungryHazards := preload("../hungry_hazards.gd")
 const HungryHud := preload("hungry_hud.gd")
 const HungryHunters := preload("../hungry_hunters.gd")
@@ -22,6 +23,7 @@ const HungryServices := preload("../hungry_services.gd")
 const HungrySettings := preload("hungry_settings.gd")
 const HungrySound := preload("hungry_sound.gd")
 const HungryVoice := preload("hungry_voice.gd")
+const HungryWorkshop := preload("../hungry_workshop.gd")
 const HungryWorld := preload("../hungry_world.gd")
 
 ## The playable client: a world, a camera, a renderer, a HUD and a socket.
@@ -180,6 +182,10 @@ func _ready() -> void:
 		bridge.ask_for_world()
 
 
+## The subscribed maps this solo client lists and plays; null online.
+var workshop: HungryWorkshop = null
+
+
 func _local_monster_exists() -> bool:
 	return world != null and world.monster_for(_local_player()) != null
 
@@ -187,7 +193,14 @@ func _local_monster_exists() -> bool:
 func _build() -> DotResult:
 	world = HungryWorld.new()
 	world.name = "World"
-	world.preset = HungryPreset.for_id(offline_preset) if _offline else HungryPreset.classic()
+	world.preset = HungryPreset.classic()
+	if _offline:
+		# A subscribed pack map (solo only) is a layout of rocks over one of the game's presets.
+		workshop = HungryWorkshop.new()
+		workshop.follow()
+		world.preset = workshop.preset_for(offline_preset)
+		if world.preset == null:
+			world.preset = HungryPreset.for_id(offline_preset)
 	world.tick_rate = HungryContent.TICK_RATE
 	# Authoritative only when there is nobody else to be. A client that resolved its own
 	# eating would be a client that decides what it weighs.
@@ -439,7 +452,12 @@ func mode_rows() -> Array:
 	for id in MODE_IDS:
 		var preset := HungryPreset.for_id(id)
 		out.append({"id": String(id), "name": preset.display_name, "detail": MODE_BLURBS.get(id, ""),
-			"current": world != null and world.preset != null and world.preset.id == id})
+			"current": world != null and world.preset != null and world.preset.id == id \
+			and world.preset.layout != HungryLayout.WORKSHOP})
+	if workshop != null:
+		var playing: String = world.preset.layout_variant if world != null and world.preset != null \
+			and world.preset.layout == HungryLayout.WORKSHOP else ""
+		out.append_array(workshop.rows(playing))
 	return out
 
 
@@ -458,7 +476,7 @@ const MODE_BLURBS := {
 func change_mode_offline(id: StringName) -> DotResult:
 	if not _offline:
 		return DotResult.fail(DotError.CODE_STATE, "The server changes the mode.")
-	if not MODE_IDS.has(id):
+	if not MODE_IDS.has(id) and not (workshop != null and workshop.has(id)):
 		return DotResult.fail(DotError.CODE_INVALID, "There is no mode called '%s'." % id)
 	_replace_with.call_deferred(id)
 	DotLog.info(CHANNEL, "mode changed from the map menu", {"mode": String(id)})
