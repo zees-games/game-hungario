@@ -38,7 +38,7 @@ const SCOPE_KEY := "user://hungry_sandbox_scope.key"
 const SERVER_DIR := "user://hungry_sandbox_server"
 
 ## Every check this suite runs. See the guard at the end of [method _run].
-const CHECKS := 102
+const CHECKS := 109
 
 var _passed := 0
 var _failed := 0
@@ -392,6 +392,20 @@ func _teardown() -> void:
 		_server.shutdown("sandbox finished")
 
 
+## Saves the window to `$SANDBOX_SHOTS/<name>.png` when that variable names a directory: run
+## the suite under `xvfb-run` (not `--headless`, whose renderer draws nothing) to look at the
+## cover, the first frame after it lifts and the cover over an online mode change. Unset it
+## does nothing, so the suite is unchanged.
+func _shot(shot_name: String) -> void:
+	var dir := OS.get_environment("SANDBOX_SHOTS")
+	if dir == "" or DisplayServer.get_name() == "headless":
+		return
+	await RenderingServer.frame_post_draw
+	DirAccess.make_dir_recursive_absolute(dir)
+	var err := get_viewport().get_texture().get_image().save_png(dir.path_join(shot_name + ".png"))
+	print("shot %s: %s" % [shot_name, error_string(err)])
+
+
 func _module() -> HungryModule:
 	return _server.modules.get_module("hungry") as HungryModule
 
@@ -459,6 +473,17 @@ func _test_join() -> bool:
 	, 8.0)
 
 	_check(in_world, "and the game put a monster in the world for them")
+
+	# No client scene exists yet, so no cover has lifted: the seat is loading, and nothing
+	# may hurt it. Deterministic, not a race.
+	var module := _module()
+	var seat: DotClientSession = _server.sessions()[0] if not _server.sessions().is_empty() else null
+	_check(
+		seat != null and module.is_peer_loading(seat.peer_id)
+			and not module.can_peer_be_harmed(seat.peer_id)
+			and not module.world.can_be_harmed(seat.userid),
+		"the seat is loading until its client's cover lifts, and cannot be harmed"
+	)
 	_done()
 	return in_world
 
@@ -478,8 +503,11 @@ func _test_client_scene() -> void:
 
 	_client = (packed as PackedScene).instantiate() as HungryClient
 	_client_side.add_child(_client)
+	_client.platform.gate.opened.connect(func() -> void: _shot("2_lifted"))
 
-	await _frames(4)
+	await _frames(2)
+	_shot("1_cover")
+	await _frames(2)
 
 	_check(_client != null, "and instantiates")
 	_check(_client.world != null and not _client.world.is_authority, "with a world")
@@ -490,6 +518,20 @@ func _test_client_scene() -> void:
 		"parented to the client link, where the server's RPCs will find it"
 	)
 	_check(_client.hud != null, "and a HUD")
+
+	# The cover lifts under the client's own gate and the client says so on `game.cover`
+	# over the real socket; that message is the only thing that ends the seat's loading
+	# before its 5 s grace and 30 s timeout.
+	var loaded_at := Time.get_ticks_msec()
+	var lifted := await _until(func() -> bool:
+		return _client.platform.is_shown() and not _module().is_peer_loading(
+			_server.sessions()[0].peer_id)
+	, 10.0)
+	_check(
+		lifted and Time.get_ticks_msec() - loaded_at < 5000,
+		"the client's cover lifts and the server hears it (the seat is harmable)"
+	)
+	_check(_module().loading.load_timeouts == 0, "by the client's word, not the timeout")
 	_check(
 		_client.screens != null and _client.platform.board != null
 			and _client.menu != null and _client.menu.page(&"loadout") != null,
@@ -1199,6 +1241,29 @@ func _test_game_change() -> void:
 	# new SEED; a mode with rocks in it adds the one thing a client derives rather than
 	# receives — the discs it predicts itself against — and nothing had carried that
 	# across a live change until now. The reef is the level with the most of them.
+	# What the server saw of the seat across the change, and what the client's gate did.
+	# [b]Recorded as it happens[/b]: the cover can lift again before a poll could look.
+	var seen := {"loading": 0, "loaded": 0, "harmable_while_loading": true, "t0": 0, "ms": -1}
+	module.loading.loading_changed.connect(func(userid: int, is_loading: bool) -> void:
+		if userid != mine:
+			return
+		if is_loading:
+			seen["loading"] += 1
+			seen["t0"] = Time.get_ticks_msec()
+			if module.world.can_be_harmed(mine) or module.can_be_harmed(mine):
+				seen["harmable_while_loading"] = true
+			else:
+				seen["harmable_while_loading"] = false
+		else:
+			seen["loaded"] += 1
+			seen["ms"] = Time.get_ticks_msec() - int(seen["t0"])
+	)
+	var closes := [0]
+	_client.platform.gate.closed.connect(func() -> void:
+		closes[0] += 1
+		_shot("3_map_change")
+	)
+
 	var changed: DotResult = await _server.games.change_game(
 		HungryModule.GAME_REEF, "sandbox"
 	)
@@ -1255,6 +1320,21 @@ func _test_game_change() -> void:
 	, 10.0)
 
 	_check(back_in, "and is playing again without reconnecting")
+
+	# The map change covers the client again (it holds the gate until the new world's hello)
+	# and the server counts the seat as loading until the client says it lifted: well inside
+	# the 5 s a client that did not re-cover would wait.
+	_check(closes[0] >= 1, "the client covered again for the change (gate closed %d)" % closes[0])
+	var reloaded := await _until(func() -> bool: return int(seen["loaded"]) >= 1, 8.0)
+	_check(
+		int(seen["loading"]) >= 1 and reloaded and int(seen["ms"]) < 4000,
+		"the seat was loading again and the client's lift released it (%d ms)" % int(seen["ms"])
+	)
+	_check(not bool(seen["harmable_while_loading"]), "and it was not harmable meanwhile")
+	_check(
+		module.can_peer_be_harmed(_server.sessions()[0].peer_id) and _client.platform.is_shown(),
+		"and is harmable once its cover lifts"
+	)
 
 	var returned: DotResult = await module.mod_tools.return_player(&"", who)
 	_check(

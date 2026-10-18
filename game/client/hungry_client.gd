@@ -162,6 +162,17 @@ func _ready() -> void:
 	link = platform.link
 	_offline = platform.offline
 
+	# A client that outlives a server-side mode change (the standalone play scene) covers
+	# again, as the offline change does by building a fresh client. The shell frees the whole
+	# client on a change, whose new gate is closed from the start, so this only ever acts on
+	# a client that stays. The server's world is rebuilt and its hello sent again; that and
+	# the link's `spawned` lift the hold. Nothing is frozen: a monster is not a node and the sampler already
+	# waits on the platform.
+	if not _offline and link != null and link.has_signal("game_changed"):
+		link.connect("game_changed", _on_game_changed_online)
+		if link.has_signal("spawned"):
+			link.connect("spawned", _release_map_hold)
+
 	var built := _build()
 
 	if not built.ok:
@@ -783,8 +794,36 @@ func _tick_offline(_delta: float) -> void:
 
 # --- Events ----------------------------------------------------------------
 
+## Reason the gate is held under while the server rebuilds the world.
+const REASON_MAP := &"map"
+var _map_held: bool = false
+
+
+func _on_game_changed_online(_game_id: String, _content_id: String, _name: String) -> void:
+	if platform == null or platform.gate == null or not is_instance_valid(platform.gate):
+		return
+	_map_held = true
+	platform.gate.hold(REASON_MAP, "Changing map")
+	DotLog.debug(CHANNEL, "the server changed the game; covering until the new world arrives")
+
+
+## The new world is in: the link has finished the game change (`spawned`, after
+## `game_changed`), or its hello arrived while the hold was up.
+func _release_map_hold() -> void:
+	if not _map_held:
+		return
+	_map_held = false
+	if platform != null and platform.gate != null and is_instance_valid(platform.gate):
+		platform.gate.release(REASON_MAP)
+
+
 func _on_hello(player_id: int) -> void:
 	DotLog.info(CHANNEL, "admitted", {"player": player_id})
+
+	# The server sends this hello from its own rebind, which can arrive before the link has
+	# announced the game change, so it cannot be the only release (the hold would then be
+	# taken after it and wait for the gate's timeout). It releases a hold already taken.
+	_release_map_hold()
 
 	if hud != null:
 		hud.follow(player_id)

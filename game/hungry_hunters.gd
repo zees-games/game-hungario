@@ -719,7 +719,7 @@ func _resolve_eating() -> void:
 		var reach: float = state["radius"]
 
 		for monster in world.monsters():
-			if not monster.alive:
+			if not monster.alive or not world.can_be_harmed(monster.id):
 				continue
 
 			for piece in monster.pieces:

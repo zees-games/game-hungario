@@ -356,6 +356,9 @@ func _resolve_piece(monster: HungryMonster, piece: HungryPiece) -> void:
 				if into < 0.0:
 					piece.state.velocity -= normal * into
 			&"burst":
+				# A player still behind their loading cover is not burst.
+				if not world.can_be_harmed(monster.id):
+					continue
 				struck.emit(monster.id, piece.id, &"burst")
 			&"lure":
 				# Nothing to the player. A lure is for the hunters, and what it does to

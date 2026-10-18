@@ -141,6 +141,12 @@ var items: DotItemCatalogue = null
 ## dot-combat installed — which every one of this project's own headless suites does.
 var damage_gate: Callable = Callable()
 
+## Whether a player's client is still behind its loading cover: `func(player_id: int) -> bool`.
+## The server module fills it from its [DotGameRoster]; unset (offline, a suite, a bot) nobody
+## is loading. A player still loading has been frozen by their own client and cannot see, so
+## nothing eats, bursts, throws at or hunts them: see [method can_be_harmed].
+var loading_fn: Callable = Callable()
+
 ## Where a dead monster's owner looks. Built by [method setup] on the authority and on a
 ## client alike, because both ends need the camera to point somewhere.
 var spectate: HungrySpectate = null
@@ -1383,6 +1389,9 @@ func _resolve_pieces() -> void:
 			if prey == null or prey.has_effect(HungryContent.FLAG_PROTECTED, _tick):
 				continue
 
+			if not can_be_harmed(prey.id):
+				continue
+
 			if piece.mass() < victim.mass() * ratio:
 				continue
 
@@ -1392,6 +1401,15 @@ func _resolve_pieces() -> void:
 
 			eaten[other_id] = true
 			_absorb(piece, victim, rules)
+
+
+## Whether [param player_id] may be eaten, burst, hit or hunted now. False only while their
+## client is behind its loading cover; a bot or a world with no [member loading_fn] is always
+## harmable, so a suite that never connects a client is unchanged.
+func can_be_harmed(player_id: int) -> bool:
+	if not loading_fn.is_valid():
+		return true
+	return not bool(loading_fn.call(player_id))
 
 
 func _absorb(eater: HungryPiece, victim: HungryPiece, rules: Dot2DMassRules) -> void:
@@ -1796,6 +1814,11 @@ func _land(shot: HungryProjectile, at: Vector2, hit_player: int) -> void:
 	# how many pieces a burst makes. A world that named the combat layer would be a world
 	# that could not run without it, and this game's own suite runs it both ways.
 	var pieces := 0
+
+	if hit_player != 0 and not can_be_harmed(hit_player):
+		# Spent and announced like a refusal: the thrower sees it land and nothing happens.
+		projectile_impact.emit(shot, at, 0)
+		return
 
 	if hit_player != 0 and damage_gate.is_valid():
 		var verdict: Variant = damage_gate.call(

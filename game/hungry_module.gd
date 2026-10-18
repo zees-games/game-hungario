@@ -131,6 +131,13 @@ var _stat_keys: Dictionary = {}
 ## userid -> true, for the humans this module put in the world.
 var _joined: Dictionary = {}
 
+## Who is still behind their loading cover, from dot-game's roster used for that alone: this
+## module is not on DotGameModule, so it seats people itself and only borrows the bookkeeping
+## (joined until the client says its cover lifted, again from a mode change). A player id is
+## the userid, so [method HungryWorld.can_be_harmed] asks it by that.
+var loading: DotGameRoster = null
+var _handles_cover: bool = false
+
 ## player id -> display name, for the bots.
 var _bots: Dictionary = {}
 
@@ -188,6 +195,8 @@ func _module_load() -> DotResult:
 
 	_report_map(world)
 	world.ragdoll_rules = ragdoll_rules
+	_build_loading()
+	world.loading_fn = loading.is_loading
 
 	var netted := _build_netcode()
 
@@ -253,7 +262,60 @@ func _module_load() -> DotResult:
 	return DotResult.success(null)
 
 
+## The loading roster and the handler for the client's cover report on dot-server's envelope.
+## A kind on the existing envelope because the RPC set is frozen; a client that predates it is
+## released by the roster's timeout. Duck-typed so an older dot-server still loads this.
+func _build_loading() -> void:
+	loading = DotGameRoster.new()
+	loading.server = server
+
+	if server == null or not ("envelope" in server):
+		return
+
+	var env: Object = server.get(&"envelope")
+
+	if env != null and env.has_method("register"):
+		env.call("register", DotGameRoster.COVER_KIND, Callable(self, "_on_cover_report"), false)
+		_handles_cover = true
+
+
+func _on_cover_report(peer_id: int, payload: Dictionary) -> void:
+	var covered: Variant = payload.get("covered")
+
+	if loading != null and covered is bool:
+		loading.report_cover(peer_id, covered)
+
+
+## Whether this peer's client is behind its loading cover. False for a bot (peer 0) and for
+## anybody not seated.
+func is_peer_loading(peer_id: int) -> bool:
+	return loading != null and loading.is_peer_loading(peer_id)
+
+
+func can_be_harmed(seat: int) -> bool:
+	return loading == null or not loading.is_loading(seat)
+
+
+func can_peer_be_harmed(peer_id: int) -> bool:
+	return not is_peer_loading(peer_id)
+
+
 func _module_unload() -> void:
+	if _handles_cover and server != null:
+		var env: Object = server.get(&"envelope")
+
+		if env != null and env.has_method("handle"):
+			env.call("handle", DotGameRoster.COVER_KIND, Callable())
+
+		_handles_cover = false
+
+	if loading != null:
+		loading.clear()
+		loading = null
+
+	if world != null and is_instance_valid(world):
+		world.loading_fn = Callable()
+
 	if server != null and server.client_disconnected.is_connected(_on_client_disconnected):
 		server.client_disconnected.disconnect(_on_client_disconnected)
 
@@ -325,6 +387,11 @@ func _module_game_changed(content_key: String) -> void:
 
 	world = next
 	world.ragdoll_rules = ragdoll_rules
+	world.loading_fn = loading.is_loading
+
+	# Every client covers for the new mode and says so when it lifts; until it does nobody is
+	# harmed, and one that never re-covers is released after the roster's grace.
+	loading.mark_reloading()
 
 	# Everything that holds a world holds the new one. A layer left pointing at a freed
 	# scene is a use-after-free on the next tick, and the ones that hold *placements*
@@ -1012,6 +1079,7 @@ func _physics_process(_delta: float) -> void:
 		return
 
 	_tick += 1
+	loading.poll_loading()
 	_drive_bots()
 	bridge.server_tick(_tick)
 
@@ -1061,6 +1129,7 @@ func _on_client_spawn(event: DotEvent) -> void:
 		return
 
 	_joined[session.userid] = true
+	loading.add(session)
 	_apply_stored_loadout(session.userid)
 	_begin_stats(session)
 
@@ -1148,6 +1217,7 @@ func _on_client_disconnected(session: DotClientSession, _reason: String) -> void
 		progress.end(str(_stat_keys.get(_player_of_session(session), "")))
 
 	bridge.remove_peer(session.peer_id)
+	loading.remove(session)
 	_joined.erase(session.userid)
 	_end_stats(session)
 
