@@ -555,9 +555,9 @@ func _build_ui() -> void:
 	if menu != null:
 		var _l := menu.add_page(loadout_page.page, &"general")
 		# The HUD in the menu's theme and at the player's HUD size, live. The HUD is built after
-		# the platform's setup, so it is handed over here rather than as `platform.hud`.
-		if hud != null and menu.has_method(&"follow_hud"):
-			menu.call(&"follow_hud", hud, HungryHud.accent_theme())
+		# the platform's setup, so it is handed over late.
+		if hud != null:
+			platform.set_hud(hud, HungryHud.accent_theme())
 		loadout_page.on_redraw(menu.screen.refresh)
 
 	# A value changed in the menu or at the console reaches the config first (the
