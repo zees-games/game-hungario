@@ -270,7 +270,12 @@ func attach(
 	if net.is_server:
 		_connect_world()
 
-	link = HungryNetLink.attached_to(link_parent, self, net.is_server)
+	link = HungryNetLink.attached_to(self, net.is_server)
+	# Not link_parent.add_child: the link sits under the server (RPCs route by path) but must
+	# die with this bridge. A bare add_child left a second link after a module reload and
+	# Godot renamed the live one `@Node@n`, so RPCs to clients were lost. DotGameLink frees it
+	# with the bridge without remove_child, which errors on a busy parent.
+	DotGameLink.attach(link, link_parent, self, HungryNetLink.NODE_NAME)
 
 	if net.is_server:
 		var built := _build_match_entity()

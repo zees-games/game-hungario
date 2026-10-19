@@ -38,7 +38,7 @@ const SCOPE_KEY := "user://hungry_sandbox_scope.key"
 const SERVER_DIR := "user://hungry_sandbox_server"
 
 ## Every check this suite runs. See the guard at the end of [method _run].
-const CHECKS := 109
+const CHECKS := 115
 
 var _passed := 0
 var _failed := 0
@@ -102,6 +102,7 @@ func _run() -> void:
 	var built := await _build()
 
 	if built:
+		await _test_a_module_reload()
 		var joined := await _test_join()
 
 		if joined:
@@ -412,6 +413,40 @@ func _module() -> HungryModule:
 
 # --- Joining ---------------------------------------------------------------
 
+## How many of the game's link nodes sit under the server.
+func _links() -> int:
+	var count := 0
+	for child in _server.get_children():
+		if child is HungryNetLink:
+			count += 1
+	return count
+
+
+## A module reload must leave ONE link under the server, still named for the client's route.
+## Two used to be left, the live one renamed `@Node@n`, and every RPC to a real client was
+## lost without an error. The client joining next (signon is server RPCs over the socket)
+## is the proof the route works; it is done before any client, because a reload mid-session
+## leaves the new bridge not knowing who is seated, which is a different matter.
+func _test_a_module_reload() -> void:
+	_section("a module reload leaves one live link")
+
+	for _i in range(2):
+		_check(_server.modules.unload_module("hungry").ok, "the module unloads")
+		_check(
+			(await _server.modules.load_module("res://game/hungry_module.gd")).ok,
+			"and loads again"
+		)
+
+	# The reload put the default bot quota back; this suite is one person (see _build_server).
+	var _no_bots := _server.console.execute("bot_quota 0")
+	await _frames(5)
+	_check(
+		_links() == 1 and _server.has_node(NodePath(String(HungryNetLink.NODE_NAME))),
+		"exactly one link, under the name the client routes to (%d)" % _links()
+	)
+	_done()
+
+
 func _test_join() -> bool:
 	_section("a client connects")
 
@@ -451,6 +486,7 @@ func _test_join() -> bool:
 		return false
 
 	_check(_server.sessions().size() == 1, "the server has one session")
+	_check(_links() == 1, "and still one link, which the client reached (%d)" % _links())
 
 	var on_platform := await _until(func() -> bool: return _hub.count() == 1, 8.0)
 	_check(on_platform, "the platform admitted them")

@@ -76,12 +76,11 @@ var voice_sent: int = 0
 var voice_received: int = 0
 
 
-static func attached_to(parent: Node, p_bridge: HungryNetBridge, server: bool) -> HungryNetLink:
+## Makes the link; the caller places it (see [DotGameLink]).
+static func attached_to(p_bridge: HungryNetBridge, server: bool) -> HungryNetLink:
 	var link := HungryNetLink.new()
-	link.name = NODE_NAME
 	link.bridge = p_bridge
 	link.is_server = server
-	parent.add_child(link)
 	return link
 
 
