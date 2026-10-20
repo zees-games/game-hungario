@@ -40,7 +40,7 @@ const SERVER_DIR := "user://hungry_dedicated"
 ## prints it to say which game this is, and nothing treats it as proof.
 const APP_URL := "hungario"
 
-const CHECKS := 237
+const CHECKS := 252
 
 var _passed := 0
 var _failed := 0
@@ -99,6 +99,7 @@ func _run() -> void:
 		_test_services()
 		await _test_moderation()
 		await _test_live_tools()
+		await _test_disconnect()
 		_test_combat()
 		_test_hunters()
 		_test_hunters_hunt()
@@ -106,6 +107,7 @@ func _run() -> void:
 		await _test_progress()
 		_test_query()
 		_test_vote()
+		_test_rotation_file()
 		_test_finish_round_waits_for_a_live_round()
 		await _test_game_change()
 		_test_transport()
@@ -1789,6 +1791,169 @@ func _test_progress() -> void:
 
 	var progressed: DotResult = await progress.achievements.flush()
 	_check(progressed.ok, "progress writes to disk", str(progressed.error))
+	_done()
+
+
+## Stands in for the module a vote's commands are registered on, recording the names.
+class CommandHost extends Node:
+	var added: Dictionary = {}
+
+	func add_command(full: String, fn: Callable, _help: String, _permission: String) -> Object:
+		added[full] = fn
+		return null
+
+
+## `cfg/maps.yml`: which modes rotate. The format is dot-map's selftest's; this is what the
+## GAME does with it: a mode left out is installed and loadable and is never drawn, never on a
+## ballot, never nominated; a switch of rotation takes effect; a renamed command answers.
+func _test_rotation_file() -> void:
+	_section("rotation file")
+
+	var maps = _module().maps
+	var ids: Array[StringName] = []
+	for map: DotMapDef in maps.catalogue.maps:
+		ids.append(map.id)
+	_check(ids.size() >= 4, "the catalogue holds the modes (%d)" % ids.size())
+	var keep_a: Array = [String(ids[0]), String(ids[1])]
+	var keep_b: Array = [String(ids[2]), String(ids[3])]
+	var outside: Array[StringName] = []
+	for id in ids:
+		if not keep_a.has(String(id)):
+			outside.append(id)
+
+	var parsed := DotMapRotationFile.from_trees([{"defaults": {
+		"rotation": "a",
+		"rotations": {"a": {"maps": keep_a, "mode": "random"}, "b": {"maps": keep_b, "mode": "cycle"}},
+		"commands": {"names": {"rtv": "rockit"}},
+	}}], "game-hungario")
+	_check(parsed.ok, "a rotation file parses", str(parsed.error))
+	var kept_file = maps.rotation_file
+	maps.rotation_file = parsed.value
+	maps.apply_rotation()
+
+	var drawn := {}
+	for _i in 40:
+		var chosen: DotMapDef = maps.rotation.choose(6)
+		if chosen == null:
+			break
+		drawn[chosen.id] = true
+		maps.rotation.note_played(chosen.id)
+	var strays := []
+	for id in drawn:
+		if not keep_a.has(String(id)):
+			strays.append(id)
+	_check(not drawn.is_empty() and strays.is_empty(),
+		"a mode outside the rotation is never drawn", str(strays))
+	_check(maps.catalogue.size() == ids.size() and maps.catalogue.has(outside[0]),
+		"and stays installed in the catalogue")
+
+	var ballot: Array[StringName] = []
+	for choice in maps.director.source.choices():
+		ballot.append(choice.id)
+	var leaked := ballot.filter(func(id: StringName) -> bool: return not keep_a.has(String(id)))
+	_check(not ballot.is_empty() and leaked.is_empty(),
+		"never on a ballot", "%s offered" % str(leaked))
+
+	var refused: DotResult = maps.director.nominate(&"9001", outside[0])
+	_check(not refused.ok, "and refused by nominate")
+
+	var switched: DotResult = maps.switch_rotation("b")
+	var pool_ids: Array = maps.rotation.pool(6).map(func(m: DotMapDef) -> String: return String(m.id))
+	pool_ids.sort()
+	var want := keep_b.duplicate()
+	want.sort()
+	_check(switched.ok and pool_ids == want, "a rotation switch takes effect", str(pool_ids))
+	_check(not maps.switch_rotation("nowhere").ok, "and an unknown rotation changes nothing")
+
+	var host := CommandHost.new()
+	var fresh: Variant = maps.commands
+	var bound: DotResult = maps.install_commands(host)
+	_check(bound.ok and host.added.has("rockit") and not host.added.has("rtv"),
+		"a renamed rtv is registered under its new name", ", ".join(host.added.keys().slice(0, 6)))
+	if host.added.has("rockit"):
+		var ctx := DotCmdContext.new()
+		(host.added["rockit"] as Callable).call(ctx)
+		_check(not ctx.output.is_empty(), "and answers", str(ctx.output))
+		maps.director.clock.unrock(&"console")
+	else:
+		_check(false, "and answers")
+	host.free()
+	maps.commands = fresh
+
+	# No file: nothing changes -- every mode rotates, in the order it always did.
+	maps.rotation_file = null
+	maps.apply_rotation()
+	var all_in := true
+	for map: DotMapDef in maps.catalogue.maps:
+		all_in = all_in and map.in_rotation
+	_check(all_in and maps.director.source.choices().size() >= ids.size() - 1 and maps.rotation.order.is_empty(),
+		"with no file every mode is back in the rotation and the order is the catalogue's")
+
+	# Never twice in a row survives the file: a cycle after a voted mode skips what just played.
+	var cycle := DotMapRotationFile.from_trees([{"defaults": {"rotations": {"c": {
+		"maps": keep_b, "mode": "cycle"}}}}], "game-hungario")
+	maps.rotation_file = cycle.value
+	maps.apply_rotation()
+	var before: Array = maps.rotation.history.duplicate()
+	maps.rotation.note_played(StringName(keep_b[0]))
+	maps.rotation.note_played(StringName(keep_b[1]))
+	var after_one: DotMapDef = maps.rotation.choose(6)
+	_check(after_one != null and after_one.id != StringName(keep_b[1]),
+		"and a cycle never offers the mode just played")
+	maps.rotation.history = before
+	maps.rotation_file = kept_file
+	maps.apply_rotation()
+	_done()
+
+
+## Somebody leaves while somebody else stays. dot-net builds the stayer's snapshot from every
+## entity that is left, and writes each declared int var through `int(value)`, which errors
+## ("Nonexistent 'int' constructor") on a null: a SCRIPT ERROR every snapshot, with the suite
+## still green. So this reads, after the leaver is gone and the frames have run, every var of
+## every remaining entity the way the snapshot does and wants an int where one is declared.
+func _test_disconnect() -> void:
+	_section("a disconnect")
+
+	var sessions: Array[DotClientSession] = []
+
+	for n in 2:
+		var session := DotClientSession.new()
+		session.peer_id = 4101 + n
+		session.userid = 411 + n
+		session.display_name = "Leaver%d" % n
+		var _adopted := _server.adopt_session(session)
+		_server.events.fire("client_spawn", {"userid": session.userid, "name": session.display_name})
+		sessions.append(session)
+
+	var bridge: Object = _module().bridge
+	_check(bridge.player_for_peer(4101) > 0 and bridge.player_for_peer(4102) > 0, "two players joined")
+
+	for _i in 5:
+		await get_tree().physics_frame
+
+	_server.client_disconnected.emit(sessions[0], "test")
+	_check(bridge.player_for_peer(4101) == 0, "and one left")
+
+	for _i in 10:
+		await get_tree().physics_frame
+
+	var bad: PackedStringArray = []
+	var seen := 0
+
+	for identity in bridge.net.registry.all():
+		for behaviour in identity.behaviours:
+			for declaration in behaviour.net_vars:
+				seen += 1
+				var value: Variant = behaviour._net_read_property(declaration.property)
+
+				if declaration.type in [DotNetVar.Type.INT, DotNetVar.Type.UINT, DotNetVar.Type.VARINT] \
+						and typeof(value) != TYPE_INT:
+					bad.append("%s.%s=%s" % [identity.net_id, declaration.property, str(value)])
+
+	_check(seen > 0 and bad.is_empty(), "every int net var left reads as an int (%d read)" % seen,
+		", ".join(bad.slice(0, 5)))
+
+	_server.client_disconnected.emit(sessions[1], "test")
 	_done()
 
 

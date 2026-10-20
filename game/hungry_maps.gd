@@ -94,6 +94,18 @@ var score_fn: Callable = Callable()
 
 var commands: DotVoteCommands = null
 
+## The server's maps.yml, or null when there is none. See [method load_rotation].
+var rotation_file: DotMapRotationFile = null
+
+## Where [member rotation_file] was read from, or "" when there was no file.
+var rotation_source: String = ""
+
+## The file that says which modes rotate: dot-map's [DotMapRotationFile] format, looked for in
+## the `--config` directory first. A test sets it empty. Empty, or no file, rotates every mode
+## the catalogue holds, which is what this game always did.
+const ROTATION_FILE := "cfg/maps.yml"
+var rotation_stem: String = ROTATION_FILE
+
 ## [code]func(state: Dictionary)[/code]: the ballot as a client draws it, sent whenever it
 ## changes. The host points it at the client shell (a dot-server notice), which draws a
 ## menu a player picks from with a number key or a click. Unset sends nothing.
@@ -282,6 +294,7 @@ func setup(p_games: Object) -> DotResult:
 	# One play of cooldown over four maps: enough that the same mode never plays twice in
 	# a row, and not so much that a two-mode server runs out of things to pick.
 	rotation.cooldown = 1
+	load_rotation()
 
 	var rules := vote_rules()
 	var problem := rules.validate()
@@ -317,7 +330,10 @@ func setup(p_games: Object) -> DotResult:
 	var modes := ModeSource.new()
 	modes.manager = games
 	var known := catalogue
-	modes.keep_fn = func(id: StringName) -> bool: return known != null and known.has(id)
+	# In rotation as well as known: a mode maps.yml leaves out is never on a ballot, never
+	# nominated and never what `next` answers, though `changegame` can still load it.
+	modes.keep_fn = func(id: StringName) -> bool:
+		return known != null and known.has(id) and in_rotation(id)
 	director.source = modes
 	director.auto_apply = true
 	# [b]Off, and this is dot-vote's fifth bug.[/b] With it on the director announces the
@@ -470,7 +486,11 @@ func install_commands(host: Object) -> DotResult:
 
 	commands = DotVoteCommands.new()
 	commands.director = director
-	commands.names = COMMAND_NAMES
+	commands.names = COMMAND_NAMES.duplicate()
+	# maps.yml's `commands:` block, so an operator renames rtv and friends without this game
+	# naming any of them. Read on every bind, so a reloaded file reaches it.
+	commands.spec_fn = func() -> Dictionary:
+		return rotation_file.commands() if rotation_file != null else {}
 	commands.voter_fn = func(ctx: Object) -> StringName:
 		var session: Variant = ctx.get("session")
 
@@ -485,6 +505,80 @@ func install_commands(host: Object) -> DotResult:
 		feed.command = commands.command_name("vote")
 
 	return bound
+
+
+## Reads maps.yml and applies it; called at setup and again by `hungry_maps_reload`.
+##
+## A file that is present and unreadable is an ERROR and changes nothing: rotating every mode
+## is a better failure than rotating none.
+func load_rotation() -> DotResult:
+	var dir := DotMapRotationFile.config_dir_arg()
+	var found := DotMapRotationFile.find(rotation_stem, dir)
+
+	if found == "" and rotation_stem != "" and (dir != "" or rotation_stem != ROTATION_FILE):
+		# The default name being absent is an install with no maps.yml; a name or a directory
+		# somebody chose that finds nothing is a typo they would otherwise never hear about.
+		DotLog.warn(CHANNEL, "the map rotation file was not found; every mode rotates", {
+			"file": rotation_stem, "config_dir": dir,
+		})
+
+	var paths := PackedStringArray()
+
+	if found != "":
+		paths.append(found)
+
+	var read := DotMapRotationFile.load_files(paths, "game-hungario")
+
+	if not read.ok:
+		DotLog.error(CHANNEL, "the map rotation file could not be read; every mode rotates", {
+			"why": read.error.message,
+		})
+		rotation_file = null
+		rotation_source = ""
+		apply_rotation()
+		return read
+
+	rotation_file = read.value
+	rotation_source = ", ".join(rotation_file.sources)
+
+	if rotation_file.has_rotations():
+		DotLog.info(CHANNEL, "the map rotation file", {
+			"paths": rotation_source, "active": rotation_file.active_name(),
+		})
+
+	apply_rotation()
+	return read
+
+
+## Marks every mode in or out of rotation from the file. No file, or an empty rotation, keeps
+## every mode in (this game has no kind it keeps out), and a rotation never empties the server.
+func apply_rotation() -> void:
+	if catalogue == null or rotation == null:
+		return
+
+	if rotation_file != null and rotation_file.has_rotations():
+		rotation_file.fallback_in = func(_map: DotMapDef) -> bool: return true
+		rotation_file.apply(rotation)
+		return
+
+	rotation.order = []
+
+	for map: DotMapDef in catalogue.maps:
+		map.in_rotation = true
+
+
+## `sv_map_rotation <name>`: the live switch to another named rotation in the file.
+func switch_rotation(rotation_name: String) -> DotResult:
+	if rotation_file == null:
+		return DotResult.fail(DotError.CODE_STATE, "There is no maps.yml to switch rotations in.")
+
+	return rotation_file.switch(rotation, rotation_name)
+
+
+## Whether a mode is in the rotation. One the catalogue does not hold is not.
+func in_rotation(game_id: StringName) -> bool:
+	var map := catalogue.get_map(game_id) if catalogue != null else null
+	return map != null and map.in_rotation and map.enabled
 
 
 ## What would play next with nobody voting.

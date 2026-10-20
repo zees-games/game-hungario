@@ -25,6 +25,12 @@ var net_round: int = 0
 var net_ends_at: int = 0
 var net_winner: int = 0
 
+## Whether the countdown holds players still. dot-match appended it to its specs, and
+## `replicate` declares every spec: a spec with no property behind it reads null, and dot-net
+## writes it through `int(null)`, a SCRIPT ERROR on every snapshot sent while anybody is
+## connected. Declared here so the property is always there (`dedicated`, "a disconnect").
+var net_frozen: int = 0
+
 ## Newest tick this behaviour has adopted. Client side.
 var last_state_tick: int = -1
 
@@ -76,4 +82,5 @@ func describe() -> Dictionary:
 		"round": net_round,
 		"ends_at": net_ends_at,
 		"winner": net_winner,
+		"frozen": net_frozen,
 	}

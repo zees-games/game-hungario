@@ -1652,6 +1652,14 @@ func _register_console() -> void:
 		"hungry_restart", _cmd_restart, "Restart the round", DotAdminFlags.CHANGEMAP
 	)
 	add_command(
+		"hungry_rotation", _cmd_rotation,
+		"hungry_rotation [name] — switch to a rotation in maps.yml, or list them",
+		DotAdminFlags.CHANGEMAP
+	)
+	add_command(
+		"hungry_maps_reload", _cmd_maps_reload, "Re-read maps.yml", DotAdminFlags.CHANGEMAP
+	)
+	add_command(
 		"hungry_give",
 		_cmd_give,
 		"hungry_give <player> <pepper|frost|lure> — hand somebody a throwable",
@@ -1954,6 +1962,26 @@ func _cmd_net(ctx: DotCmdContext) -> void:
 func _cmd_restart(ctx: DotCmdContext) -> void:
 	world.start(_tick)
 	ctx.reply("Round restarted.")
+
+
+func _cmd_rotation(ctx: DotCmdContext) -> void:
+	if maps == null or maps.rotation_file == null:
+		ctx.reply("There is no maps.yml; every mode rotates.")
+		return
+
+	if ctx.args.is_empty():
+		ctx.reply("Rotations: %s (active: %s)" % [
+			", ".join(maps.rotation_file.rotation_names()), maps.rotation_file.active_name(),
+		])
+		return
+
+	var switched := maps.switch_rotation(ctx.arg(0))
+	ctx.reply_error(switched) if not switched.ok else ctx.reply("Rotation: %s" % ctx.arg(0))
+
+
+func _cmd_maps_reload(ctx: DotCmdContext) -> void:
+	var read := maps.load_rotation() if maps != null else DotResult.fail(DotError.CODE_STATE, "No maps.")
+	ctx.reply_error(read) if not read.ok else ctx.reply("maps.yml re-read.")
 
 
 func _cmd_give(ctx: DotCmdContext) -> void:

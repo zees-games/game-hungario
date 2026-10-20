@@ -29,6 +29,8 @@ dot-moderation's live tools are `HungryModTools`, built in the module because a 
 
 **The modes are the maps.** dot-map's catalogue is built **from** the game descriptors (`HungryMaps`), adding what they lack: `min_players` (`gauntlet` is off the ballot below three). **The swap stays dot-server's**: `change_game` already announces, waits and swaps with a content sync this family spent nine bugs on, so `DotMapSyncHost` is not used and `DotVoteGameSource` applies through the game manager.
 
+**`cfg/maps.yml` says which modes rotate** (dot-map's `DotMapRotationFile`, looked for in the `--config` directory first, a WARN when a name or directory somebody chose finds nothing). A mode it leaves out stays installed and `changegame` still loads it, but is out of the rotation's pool, the ballot (`ModeSource.keep_fn` asks `in_rotation`) and `nominate`. `hungry_rotation <name>` switches the live rotation, `hungry_maps_reload` re-reads the file, and the file's `commands:` block renames rtv and the rest through `spec_fn`. With no file every mode rotates, as before. `dedicated` section "rotation file".
+
 Settings set **explicitly** because dot-vote found bugs in leaving them: `extend_needs_majority`, `nomination_seconding` (without it every nomination count is 1 and `MOST_NOMINATED` does nothing), and `begin_on_apply` (both director and host announcing one play halves every cooldown).
 
 The joins that make it work, each of which was once missing:
