@@ -1871,7 +1871,12 @@ func _test_the_warrens() -> void:
 	# the radius.
 	world.spawn(1, approach)
 	_run_ticks(world, 2)
-	world.feed_player(1, preset.win_mass - monster.mass())
+	# [b]Just short of the winning mass, not at it.[/b] Reaching it wins the round, the round
+	# ends, and the next one respawns every player as a starter at its spawn: the grown
+	# monster is then a small one that walks through the channel, and this check read that
+	# as the reef letting a grown monster through. The width is the same to within a
+	# percent, which is all the next check asks of it.
+	world.feed_player(1, preset.win_mass * 0.97 - monster.mass())
 	_run_ticks(world, 2)
 
 	var grown := monster.pieces[0].radius()
@@ -2156,7 +2161,12 @@ func _test_the_reef() -> void:
 	# the near side is the size of the thing running it.
 	world.spawn(1, start)
 	_run_ticks(world, 2)
-	world.feed_player(1, preset.win_mass - monster.mass())
+	# [b]Just short of the winning mass, not at it.[/b] Reaching it wins the round, the round
+	# ends, and the next one respawns every player as a starter at its spawn: the grown
+	# monster is then a small one that walks through the channel, and this check read that
+	# as the reef letting a grown monster through. The width is the same to within a
+	# percent, which is all the next check asks of it.
+	world.feed_player(1, preset.win_mass * 0.97 - monster.mass())
 	_run_ticks(world, 2)
 
 	var grown := monster.pieces[0].radius()
