@@ -340,7 +340,7 @@ func _process(_delta: float) -> bool:
 	# report that the level did not earn. Printed rather than fixed, because the game is
 	# what does the pushing and the tool must not hide it when the game does not.
 	for line in _overlaps():
-		push_warning("%s: %s" % [shot["name"], line])
+		push_error("%s: %s" % [shot["name"], line])
 
 	var image := root.get_texture().get_image()
 	var path := "%s/%s.png" % [OUT_DIR, shot["name"]]
