@@ -1,5 +1,6 @@
 extends RefCounted
 
+const HungryContent := preload("hungry_content.gd")
 const HungryField := preload("hungry_field.gd")
 const HungryMonster := preload("hungry_monster.gd")
 const HungryNetCommand := preload("net/hungry_net_command.gd")
@@ -119,6 +120,10 @@ static func command_for(
 			continue
 
 		if HungryField.kind_of(grid_id) == HungryField.Kind.ITEM:
+			# A full bot cannot take it; steering at it parks the bot on the drop for good.
+			if monster.carried.size() >= HungryContent.MAX_CARRIED:
+				continue
+
 			# Item drops are worth a detour even though they are worth no mass: a bot
 			# that never picked one up would never exercise throwing.
 			var item_score := 220.0 / (distance + 40.0)
@@ -179,12 +184,14 @@ static func command_for(
 	# One tick of turning toward it is the cost, and the cooldown bounds how often.
 	if enemy != null and enemy_distance < THROW_REACH and not monster.carried.is_empty():
 		target = enemy.position()
-		command.set_button(Dot2DCommand.BUTTON_ACTION, true)
+		# The world throws on the press edge; a held button never fires again after the
+		# cooldown, so two bots on top of each other would aim at one another forever.
+		command.set_button(Dot2DCommand.BUTTON_ACTION, tick % 2 == 0)
 
 	target = _off_the_wall(target, world.arena.bounds, head.radius())
 
 	var offset := target - origin
-	if command.is_pressed(Dot2DCommand.BUTTON_ACTION):
+	if enemy != null and enemy_distance < THROW_REACH and not monster.carried.is_empty():
 		offset = offset.rotated(deg_to_rad(_throw_error(monster.id, tick, skill)))
 	command.aim = offset.normalized() if offset.length_squared() > 0.000001 else Vector2.ZERO
 	command.reach = minf(offset.length(), HungryNetCommand.MAX_REACH)

@@ -46,6 +46,10 @@ func _run() -> void:
 	var cfg := DotBotSoakConfig.new()
 	cfg.minutes = DEFAULT_MINUTES
 	cfg.bots = DEFAULT_BOTS
+	# Warrens' gate ring locks a big monster out of the middle and the bot has no route
+	# finding, so it can lean on a rock for a while; a longer stretch than this is a trap.
+	if mode == "warrens":
+		cfg.max_stuck_sec = 20.0
 	cfg.apply_cli()
 	cfg.minutes = float(_arg("minutes", str(cfg.minutes)))
 	cfg.bots = int(_arg("bots", str(cfg.bots)))
