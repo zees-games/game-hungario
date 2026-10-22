@@ -37,7 +37,7 @@ const HungryWorld := preload("../game/hungry_world.gd")
 const SEED := 20260828
 const TICK_RATE := 60
 
-const CHECKS := 462
+const CHECKS := 477
 
 var _passed := 0
 var _failed := 0
@@ -100,6 +100,7 @@ func _run() -> void:
 	_test_the_rock_pools()
 	_test_the_groynes()
 	_test_the_inlet()
+	_test_the_sills()
 	_test_the_den()
 	_test_the_harbours()
 	_test_hunter_round_a_rock()
@@ -3595,7 +3596,7 @@ func _test_the_shallows() -> void:
 
 	var tiers := PackedStringArray()
 	var leaks := PackedStringArray()
-	var last_stranded := 0
+	var last_reached := 1 << 30
 	var groyne_widest := HungryLayout.groyne_doors(short_half)[2]
 
 	for line in range(lines):
@@ -3621,10 +3622,12 @@ func _test_the_shallows() -> void:
 
 		tiers.append("%.0f mass: %d of %d" % [rules.mass_for(over), sweep["reached"], sweep["free"]])
 
-		if outside > 0 or stranded.size() <= last_stranded:
-			leaks.append("line %d: %d stranded in front of it, %d in all" % [line, outside, stranded.size()])
+		# Reached, not stranded: bigger monsters have less free floor, and the sills' posts
+		# take more of the third band from the fourth line's size than from the third's.
+		if outside > 0 or int(sweep["reached"]) >= last_reached:
+			leaks.append("line %d: %d stranded in front of it, %d reached" % [line, outside, sweep["reached"]])
 
-		last_stranded = stranded.size()
+		last_reached = int(sweep["reached"])
 
 	print("        reached from the open water just over each line: %s" % ", ".join(tiers))
 	_check(
@@ -3687,7 +3690,10 @@ func _test_the_shallows() -> void:
 	# 28 units a side in the third line's gaps, less than the 40 short of a waypoint that
 	# counts as reaching it, and a route pulled tight past a post then clips it.
 	var middling := widths[1] * 0.5 + 6.0
-	var band_two := Vector2((line_x[1] + post_r[1] + line_x[2] - post_r[2]) * 0.5, bounds.get_center().y)
+	# A quarter of the way up rather than the middle: the middle of this band is its sill.
+	var band_two := Vector2(
+		(line_x[1] + post_r[1] + line_x[2] - post_r[2]) * 0.5, bounds.get_center().y + bounds.size.y * 0.125
+	)
 	# From the leader's band, not the open water: a monster this size eats what it sweeps
 	# on the way, and from the open wall it grew 36 units of radius — past the margin its
 	# route was planned with — before it reached the band it was sent to.
@@ -3792,7 +3798,7 @@ func _test_the_rock_pools() -> void:
 	if not _check(
 		layout != null and layout.pools.size() == 2 and layout.chains.size() == lines
 			and layout.pools[0] == Vector2i(line_posts, 1) and layout.pools[1] == Vector2i(line_posts + 1, 1)
-			and layout.count() == line_posts + 2 + layout.groynes.size() * 2 + layout.inlets.size() * 2,
+			and layout.count() == line_posts + 2 + layout.groynes.size() * 2 + layout.inlets.size() * 2 + layout.sills.size(),
 		"the shallows have two rock pools of one post each, after the five lines",
 		"pools %s, %d posts in the lines, %d in all" % [
 			str(layout.pools) if layout != null else "none", line_posts, layout.count() if layout != null else -1
@@ -3934,8 +3940,9 @@ func _test_the_rock_pools() -> void:
 	# Planned 48 wide: from the middle bay the route crosses a groyne door on the slant.
 	var into := layout.route_to(bounds, monster.centre(), inside, small + 48.0, 12.0)
 	var small_drive := _drive_route(world, monster, into, diagonal, TICK_RATE * 30)
+	# -3, not -2: it eats in the corner, and eating resolves after the push-out.
 	_check(
-		into.size() >= 1 and small_drive["deepest"] > -2.0
+		into.size() >= 1 and small_drive["deepest"] > -3.0
 			and small_drive["reached"] == into.size() and layout.pool_of(monster.centre(), bounds) == 1,
 		"driven along its route from the open water, it never overlaps a post and stands inside the south pool",
 		"%d of %d waypoints, deepest %.1f into a face, at %s"
@@ -4111,7 +4118,7 @@ func _test_the_groynes() -> void:
 	if not _check(
 		layout != null and layout.groynes.size() == 2 and layout.chains.size() == lines
 			and layout.groynes[0] == Vector2i(line_posts + 2, 2) and layout.groynes[1] == Vector2i(line_posts + 4, 2)
-			and layout.count() == line_posts + 6 + layout.inlets.size() * 2,
+			and layout.count() == line_posts + 6 + layout.inlets.size() * 2 + layout.sills.size(),
 		"the shallows have two groynes of two posts each, after the lines and the pools",
 		"groynes %s, %d posts in the lines, %d in all" % [
 			str(layout.groynes) if layout != null else "none", line_posts, layout.count() if layout != null else -1
@@ -4361,7 +4368,7 @@ func _test_the_inlet() -> void:
 
 	if not _check(
 		layout != null and layout.inlets.size() == 1 and layout.chains.size() == lines
-			and layout.inlets[0] == Vector2i(line_posts + 6, 2) and layout.count() == line_posts + 8,
+			and layout.inlets[0] == Vector2i(line_posts + 6, 2) and layout.count() == line_posts + 8 + layout.sills.size(),
 		"the shallows have an inlet of two posts, after the lines, the pools and the groynes",
 		"inlets %s, %d posts in the lines, %d in all" % [
 			str(layout.inlets) if layout != null else "none", line_posts, layout.count() if layout != null else -1
@@ -4636,6 +4643,252 @@ func _test_the_inlet() -> void:
 
 	_drop(bots)
 	_done()
+
+
+## The shallows' sills: a post across the second line's band and two across the third's,
+## each the tightest line's gap off a post of the line inside it and off the line outside.
+##
+## [b]What a sill is for is a detour inside a band, so the section measures one.[/b] The
+## doors measured off the discs; the same crossing planned just under and just over a
+## door's limit; then driven past two of them at their ground speed, a starting monster
+## through the door and one of the band's bigger residents out through a line beside it
+## and back in; straight at a door one under the limit comes through and one at 1.6 times
+## it is held. Not a refuge: a hunter may appear beside every sill.
+func _test_the_sills() -> void:
+	_section("the sills")
+
+	var preset := HungryPreset.shallows()
+	# Lifted for the cove's reason: the fed monsters below eat on their way.
+	preset.win_mass = 1000000.0
+	var world := _make_world(preset, SEED + 281)
+	world.add_player(1, "Sil")
+	_settle(world)
+
+	var bounds := world.arena.bounds
+	var layout := world.layout
+	var rules := world.tunables.mass_rules
+	var lines := HungryLayout.SHALLOWS_LINES
+	var line_posts := 0
+
+	for run in layout.chains:
+		line_posts += run.y
+
+	var first := line_posts + 8
+
+	if not _check(
+		layout != null and layout.sills.size() == 3 and layout.sills[0] == Vector2i(first, 1)
+			and layout.sills[2] == Vector2i(first + 2, 1) and layout.count() == first + 3,
+		"the shallows have three sills of one post each, after the inlet",
+		"sills %s, %d posts in the lines, %d in all" % [
+			str(layout.sills) if layout != null else "none", line_posts, layout.count() if layout != null else -1
+		]
+	):
+		_drop(world)
+		_done()
+		return
+
+	var short_half := minf(bounds.size.x, bounds.size.y) * 0.5
+	var widths := HungryLayout.shallows_widths(short_half)
+	var door := HungryLayout.sill_door(short_half)
+
+	# --- The doors, which are the level ---------------------------------------
+
+	var built := PackedFloat32Array()
+	var bands := PackedInt32Array()
+	var joined := true
+
+	for run in layout.sills:
+		var post := layout.blocks[run.x]
+		var at := Vector2(post.x, post.y)
+		var band := layout.shallows_band(at, bounds)
+		bands.append(band)
+
+		if band < 1 or band >= lines:
+			joined = false
+			continue
+
+		var inner := layout.chains[band - 1]
+		var aligned := false
+
+		for index in range(inner.x, inner.x + inner.y):
+			aligned = aligned or (absf(layout.blocks[index].y - post.y) < 0.01 and layout.blocks[index].x < post.x)
+
+		joined = joined and aligned
+		built.append(layout.clearance(inner, at, post.z))
+		built.append(layout.clearance(layout.chains[band], at, post.z))
+
+	var off := 0.0
+
+	for width in built:
+		off = maxf(off, absf(width - door))
+
+	_check(
+		joined and bands == PackedInt32Array([2, 3, 3]) and built.size() == 6 and off < 0.5
+			and absf(door - widths[0]) < 0.01,
+		"one sill stands in the second line's band and two in the third's, each in line with a post of the line inside, every door the tightest line's gap",
+		"bands %s, doors %s against %.0f" % [str(bands), _widths(built), door]
+	)
+	_check(
+		absf(layout.narrowest_gate(bounds) - widths[0]) < 1.0,
+		"and nothing on the map is tighter than the tightest line",
+		"narrowest %.0f" % layout.narrowest_gate(bounds)
+	)
+
+	# --- The detour: one crossing past each sill, planned either side of the door ---
+
+	var start := rules.radius_for(HungryContent.START_MASS)
+	var froms: Array[Vector2] = []
+	var tos: Array[Vector2] = []
+	var planned := PackedStringArray()
+	var wrong := PackedStringArray()
+
+	for s in range(layout.sills.size()):
+		var post := layout.blocks[layout.sills[s].x]
+		var band := bands[s]
+		var inner := layout.blocks[layout.chains[band - 1].x]
+		var outer := layout.blocks[layout.chains[band].x]
+		var middle := (inner.x + inner.z + outer.x - outer.z) * 0.5
+		var big := widths[band] * 0.5 - 24.0
+		var from := Vector2(middle, post.y - post.z - big - 80.0)
+		var to := Vector2(middle, post.y + post.z + big + 80.0)
+		froms.append(from)
+		tos.append(to)
+		var stays := func(route: PackedVector2Array) -> bool:
+			return _bands_crossed(layout, bounds, from, route) == PackedInt32Array([band])
+		var under := layout.route_to(bounds, from, to, door * 0.5 - 16.0, 12.0)
+		var over := layout.route_to(bounds, from, to, door * 0.5 + 16.0, 12.0)
+		var biggest := layout.route_to(bounds, from, to, big, 12.0)
+		var short_len := _route_length(from, under)
+		var long_len := _route_length(from, over)
+		planned.append("band %d: %.0f under, %.0f over (%.1fx), %.0f its biggest"
+			% [band, short_len, long_len, long_len / maxf(short_len, 1.0), _route_length(from, biggest)])
+
+		if under.is_empty() or not stays.call(under) or over.is_empty() or stays.call(over) \
+				or biggest.is_empty() or stays.call(biggest) or long_len < short_len * 1.3:
+			wrong.append("sill %d" % s)
+
+	_check(
+		wrong.is_empty(),
+		"past every sill, one just under the door's limit stays in its band and one just over goes out through a line beside it and back in",
+		"%s; %s" % [", ".join(wrong), "; ".join(planned)]
+	)
+
+	# --- Not a refuge -------------------------------------------------------------
+
+	var lurker := HungryHunters.largest_radius()
+	var region := layout.main_region(bounds, lurker)
+	var allowed := 0
+
+	for at in froms + tos:
+		if HungryHunters.spawnable(layout, bounds, at, region):
+			allowed += 1
+
+	_check(allowed == froms.size() * 2, "no sill is a refuge: a hunter may appear either side of every one", "%d of %d" % [allowed, froms.size() * 2])
+
+	# --- Driven: past the second band's sill and one of the third's ----------------
+
+	var resident := door * 0.5 + 40.0
+
+	for s in [0, 1]:
+		var band := bands[s]
+		var post := layout.blocks[layout.sills[s].x]
+		world.spawn(1, froms[s])
+		_run_ticks(world, 2)
+		var monster := world.monster_for(1)
+
+		if not _check(monster != null and monster.alive, "a starting monster spawns beside sill %d" % s):
+			_drop(world)
+			_done()
+			return
+
+		var small := monster.pieces[0].radius()
+		var through := layout.route_to(bounds, monster.centre(), tos[s], small + 24.0, 12.0)
+		var small_drive := _drive_route(world, monster, through, Vector2.DOWN, TICK_RATE * 20)
+		_check(
+			through.size() >= 1 and small_drive["deepest"] > -2.0 and small_drive["reached"] == through.size()
+				and layout.shallows_band(monster.centre(), bounds) == band and monster.centre().y > post.y,
+			"band %d: a starting monster driven through the sill's door never overlaps a post and stands past it" % band,
+			"%d of %d waypoints, deepest %.1f, at %s" % [small_drive["reached"], through.size(), small_drive["deepest"], str(monster.centre())]
+		)
+
+		world.spawn(1, froms[s])
+		_run_ticks(world, 2)
+		monster = world.monster_for(1)
+		world.feed_player(1, rules.mass_for(resident) - monster.mass())
+		_run_ticks(world, 2)
+		var grown := monster.pieces[0].radius()
+		# Planned 36 wide: it eats on the way, and the route crosses a line twice.
+		var round_way := layout.route_to(bounds, monster.centre(), tos[s], grown + 36.0, 12.0)
+		var crossed := _bands_crossed(layout, bounds, monster.centre(), round_way)
+		var left_band := crossed.size() > 1
+
+		var big_drive := _drive_route(world, monster, round_way, Vector2.DOWN, TICK_RATE * 40)
+		_check(
+			monster.pieces.size() == 1 and grown > door * 0.5 and grown < widths[band] * 0.5 and left_band
+				and big_drive["deepest"] > -2.0 and big_drive["reached"] == round_way.size()
+				and layout.shallows_band(monster.centre(), bounds) == band and monster.centre().y > post.y,
+			"band %d: one of %.0f mass driven to the same place goes out through a line beside its band, round and back in" % [band, rules.mass_for(resident)],
+			"radius %.0f in %d, %d of %d waypoints through bands %s, deepest %.1f, at %s, band %d"
+				% [grown, monster.pieces.size(), big_drive["reached"], round_way.size(), str(crossed), big_drive["deepest"],
+					str(monster.centre()), layout.shallows_band(monster.centre(), bounds)]
+		)
+		_check(
+			small_drive["covered"] > small_drive["length"] * 0.9 and big_drive["covered"] > big_drive["length"] * 0.9
+				and small_drive["pace"] > 0.95 and big_drive["pace"] > 0.95
+				and big_drive["covered"] > small_drive["covered"] * 1.5,
+			"band %d: and both covered their routes at their ground speed, the bigger one half as far again or more" % band,
+			"through %.0f of %.0f at %.2f; round %.0f of %.0f at %.2f"
+				% [small_drive["covered"], small_drive["length"], small_drive["pace"],
+					big_drive["covered"], big_drive["length"], big_drive["pace"]]
+		)
+
+	# --- Straight at the second band's inner door -----------------------------------
+
+	var sill := layout.blocks[layout.sills[0].x]
+	var door_x := sill.x - sill.z - door * 0.5
+	var run_from := Vector2(door_x, sill.y - 400.0)
+	var run_to := Vector2(door_x, sill.y + 1000.0)
+	var fits := rules.mass_for(door * 0.5 - 16.0)
+	var fit_got := _straight_run(world, 1, run_from, run_to, fits)
+	_check(
+		fit_got > sill.y + door * 0.5,
+		"one of %.0f mass driven straight at the second band's sill door comes through it" % fits,
+		"reached %.0f, the sill at %.0f" % [fit_got, sill.y]
+	)
+
+	var held := rules.mass_for(door * 0.5) * 1.6
+	var held_got := _straight_run(world, 1, run_from, run_to, held)
+	var monster := world.monster_for(1)
+	_check(
+		monster != null and held_got < sill.y and layout.shallows_band(monster.centre(), bounds) == 2,
+		"one of %.0f mass on the same line is held at it" % held,
+		"reached %.0f, the sill at %.0f" % [held_got, sill.y]
+	)
+	print("        sills %s, posts %s; %s" % [str(bands), _widths(PackedFloat32Array([sill.z, layout.blocks[layout.sills[1].x].z])), "; ".join(planned)])
+
+	_drop(world)
+	_done()
+
+
+## Every shallows band [param route] passes through from [param from], sampled every 12
+## units: a planner's waypoints skip the stretch where a route bulges through a line.
+func _bands_crossed(layout: HungryLayout, bounds: Rect2, from: Vector2, route: PackedVector2Array) -> PackedInt32Array:
+	var out := PackedInt32Array()
+	var previous := from
+
+	for point in route:
+		var steps := maxi(1, ceili(previous.distance_to(point) / 12.0))
+
+		for k in range(steps + 1):
+			var band := layout.shallows_band(previous.lerp(point, float(k) / float(steps)), bounds)
+
+			if not band in out:
+				out.append(band)
+
+		previous = point
+
+	out.sort()
+	return out
 
 
 ## The open water a shallows check starts from: the middle bay, halfway between the last

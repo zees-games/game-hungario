@@ -55,9 +55,9 @@ const REEF := &"reef"
 
 ## Five lines of posts across the world whose gaps widen from one wall to the other, so
 ## the further from the open water a monster wants to go the smaller it has to be, with
-## rock pools in the open water's corners, groynes across it and an inlet in its middle
-## bay. See [method _shallows], [method _append_pools], [method _append_groynes] and
-## [method _append_inlet].
+## rock pools in the open water's corners, groynes across it, an inlet in its middle
+## bay and sills across two bands. See [method _shallows], [method _append_pools],
+## [method _append_groynes], [method _append_inlet] and [method _append_sills].
 const SHALLOWS := &"shallows"
 
 
@@ -151,6 +151,10 @@ var groynes: Array[Vector2i] = []
 ## The shallows' inlet, as `(first, count)`: two posts off the open wall in the middle
 ## bay, the short axis's low side first. See [method _append_inlet] and [method in_inlet].
 var inlets: Array[Vector2i] = []
+
+## The shallows' sills, as `(first, count)`: one post each, across a band from a post of
+## the line inside it. See [method _append_sills].
+var sills: Array[Vector2i] = []
 
 
 static func none() -> HungryLayout:
@@ -1043,6 +1047,7 @@ static func _shallows(bounds: Rect2) -> HungryLayout:
 	_append_pools(out, bounds)
 	_append_groynes(out, bounds)
 	_append_inlet(out, bounds)
+	_append_sills(out, bounds)
 	return out
 
 
@@ -1360,6 +1365,74 @@ func in_inlet(at: Vector2, bounds: Rect2) -> bool:
 	var sideways := at.y if along_x else at.x
 
 	return here > front and sideways > low and sideways < high
+
+
+# --- the shallows' sills ------------------------------------------------------
+
+## Where the sills stand: band, then the posts of the line inside it they are joined to,
+## counted from that line's middle post. One in the second line's band, two in the third's,
+## staggered so a detour round one never runs into the next.
+const SILLS := {2: [0], 3: [-1, 1]}
+
+
+## The shallows' fifth part: a post across a band, standing the tightest line's gap off a
+## post of the line inside it and grown until its doors to the line outside close to that
+## gap too.
+##
+## [b]A band was a strip a chase ran along at speed alone[/b], the open water's problem
+## before the groynes. A sill gives the band's smallest monsters a door its biggest do
+## not fit: they step out through a line beside the band, round the sill and back in.
+## Not a refuge (nothing is enclosed), so hunters may appear beside it. Appended after
+## the inlet, so no earlier index moves.
+static func _append_sills(layout: HungryLayout, bounds: Rect2) -> void:
+	var along_x := bounds.size.x >= bounds.size.y
+	var door := sill_door(minf(bounds.size.x, bounds.size.y) * 0.5)
+
+	for band: int in SILLS:
+		if band < 1 or band >= layout.chains.size():
+			continue
+
+		var inner := layout.chains[band - 1]
+		var outer := layout.chains[band]
+
+		for offset: int in SILLS[band]:
+			var joint := layout.blocks[inner.x + int((inner.y - 1) * 0.5) + offset]
+			var low := 0.0
+			var high := door
+
+			for _i in range(48):
+				var radius := (low + high) * 0.5
+
+				if layout.clearance(outer, _sill_at(joint, door, radius, along_x), radius) > door:
+					low = radius
+				else:
+					high = radius
+
+			var at := _sill_at(joint, door, low, along_x)
+			layout.sills.append(Vector2i(layout.blocks.size(), 1))
+			layout.blocks.append(Vector3(at.x, at.y, low))
+
+
+static func _sill_at(joint: Vector3, door: float, radius: float, along_x: bool) -> Vector2:
+	var off := joint.z + door + radius
+	return Vector2(joint.x + off, joint.y) if along_x else Vector2(joint.x, joint.y + off)
+
+
+## The width of every sill door: the shallows' tightest line.
+static func sill_door(short_half: float) -> float:
+	return shallows_widths(short_half)[0]
+
+
+## The narrowest water between a disc of [param radius] at [param at] and the rocks of
+## [param run] (`(first, count)` into [member blocks]).
+func clearance(run: Vector2i, at: Vector2, radius: float) -> float:
+	var out := INF
+
+	for index in range(run.x, run.x + run.y):
+		var rock := blocks[index]
+		out = minf(out, at.distance_to(Vector2(rock.x, rock.y)) - rock.z - radius)
+
+	return out
 
 
 
