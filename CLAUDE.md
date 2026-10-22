@@ -19,6 +19,7 @@ Read the family [CLAUDE.md](../../CLAUDE.md) first; this file is only what is sp
 | [docs/client.md](docs/client.md) | the rider, sound, settings, presentation, effects, screens, chat box, renderer |
 | [docs/testing.md](docs/testing.md) | adding a check, or believing a green run |
 | [docs/history.md](docs/history.md) | a bug that "cannot be happening"; what this game found and how it looked |
+| [docs/soak.md](docs/soak.md) | running the bot soak and reading its stuck findings |
 
 ## Layout
 

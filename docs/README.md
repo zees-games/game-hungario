@@ -12,3 +12,4 @@ The detail behind [CLAUDE.md](../CLAUDE.md). One subject per file; open the one 
 | [client.md](client.md) | touching the rider and avatar content, the sound bank, settings, the presentation layer, effects, screens, the chat box, or the renderer |
 | [testing.md](testing.md) | adding or changing a check, or believing a green run |
 | [history.md](history.md) | debugging something that "cannot be happening"; the bugs this game found, and the shapes they had |
+| [soak.md](soak.md) | running the bot soak (`./game.sh soak [mode] [min]`) or reading its stuck findings |
