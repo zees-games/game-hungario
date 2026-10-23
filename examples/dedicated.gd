@@ -2105,7 +2105,7 @@ func _test_vote() -> void:
 
 	# The leading score — the biggest monster's mass — reaches the director, and a score
 	# limit opens the ballot off it. Nothing called note_score before.
-	var saved := [rules.trigger, rules.duration_sec, rules.score_limit, rules.vote_lead_score, rules.min_players_to_vote, rules.vote_warning_sec]
+	var saved := [rules.trigger, rules.duration_sec, rules.score_limit, rules.vote_lead_score, rules.min_players_to_vote, rules.vote_warning_sec, rules.allow_single_voter_auto]
 	var top := int(maps.score_fn.call()) if maps.score_fn.is_valid() else 0
 	# No countdown for this one: it asks whether the score opens a ballot, and a countdown
 	# in front of the ballot is the check above.
@@ -2115,6 +2115,8 @@ func _test_vote() -> void:
 	rules.score_limit = top + 3
 	rules.vote_lead_score = 3
 	rules.min_players_to_vote = 0
+	# The guard (an automatic ballot needs two voters) is dot-vote's; this check is about the score.
+	rules.allow_single_voter_auto = true
 	maps.director.begin(maps.director.current_id())
 	maps.advance(0.0)
 
@@ -2145,6 +2147,7 @@ func _test_vote() -> void:
 	rules.vote_lead_score = saved[3]
 	rules.min_players_to_vote = saved[4]
 	rules.vote_warning_sec = saved[5]
+	rules.allow_single_voter_auto = saved[6]
 	maps.director.begin(maps.director.current_id())
 
 	# [b]The `map time` line follows an extend.[/b] It was a `DotMapTimeLimit` built beside
