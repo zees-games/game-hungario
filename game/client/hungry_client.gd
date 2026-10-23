@@ -437,6 +437,11 @@ func _build_presentation() -> void:
 	platform.maps_change_fn = change_mode_offline
 	platform.maps_title = "Change mode"
 	platform.maps_noun = "modes"
+	# Look-to-gag: the cursor, not a view axis, says who is looked at.
+	if voice != null:
+		platform.look_voice = voice.manager
+		platform.look_chat = chat
+		platform.look_target_fn = _look_target
 	DotLog.result(CHANNEL, "the platform", platform.setup())
 	platform.input_blocked_changed.connect(_suspend_input)
 	_suspend_input(platform.is_input_blocked())
@@ -624,6 +629,38 @@ func _watched() -> HungryMonster:
 
 	var board := world.leaderboard(1)
 	return board[0] if not board.is_empty() and board[0].alive else mine
+
+
+## The peer of the other player whose piece is under the pointer, 0 for nobody. Roster rows
+## carry the player id (`id`) and the peer; a monster's id is the player id.
+func _look_target() -> int:
+	if world == null or camera == null or chat == null or chat.self_mute == null:
+		return 0
+
+	var at := camera.get_global_mouse_position()
+	var me := _local_player()
+	var best_id := 0
+	var best := 1.0
+
+	for monster in world.monsters():
+		if not monster.alive or monster.id == me:
+			continue
+
+		for piece in monster.pieces:
+			var depth := piece.position().distance_to(at) / maxf(piece.radius(), 0.001)
+
+			if depth < best:
+				best = depth
+				best_id = monster.id
+
+	if best_id == 0:
+		return 0
+
+	for row in chat.self_mute.roster:
+		if int(row.get("id", 0)) == best_id and not bool(row.get("bot", false)):
+			return int(row.get("peer", 0))
+
+	return 0
 
 
 func _local_player() -> int:
