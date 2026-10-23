@@ -1,5 +1,6 @@
 extends DotModule
 
+const HungryMapConfig := preload("hungry_map_config.gd")
 const HungryPaths := preload("hungry_paths.gd")
 
 const HungryBot := preload("hungry_bot.gd")
@@ -154,6 +155,7 @@ var _quota: DotBotQuota = null
 var _cv_pack: DotConVar = null
 var _cv_auth_config: DotConVar = null
 var _cv_hunters: DotConVar = null
+var _map_config: DotGameMapConfig = null
 
 ## dot-player-char's `sv_ragdoll*` set: how an eaten monster goes down. The module's, because
 ## the cvars outlive a mode change and the world does not; each world is handed this one.
@@ -229,6 +231,8 @@ func _module_load() -> DotResult:
 
 	_register_games()
 	_register_console()
+	# The cvars exist only now, so the first map's file could not apply in the report above.
+	_report_map(world)
 	_build_query_provider()
 
 	_build_reporting()
@@ -301,6 +305,10 @@ func can_peer_be_harmed(peer_id: int) -> bool:
 
 
 func _module_unload() -> void:
+	if _map_config != null:
+		var _restored := _map_config.restore()
+		_map_config = null
+
 	if _handles_cover and server != null:
 		var env: Object = server.get(&"envelope")
 
@@ -359,9 +367,12 @@ func _module_unload() -> void:
 func _report_map(on: HungryWorld) -> void:
 	if server == null or server.games == null:
 		return
-	server.games.set_current_map(
-		String(on.preset.id) if on != null and on.preset != null else ""
-	)
+	var map_id := String(on.preset.id) if on != null and on.preset != null else ""
+	server.games.set_current_map(map_id)
+	if server.console != null and map_id != "":
+		if _map_config == null:
+			_map_config = HungryMapConfig.build(server.console)
+		var _applied := _map_config.apply(map_id)
 
 
 ## Rebinds onto the world the new mode brought with it.

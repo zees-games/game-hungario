@@ -1,0 +1,4 @@
+# The warrens preset's per-map rules. Every value is commented, so this changes nothing until edited;
+# an operator overrides it in cfg/server/game/game-hungario/dot_map/map/. Keys: game/hungry_map_config.gd.
+# hungry_hazards_count: 6
+# hungry_warrens_corners: quartered

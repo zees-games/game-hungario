@@ -39,7 +39,7 @@ Read the family [CLAUDE.md](../../CLAUDE.md) first; this file is only what is sp
 
 ## Running and testing
 
-- `./game.sh` plays offline; `./game.sh online` runs a local server plus the browser client; `./game.sh test` parses everything and runs all seven suites. `./game.sh help` lists the rest.
+- `./game.sh` plays offline; `./game.sh online` runs a local server plus the browser client; `./game.sh test` parses everything and runs all eight suites. `./game.sh help` lists the rest.
 - `godot --path . -- --offline | --connect HOST:PORT | --touch` for the standalone client.
 - An empty server keeps six players in the arena with bots (dot-server's `DotBotQuota`, `bot_quota` in fill mode); each person who joins takes a bot's place. `bot_quota_mode fixed` keeps that many bots beside everybody; `hungry_bots N` is a deprecated alias for it. Bots are named and counted through dot-bot's `DotBotRoster` (offline too: `DotBotNames`), and how well they play is dot-bot's `bot_difficulty` on the world, which `HungryBot` reads for sight, flee distance and throw aim; medium plays as before presets.
 - **Run `headless_round` after any change to dot-2d, and `headless_net` after any change to dot-net.** They are the only places that see replay determinism and client/server agreement under loss.
@@ -57,6 +57,7 @@ Short forms; the reasoning is in the linked file.
 - **Escape is dot-menu's menu** (`HungrySettings`, a `DotMenuSettings`): Loadout first, Game, the stock pages, Controls over `HungryBindings`, Help & commands (H) and Leave. Nothing in the table may default to H or M; `headless_presentation` checks it. [client](docs/client.md#screens)
 - Every piece steers toward the pointer's **world point** (`HungryWorld.pointer_of`), never along one shared direction, or split pieces can never merge. [gameplay](docs/gameplay.md#a-player-is-a-set-and-the-pointer-is-a-point)
 - The arena size is part of every food position: `adopt_world_size` before `adopt_field_seed`. Slot indexes are never reused. [gameplay](docs/gameplay.md#four-fields-one-id-space-and-only-membership-travels)
+- **Per-map rules** are dot-game's `DotGameMapConfig` over `game/hungry_map_config.gd` (`KEYS` is the whitelist; the map id is the preset id): `cfg/game/game-hungario/dot_map/map/<preset>.yml`, overridable from `cfg/server/...`. The game has no imported BSP maps, so only a commented `warrens.yml` starter ships; `headless_mapcfg` checks apply and restore.
 - Anything that changes speed must be readable on both ends: effects travel as piece flags, the trait in the join. [gameplay](docs/gameplay.md#effects-are-replicated-as-flags)
 - An eaten monster's fall is the server's pick (`HungryWorld.decide_death`, on DIED last and optional), drawn in 2D by `HungryFalls` from the last piece the client saw leave. [gameplay](docs/gameplay.md#an-eaten-monster-goes-down-the-way-the-server-picked)
 - Eating is not dot-combat; throwables are, through `HungryCombat`, and `damage_gate` stays optional. [gameplay](docs/gameplay.md#throwables-are-dot-combat-eating-is-not)

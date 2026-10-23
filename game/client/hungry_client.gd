@@ -16,6 +16,7 @@ const HungryMenus := preload("hungry_menus.gd")
 const HungryMonster := preload("../hungry_monster.gd")
 const HungryNetBridge := preload("../net/hungry_net_bridge.gd")
 const HungryPresentation := preload("hungry_presentation.gd")
+const HungryMapConfig := preload("../hungry_map_config.gd")
 const HungryPreset := preload("../hungry_preset.gd")
 const HungryProjectile := preload("../hungry_projectile.gd")
 const HungryRenderer := preload("hungry_renderer.gd")
@@ -152,6 +153,10 @@ func _ready() -> void:
 	# the platform never captures it.
 	platform = DotGameClient.new()
 	platform.name = "Platform"
+	platform.map_config_keys = HungryMapConfig.KEYS
+	platform.map_config_game = HungryMapConfig.GAME_ID
+	platform.map_config_get_fn = _map_cvar_get
+	platform.map_config_set_fn = _map_cvar_set
 	platform.force_offline = force_offline
 	platform.require_camera = false
 	platform.capture_pointer = false
@@ -199,6 +204,21 @@ var workshop: HungryWorkshop = null
 
 func _local_monster_exists() -> bool:
 	return world != null and world.monster_for(_local_player()) != null
+
+
+## The map-config cvars a client has are whatever its local console carries; the rest are the server's.
+func _map_cvar_get(key: String) -> Variant:
+	var console: Object = presentation.local_console if presentation != null else null
+	var cv: Object = console.call("find_cvar", key) if console != null else null
+	return cv.call("get_string") if cv != null else null
+
+
+func _map_cvar_set(key: String, value: Variant) -> bool:
+	var console: Object = presentation.local_console if presentation != null else null
+	if console == null:
+		return false
+	var res: Variant = console.call("set_cvar", key, str(value))
+	return res != null and bool(res.get("ok"))
 
 
 func _build() -> DotResult:
@@ -443,6 +463,8 @@ func _build_presentation() -> void:
 		platform.look_chat = chat
 		platform.look_target_fn = _look_target
 	DotLog.result(CHANNEL, "the platform", platform.setup())
+	if world != null and world.preset != null:
+		platform.map_changed(String(world.preset.id))
 	platform.input_blocked_changed.connect(_suspend_input)
 	_suspend_input(platform.is_input_blocked())
 
