@@ -1793,8 +1793,7 @@ func _test_progress() -> void:
 
 	# The same round through a remote store: a fake site with a frame of latency, so a
 	# caller that does not await is caught, and the plain forms must refuse it.
-	var site := FakeSite.new()
-	site.tree = get_tree()
+	var site := DotLeaderboardFakeSite.new(get_tree())
 	var remote := DotLeaderboardManager.new()
 	remote.backend = "backbone"
 	remote.backbone_client = site
@@ -1811,44 +1810,13 @@ func _test_progress() -> void:
 		and ((rpage.value as Array)[0] as DotLeaderboardEntry).value == 4200.0,
 		"and reads back through page_async", str(rpage.error) if not rpage.ok else ""
 	)
-	_check(site.posts > 0, "the fake site received the declare and the submit")
+	_check(site.posts() > 0, "the fake site received the declare and the submit")
 	remove_child(remote)
 	remote.queue_free()
 
 	var progressed: DotResult = await progress.achievements.flush()
 	_check(progressed.ok, "progress writes to disk", str(progressed.error))
 	_done()
-
-
-## A minimal in-process stand-in for the site's leaderboard endpoints (scope ignored).
-class FakeSite:
-	extends RefCounted
-
-	var tree: SceneTree
-	var rows := {}
-	var posts := 0
-
-	func post_integration(path: String, body: Dictionary) -> DotResult:
-		await tree.process_frame
-		posts += 1
-		if path.ends_with("submit"):
-			for e in body["entries"]:
-				var key := str(e["board"])
-				if not rows.has(key):
-					rows[key] = {}
-				rows[key][e["player"]] = {"name": e["name"], "value": e["value"]}
-		return DotResult.success({"ok": true, "refused": []})
-
-	func get_integration(_path: String, query: Dictionary) -> DotResult:
-		await tree.process_frame
-		var out := []
-		var board_rows: Dictionary = rows.get(str(query["board"]), {})
-		var rank := 0
-		for id in board_rows.keys():
-			rank += 1
-			out.append({"rank": rank, "player": id, "name": board_rows[id]["name"],
-				"value": board_rows[id]["value"], "setAt": 1})
-		return DotResult.success({"ok": true, "board": {"entries": out.size()}, "rows": out, "self": null})
 
 
 ## Stands in for the module a vote's commands are registered on, recording the names.
