@@ -1856,7 +1856,10 @@ func _cmd_hazards(ctx: DotCmdContext) -> void:
 
 func _cmd_boards(ctx: DotCmdContext) -> void:
 	var board_id := StringName(ctx.arg(0, "top_mass"))
-	var rows := progress.page(board_id, 10)
+	if progress.boards != null and progress.boards.backend == "backbone":
+		ctx.reply("Fetching the board...")
+
+	var rows: Array = await progress.page(board_id, 10)
 
 	if rows.is_empty():
 		ctx.reply("Nothing on '%s' yet." % String(board_id))

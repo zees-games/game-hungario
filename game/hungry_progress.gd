@@ -33,6 +33,11 @@ signal earned(player_key: String, id: StringName, title: String, points: int)
 
 
 var boards: DotLeaderboardManager = null
+
+## Where the boards live; null builds one layered from [constant BOARDS_CONFIG_PATH].
+var boards_config: HungryBoardsConfig = null
+
+const BOARDS_CONFIG_PATH := "user://hungry_boards.json"
 var achievements: DotAchievementTracker = null
 var link: DotAchievementStatsLink = null
 
@@ -207,6 +212,20 @@ func _build_boards() -> DotResult:
 	boards = DotLeaderboardManager.new()
 	boards.name = "Boards"
 	boards.report_to_backbone = backbone != null
+
+	if boards_config == null:
+		boards_config = HungryBoardsConfig.new()
+		var layered := boards_config.load_layered(BOARDS_CONFIG_PATH)
+		if not layered.ok:
+			DotLog.warn(CHANNEL, "the boards configuration is not usable, using memory", {
+				"why": str(layered.error),
+			})
+			boards_config = HungryBoardsConfig.new()
+	boards.backend = boards_config.backend
+
+	if boards.backend == "backbone" and backbone != null:
+		boards.backbone_client = backbone
+
 	add_child(boards)
 
 	if backbone != null:
@@ -278,19 +297,20 @@ func end(player_key: String) -> void:
 ## per player, and submitting on every bite would be a write per bite for a value that only
 ## matters at the end. `beats()` is what decides whether it replaces the incumbent, which
 ## is why a worse round does not overwrite a better one.
+## A coroutine: callers that need the rows on the board await it; others may ignore it.
 func file_round(player_key: String, monster: HungryMonster, deaths: int) -> void:
 	if boards == null or player_key == "" or monster == null:
 		return
 
 	var key := StringName(player_key)
 
-	_submit(&"top_mass", key, monster.best_mass, monster.display_name)
-	_submit(&"pieces_eaten", key, float(monster.players_eaten), monster.display_name)
-	_submit(&"fewest_deaths", key, float(deaths), monster.display_name)
+	await _submit(&"top_mass", key, monster.best_mass, monster.display_name)
+	await _submit(&"pieces_eaten", key, float(monster.players_eaten), monster.display_name)
+	await _submit(&"fewest_deaths", key, float(deaths), monster.display_name)
 
 
 func _submit(board_id: StringName, key: StringName, value: float, name: String) -> void:
-	var submitted := boards.submit(board_id, {"mode": String(mode_id)}, key, name, value)
+	var submitted := await boards.submit_async(board_id, {"mode": String(mode_id)}, key, name, value)
 
 	# WARN: a round that was played and is not on the board. Nobody reports a missing row;
 	# they conclude the board is broken, and without this line there is no telling why.
@@ -301,12 +321,12 @@ func _submit(board_id: StringName, key: StringName, value: float, name: String) 
 		})
 
 
-## Everything on one board, best first.
+## Everything on one board, best first. A coroutine: await it.
 func page(board_id: StringName, count: int = 10) -> Array:
 	if boards == null:
 		return []
 
-	var got := boards.page(board_id, {"mode": String(mode_id)}, 0, count)
+	var got: DotResult = await boards.page_async(board_id, {"mode": String(mode_id)}, 0, count)
 	return got.value if got.ok else []
 
 
