@@ -35,7 +35,7 @@ signal earned(player_key: String, id: StringName, title: String, points: int)
 var boards: DotLeaderboardManager = null
 
 ## Where the boards live; null builds one layered from [constant BOARDS_CONFIG_PATH].
-var boards_config: HungryBoardsConfig = null
+var boards_config: DotBoardsConfig = null
 
 const BOARDS_CONFIG_PATH := "user://hungry_boards.json"
 var achievements: DotAchievementTracker = null
@@ -214,13 +214,13 @@ func _build_boards() -> DotResult:
 	boards.report_to_backbone = backbone != null
 
 	if boards_config == null:
-		boards_config = HungryBoardsConfig.new()
+		boards_config = DotBoardsConfig.for_game("hungry", "-")
 		var layered := boards_config.load_layered(BOARDS_CONFIG_PATH)
 		if not layered.ok:
 			DotLog.warn(CHANNEL, "the boards configuration is not usable, using memory", {
 				"why": str(layered.error),
 			})
-			boards_config = HungryBoardsConfig.new()
+			boards_config = DotBoardsConfig.for_game("hungry", "-")
 	boards.backend = boards_config.backend
 
 	if boards.backend == "backbone" and backbone != null:
