@@ -23,6 +23,8 @@ extends "res://addons/dot_npc_ai/runtime/dot_npc_ai_brain.gd"
 ## reads as broken pathfinding rather than as a number that drifted. It is asked for
 ## through [HungryHunters], which is the one thing here that knows what a world is.
 
+const HungryTuning := preload("hungry_tuning.gd")
+
 const STATE_WANDER := &"wander"
 const STATE_CHASE := &"chase"
 const STATE_FLEE := &"flee"
@@ -44,7 +46,7 @@ var _hunters: Object = null
 func _build() -> void:
 	if npc != null and npc.def != null:
 		mass = float(npc.def.meta.get("mass", mass))
-		speed = float(npc.def.meta.get("speed", speed))
+		speed = float(npc.def.meta.get("speed", speed)) * HungryTuning.settings().hunter_speed_scale
 
 	# Deterministic from the spawn's seed rather than `randf()`: two servers replaying the
 	# same director decisions place and steer a wave identically, which is what makes a

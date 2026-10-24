@@ -14,6 +14,9 @@ const HungryMonster := preload("hungry_monster.gd")
 const HungryNetBridge := preload("net/hungry_net_bridge.gd")
 const HungryProgress := preload("hungry_progress.gd")
 const HungryServices := preload("hungry_services.gd")
+const HungryTuning := preload("hungry_tuning.gd")
+const HungryModes := preload("hungry_modes.gd")
+const HungryWorkbenchAuth := preload("hungry_workbench_auth.gd")
 const HungryWorld := preload("hungry_world.gd")
 
 ## Binds a [HungryWorld] and its netcode to a [DotServer].
@@ -46,9 +49,6 @@ const SNAPSHOT_RATE := 20
 ## Ids at or above this belong to bots. Well clear of anything [DotServer] hands out,
 ## which counts up from 1.
 const BOT_ID_BASE := 900001
-
-## `bot_quota`'s default. See where [DotBotQuota] is installed, in [method _register_console].
-const DEFAULT_BOT_QUOTA := 6
 
 ## The modes this server can switch between.
 const GAME_CLASSIC := "hungry_classic"
@@ -157,6 +157,9 @@ var _cv_auth_config: DotConVar = null
 var _cv_hunters: DotConVar = null
 var _map_config: DotGameMapConfig = null
 
+## dot-workbench over the config and the modes; null until the load finishes.
+var workbench: DotGameWorkbench = null
+
 ## dot-player-char's `sv_ragdoll*` set: how an eaten monster goes down. The module's, because
 ## the cvars outlive a mode change and the world does not; each world is handed this one.
 var ragdoll_rules: DotPlayerRagdollRules = DotPlayerRagdollRules.new()
@@ -194,6 +197,16 @@ func _module_load() -> DotResult:
 			"load a mode scene first, or set DotGameManager.initial_game to '%s'"
 				% GAME_CLASSIC
 		)
+
+	# Strict on a dedicated server: a typo in cfg/ stops the boot instead of being ignored.
+	var tuned := HungryTuning.result()
+
+	if tuned.ok:
+		tuned = HungryModes.result()
+
+	if not tuned.ok:
+		DotGameConfigBinder.fail_boot(get_tree(), tuned)
+		return tuned
 
 	_report_map(world)
 	world.ragdoll_rules = ragdoll_rules
@@ -253,6 +266,7 @@ func _module_load() -> DotResult:
 		})
 
 	world.start(0)
+	_start_workbench()
 
 	if maps != null:
 		maps.note_playing(game_id_of(world.preset.id))
@@ -305,6 +319,10 @@ func can_peer_be_harmed(peer_id: int) -> bool:
 
 
 func _module_unload() -> void:
+	if workbench != null:
+		workbench.queue_free()
+		workbench = null
+
 	if _map_config != null:
 		var _restored := _map_config.restore()
 		_map_config = null
@@ -621,6 +639,7 @@ func _build_hunters() -> DotResult:
 	if not placed.ok:
 		return placed.wrap("The hazards could not be set up")
 
+	hunters.set_enabled(_cv_hunters != null and _cv_hunters.get_int() != 0)
 	hunters.hunter_changed.connect(_on_hunter_changed)
 	hunters.piece_hunted.connect(_on_piece_hunted)
 	hazards.placed.connect(_on_hazard_placed)
@@ -1722,7 +1741,7 @@ func _register_console() -> void:
 	# plate for one person on their own, and six is what the offline client plays against,
 	# so a person alone on a server gets the game they get offline less one bot, and each
 	# person who joins takes a bot's place until there are six people and no bots.
-	_quota = DotBotQuota.install(self, DEFAULT_BOT_QUOTA)
+	_quota = DotBotQuota.install(self, HungryTuning.settings().bot_fill)
 
 	# How well they play: dot-bot's `bot_difficulty` and its `bot_*` settings, on the world
 	# [HungryBot] reads them from (sight, reaction, throw aim).
@@ -1748,37 +1767,32 @@ func _register_console() -> void:
 		add_cvar, DotConVar.FLAG_ARCHIVE | DotConVar.FLAG_NOTIFY | DotConVar.FLAG_REPLICATED
 	)
 
-	_cv_hunters = add_cvar("hungry_hunters_on", "0", "Release NPC hunters into the arena")
+	# The server config is every one of these as a `hungry_<field>` cvar; the six that used to
+	# be written by hand here (hunters_on ... backbone_config) are bound by the same call, so a
+	# yml key, a workbench edit and a console `set` are one value.
+	_bind_tuning()
+	_cv_hunters = HungryTuning.binder.cvar_for("hunters_on")
 	_cv_hunters.changed.connect(func(_old: String, value: String) -> void:
 		if hunters != null:
 			hunters.set_enabled(value != "0")
 	)
 
-	_cv_hazards = add_cvar(
-		"hungry_hazards_count", "0", "Rocks scattered into the arena at load"
-	)
+	_cv_hazards = HungryTuning.binder.cvar_for("hazards_count")
 
 	# What a monster that has outgrown a refuge does: accept (the default and the mode's
 	# usual), cap or eject. Empty leaves the mode's own. Live: it applies from the next tick.
-	var outgrown := add_cvar("hungry_outgrown", "",
-		"A monster wedged in a refuge it outgrew: accept, cap (food stops counting) or eject (sheds the excess). Empty: the mode's.",
-		DotConVar.FLAG_NOTIFY)
-	outgrown.changed.connect(func(_old: String, value: String) -> void:
+	var outgrown := HungryTuning.binder.cvar_for("outgrown")
+	var apply_outgrown := func(_old: String, value: String) -> void:
 		var rule := ["accept", "cap", "eject"].find(value.strip_edges().to_lower())
 		if world != null and rule >= 0:
 			world.outgrown = rule
 		elif world != null and value.strip_edges() == "":
 			world.outgrown = world.preset.outgrown if world.preset != null else 0
-	)
+	outgrown.changed.connect(apply_outgrown)
+	apply_outgrown.call("", outgrown.get_string())
 
-	# The warrens' corner rocks: open (the default: a leader reaches the whole perimeter) or
-	# quartered (the original: past ~903 mass a leader is held in one quarter unless it
-	# splits). Empty: the mode's. Read by the world when it builds its layout, so it applies
-	# from the next mode change -- rocks do not move under a live round.
-	var _corners := add_cvar("hungry_warrens_corners", "",
-		"The warrens' corner rocks: open (a leader reaches the whole perimeter) or quartered (shut into a quarter past ~903 mass). Empty: the mode's. From the next mode change.",
-		DotConVar.FLAG_NOTIFY)
-
+	# `hungry_warrens_corners` is read by the world when it builds its layout, so it applies
+	# from the next mode change: rocks do not move under a live round.
 	# Registered whether or not hunters are on, so a config that sets them does not
 	# depend on the order it turns things on in.
 	npc_skill.bind_cvars(add_cvar, DotConVar.FLAG_NOTIFY)
@@ -1786,18 +1800,12 @@ func _register_console() -> void:
 	# Where this server's rider cosmetics live. Empty means "whatever the client shipped
 	# with", which is every deployment that has not published a pack — and a client with
 	# no dot-cloud installed ignores it either way.
-	_cv_pack = add_cvar(
-		"hungry_avatar_pack", "", "Manifest URL for this server's rider content"
-	)
+	_cv_pack = HungryTuning.binder.cvar_for("avatar_pack")
 	_cv_pack.changed.connect(func(_old: String, _new: String) -> void: _sync_pack())
 	_sync_pack()
 
 	# A path, not the token. See [method _build_reporting].
-	_cv_auth_config = add_cvar(
-		"hungry_backbone_config",
-		"user://cfg/auth.json",
-		"Config file holding this server's site integration token"
-	)
+	_cv_auth_config = HungryTuning.binder.cvar_for("backbone_config")
 
 
 func _cmd_status(ctx: DotCmdContext) -> void:
@@ -2157,3 +2165,74 @@ func _refuse_peer(peer_id: int, error: DotError) -> void:
 	var session: DotClientSession = server.session_of(peer_id) if server != null else null
 	if session != null:
 		server.kick(session, error.message, error)
+
+
+## Binds the server config's cvars and commands, and keeps the live round in step with an edit.
+func _bind_tuning() -> void:
+	var binder := HungryTuning.binder
+	var _made := binder.bind_cvars(add_cvar, DotConVar.FLAG_ARCHIVE | DotConVar.FLAG_NOTIFY)
+	binder.bind_commands(add_command)
+	binder.field_changed.connect(_on_tuning_changed)
+
+
+## The rules object was built from the config at load; the fields that feed it follow an edit.
+func _on_tuning_changed(key: String, _value: Variant, _source: String) -> void:
+	if world == null or world.match_node == null or world.match_node.rules == null:
+		return
+	var rules: DotMatchRules = world.match_node.rules
+	var tuning := HungryTuning.settings()
+	match key:
+		"respawn_delay_sec":
+			rules.respawn_delay_sec = tuning.respawn_delay_sec
+		"spawn_protection_sec":
+			rules.spawn_protection_sec = tuning.spawn_protection_sec
+		"intermission_sec":
+			rules.intermission_sec = tuning.intermission_sec
+		"match_end_sec":
+			rules.match_end_sec = tuning.match_end_sec
+		"friendly_fire", "pepper_damage":
+			if combat != null and combat.rules != null:
+				var fresh := HungryCombat.damage_rules()
+				combat.rules.friendly_fire = fresh.friendly_fire
+				combat.rules.minimum = fresh.minimum
+				combat.rules.maximum = fresh.maximum
+
+
+## dot-workbench over the server config and the six modes: the HTTP page only with `workbench.enabled` in cfg/server.yml, the F9 panel never on a dedicated server.
+func _start_workbench() -> void:
+	var rt := DotProfileRuntime.new()
+	var admin_permit := Callable()
+	if server != null and server.admins != null:
+		admin_permit = server.admins.uid_has_permission
+	rt.permit = func(actor: Variant, flag: String) -> bool:
+		return admin_permit.is_valid() and actor is String and bool(admin_permit.call(actor, flag))
+	rt.actor_name = func(actor: Variant) -> String: return str(actor)
+	workbench = DotGameWorkbench.new()
+	workbench.name = "Workbench"
+	workbench.dedicated = DisplayServer.get_name() == "headless"
+	workbench.listen_host_fn = func() -> bool: return DisplayServer.get_name() != "headless"
+	workbench.permit_fn = func(actor: Variant, flag: String) -> bool:
+		return admin_permit.is_valid() and actor is String and bool(admin_permit.call(actor, flag))
+	workbench.add_set(HungryTuning.binder.profile_set(), "Server settings")
+	for id in HungryModes.IDS:
+		workbench.add_set(HungryModes.binders[id].profile_set(), "Mode: %s" % id)
+	add_child(workbench)
+	var started := workbench.start(rt)
+	if not started.ok:
+		DotLog.result(CHANNEL, "the workbench", started)
+		return
+	HungryTuning.binder.attach(rt)
+	for id in HungryModes.IDS:
+		HungryModes.binders[id].attach(rt)
+	var auth := DotRegistry.get_node_service(DotAuthServer.SERVICE) as DotAuthServer
+	var _gate := HungryWorkbenchAuth.attach(workbench, HungryWorkbenchAuth.ticket_resolver(auth), admin_permit)
+	add_command("workbench", func(ctx: DotCmdContext) -> void: ctx.reply_lines(_workbench_lines()),
+		"Show the admin workbench's state", DotAdminFlags.CVAR)
+
+
+func _workbench_lines() -> PackedStringArray:
+	if workbench == null:
+		return PackedStringArray(["workbench    off"])
+	if workbench.running_http:
+		return PackedStringArray(["workbench    http " + JSON.stringify(workbench.http.call("describe"))])
+	return PackedStringArray(["workbench    off (workbench.enabled in cfg/server.yml)"])

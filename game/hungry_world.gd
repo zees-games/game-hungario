@@ -10,6 +10,7 @@ const HungryPiece := preload("hungry_piece.gd")
 const HungryPlayerStack := preload("hungry_player_stack.gd")
 const HungryPreset := preload("hungry_preset.gd")
 const HungryProjectile := preload("hungry_projectile.gd")
+const HungryTuning := preload("hungry_tuning.gd")
 const HungrySpectate := preload("hungry_spectate.gd")
 
 ## The game: an arena, four fields of food, a set of monsters, and the rules that
@@ -1299,7 +1300,7 @@ func _eat_fruit(monster: HungryMonster, piece: HungryPiece, grid_id: int) -> boo
 	arena.grid.remove(grid_id)
 	_grow(piece, piece.mass() + HungryContent.FRUIT_MASS)
 
-	var until := _tick + int(HungryContent.FRUIT_EFFECT_SEC * float(tick_rate))
+	var until := _tick + int(HungryTuning.settings().fruit_effect_sec * float(tick_rate))
 
 	match kind:
 		HungryContent.Fruit.RUSH:
@@ -1681,7 +1682,7 @@ func _throw(monster: HungryMonster, command: Dot2DCommand) -> HungryProjectile:
 		return null
 
 	var item := monster.spend_item()
-	monster.throw_ready_tick = _tick + HungryContent.THROW_COOLDOWN_TICKS
+	monster.throw_ready_tick = _tick + HungryTuning.settings().throw_cooldown_ticks
 
 	# Aimed from the rider at the pointer, not along the monster's own aim: the aim is
 	# measured from the centroid, and after a burst the centroid is empty space several
@@ -1846,13 +1847,13 @@ func _land(shot: HungryProjectile, at: Vector2, hit_player: int) -> void:
 				if victim != null:
 					victim.apply_effect(
 						HungryContent.FLAG_FROSTED,
-						_tick + int(HungryContent.FROST_SEC * float(tick_rate))
+						_tick + int(HungryTuning.settings().frost_sec * float(tick_rate))
 					)
 
 		HungryContent.ITEM_LURE:
 			for grid_id in field.plant(
 				at,
-				HungryContent.LURE_FOOD_COUNT,
+				HungryTuning.settings().lure_food_count,
 				HungryContent.LURE_FOOD_TIER,
 				arena.bounds
 			):

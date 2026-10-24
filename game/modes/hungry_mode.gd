@@ -2,6 +2,7 @@
 extends Node
 
 const HungryContent := preload("../hungry_content.gd")
+const HungryModes := preload("../hungry_modes.gd")
 const HungryPreset := preload("../hungry_preset.gd")
 const HungryWorld := preload("../hungry_world.gd")
 
@@ -60,7 +61,7 @@ func build() -> DotResult:
 	if world != null:
 		return DotResult.success(world)
 
-	var preset := HungryPreset.for_id(preset_id)
+	var preset := HungryModes.preset_for(preset_id)
 
 	world = HungryWorld.new()
 	world.name = "World"

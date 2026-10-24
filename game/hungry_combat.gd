@@ -1,6 +1,7 @@
 extends Node
 
 const HungryContent := preload("hungry_content.gd")
+const HungryTuning := preload("hungry_tuning.gd")
 
 ## What a thrown item does to somebody, through dot-combat's rules rather than a constant.
 ##
@@ -31,13 +32,6 @@ const HungryContent := preload("hungry_content.gd")
 ## simulation one.
 
 const CHANNEL := "hungry.combat"
-
-## Damage a pepper does at point blank, in dot-combat's units.
-##
-## An arbitrary scale — there is no health in this game — chosen so the falloff curve has
-## somewhere to fall to and `pieces_for` has a range to quantise. What matters is that it
-## is one number in one place rather than a ratio hidden in an `if`.
-const PEPPER_DAMAGE := 100.0
 
 ## The reach beyond which a throwable is doing its least.
 const FALLOFF_START := 400.0
@@ -96,7 +90,7 @@ static func damage_rules() -> DotDamageRules:
 	# Free-for-all: everybody is fair game and there are no teams for the resolver to
 	# compare. Said explicitly rather than left, because a mode that adds teams changes
 	# exactly this line.
-	out.friendly_fire = true
+	out.friendly_fire = HungryTuning.settings().friendly_fire
 	out.friendly_scale = 1.0
 	# [b]Off.[/b] A monster bursting itself is a legitimate move and the world's own eject
 	# is how you do it on purpose; a scaled self hit would be a second, worse way.
@@ -105,8 +99,9 @@ static func damage_rules() -> DotDamageRules:
 	out.falloff = true
 	# Below this, refused rather than applied as nothing — so "it hit and did nothing" and
 	# "it missed" are one outcome instead of two that look identical to a player.
-	out.minimum = PEPPER_DAMAGE * 0.3
-	out.maximum = PEPPER_DAMAGE
+	var peak := HungryTuning.settings().pepper_damage
+	out.minimum = peak * 0.3
+	out.maximum = peak
 	return out
 
 
@@ -137,7 +132,7 @@ func resolve_throw(
 	if type == null:
 		return null
 
-	var damage := DotDamage.make(thrower_id, victim_id, PEPPER_DAMAGE, type)
+	var damage := DotDamage.make(thrower_id, victim_id, HungryTuning.settings().pepper_damage, type)
 	damage.distance = distance
 	damage.context["item"] = String(item)
 

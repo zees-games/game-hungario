@@ -1,6 +1,7 @@
 extends RefCounted
 
 const HungryRules := preload("hungry_rules.gd")
+const HungryTuning := preload("hungry_tuning.gd")
 
 ## Every number the game is balanced on, in one file.
 ##
@@ -323,10 +324,11 @@ static func rules(tick_rate: int = TICK_RATE) -> HungryRules:
 	out.min_players = 1
 	out.warmup_sec = 0.0
 	out.countdown_sec = 0.0
-	out.respawn_delay_sec = 3.0
-	out.spawn_protection_sec = 3.0
-	out.intermission_sec = 8.0
-	out.match_end_sec = 12.0
+	var tuning := HungryTuning.settings()
+	out.respawn_delay_sec = tuning.respawn_delay_sec
+	out.spawn_protection_sec = tuning.spawn_protection_sec
+	out.intermission_sec = tuning.intermission_sec
+	out.match_end_sec = tuning.match_end_sec
 	out.suicide_points = 0
 	out.kill_points = 0
 	out.pause_when_empty = false

@@ -12,6 +12,13 @@ const KEYS := {
 	"hungry_hazards_count": {"type": "int", "min": 0, "max": 64},
 	"hungry_outgrown": {"type": "string"},
 	"hungry_warrens_corners": {"type": "string"},
+	"hungry_fruit_effect_sec": {"type": "float", "min": 0.5, "max": 120.0},
+	"hungry_frost_sec": {"type": "float", "min": 0.5, "max": 60.0},
+	"hungry_pepper_damage": {"type": "float", "min": 1.0, "max": 1000.0},
+	"hungry_throw_cooldown_ticks": {"type": "int", "min": 0, "max": 600},
+	"hungry_respawn_delay_sec": {"type": "float", "min": 0.0, "max": 60.0},
+	"hungry_spawn_protection_sec": {"type": "float", "min": 0.0, "max": 60.0},
+	"hungry_hunter_speed_scale": {"type": "float", "min": 0.1, "max": 5.0},
 }
 
 

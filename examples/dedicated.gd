@@ -10,6 +10,7 @@ const HungryModule := preload("../game/hungry_module.gd")
 const HungryMonster := preload("../game/hungry_monster.gd")
 const HungryNetLink := preload("../game/net/hungry_net_link.gd")
 const HungryPreset := preload("../game/hungry_preset.gd")
+const HungryTuning := preload("../game/hungry_tuning.gd")
 const HungryServices := preload("../game/hungry_services.gd")
 const HungryWorld := preload("../game/hungry_world.gd")
 
@@ -40,7 +41,7 @@ const SERVER_DIR := "user://hungry_dedicated"
 ## prints it to say which game this is, and nothing treats it as proof.
 const APP_URL := "hungario"
 
-const CHECKS := 257
+const CHECKS := 262
 
 var _passed := 0
 var _failed := 0
@@ -440,8 +441,14 @@ func _test_module() -> void:
 			_server.console.find_command(command) != null, "registered %s" % command
 		)
 
-	for cvar in ["hungry_bots", "hungry_avatar_pack"]:
+	for cvar in ["hungry_bots", "hungry_avatar_pack", "hungry_pepper_damage", "hungry_hunters_on", "hungry_fruit_effect_sec"]:
 		_check(_server.console.find_cvar(cvar) != null, "and its %s cvar" % cvar)
+
+	_check(module.workbench != null and module.workbench.api != null, "and the workbench over its config")
+	var respawn := _server.console.find_cvar("hungry_respawn_delay_sec")
+	var _set := respawn.set_value("7")
+	_check(is_equal_approx(_world().match_node.rules.respawn_delay_sec, 7.0), "a config cvar changes the live match rules")
+	var _back := respawn.set_value("3")
 
 	# The cosmetics manifest is a cvar rather than a constant because a community server
 	# may ship its own parts, and it reaches joining clients through the hello — a client
@@ -636,13 +643,13 @@ func _test_bots() -> void:
 	var quota := _server.console.find_cvar("bot_quota")
 	var quota_mode := _server.console.find_cvar("bot_quota_mode")
 	_check(
-		quota != null and quota_mode != null and quota.get_int() == HungryModule.DEFAULT_BOT_QUOTA
+		quota != null and quota_mode != null and quota.get_int() == HungryTuning.settings().bot_fill
 			and quota_mode.get_string() == "fill",
-		"the shared bot_quota is %d, in fill mode" % HungryModule.DEFAULT_BOT_QUOTA
+		"the shared bot_quota is %d, in fill mode" % HungryTuning.settings().bot_fill
 	)
 
 	var people := world.player_ids().size()
-	var wanted := maxi(HungryModule.DEFAULT_BOT_QUOTA - people, 0)
+	var wanted := maxi(HungryTuning.settings().bot_fill - people, 0)
 	var defaulted := await _until(func() -> bool: return module.bot_count() == wanted)
 	_check(defaulted, "an empty server fills itself to the quota (%d of %d)" % [module.bot_count(), wanted])
 

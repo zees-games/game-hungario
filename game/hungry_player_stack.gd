@@ -3,6 +3,7 @@ extends Node
 const HungryContent := preload("hungry_content.gd")
 const HungryField := preload("hungry_field.gd")
 const HungryPiece := preload("hungry_piece.gd")
+const HungryTuning := preload("hungry_tuning.gd")
 const HungryWorld := preload("hungry_world.gd")
 
 ## The player-facing addons, stood up once and bound to the 2D arena.
@@ -137,7 +138,7 @@ func _build_roster() -> void:
 
 	var config := DotPlayerConfig.new()
 	config.tick_rate = world.tick_rate
-	config.max_players = 32
+	config.max_players = HungryTuning.settings().max_players
 	# A round is minutes and a dropped player's mass is the whole game. Holding the seat
 	# for two of them is the difference between a reconnect and starting over as a dot.
 	config.reconnect_window_sec = 120.0

@@ -8,6 +8,8 @@ const HungryContent := preload("../hungry_content.gd")
 const HungryContentSource := preload("hungry_content_source.gd")
 const HungryEvents := preload("../net/hungry_events.gd")
 const HungryLayout := preload("../hungry_layout.gd")
+const HungryModes := preload("../hungry_modes.gd")
+const HungryTuning := preload("../hungry_tuning.gd")
 const HungryHazards := preload("../hungry_hazards.gd")
 const HungryHud := preload("hungry_hud.gd")
 const HungryHunters := preload("../hungry_hunters.gd")
@@ -231,7 +233,7 @@ func _build() -> DotResult:
 		workshop.follow()
 		world.preset = workshop.preset_for(offline_preset)
 		if world.preset == null:
-			world.preset = HungryPreset.for_id(offline_preset)
+			world.preset = HungryModes.preset_for(offline_preset)
 	world.tick_rate = HungryContent.TICK_RATE
 	# Authoritative only when there is nobody else to be. A client that resolved its own
 	# eating would be a client that decides what it weighs.
@@ -463,6 +465,8 @@ func _build_presentation() -> void:
 		platform.look_chat = chat
 		platform.look_target_fn = _look_target
 	DotLog.result(CHANNEL, "the platform", platform.setup())
+	if _offline:
+		_add_workbench()
 	if world != null and world.preset != null:
 		platform.map_changed(String(world.preset.id))
 	platform.input_blocked_changed.connect(_suspend_input)
@@ -482,6 +486,27 @@ func _build_presentation() -> void:
 
 	if settings == null:
 		settings = presentation.config
+
+
+## The F9 tuning panel over the server settings and the modes, where this process hosts the game (solo). A mode's edit applies from the next mode change.
+func _add_workbench() -> void:
+	HungryTuning.load_all()
+	HungryModes.load_all()
+	var wb := DotGameWorkbench.new()
+	wb.name = "Workbench"
+	wb.listen_host_fn = func() -> bool: return true
+	wb.add_set(HungryTuning.binder.profile_set(), "Server settings")
+	for id in HungryModes.IDS:
+		wb.add_set(HungryModes.binders[id].profile_set(), "Mode: %s" % id)
+	add_child(wb)
+	var rt := DotProfileRuntime.new()
+	var started := wb.start(rt)
+	DotLog.result(CHANNEL, "the workbench", started)
+	if started.ok:
+		HungryTuning.binder.attach(rt)
+		for id in HungryModes.IDS:
+			HungryModes.binders[id].attach(rt)
+	platform.add_workbench(wb)
 
 
 ## The six modes, as the map menu (M) lists them solo: `{id, name, detail, current}`.
