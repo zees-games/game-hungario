@@ -1,5 +1,6 @@
 extends DotModule
 
+const HungryAmbience := preload("hungry_ambience.gd")
 const HungryMapConfig := preload("hungry_map_config.gd")
 const HungryPaths := preload("hungry_paths.gd")
 
@@ -16,7 +17,6 @@ const HungryProgress := preload("hungry_progress.gd")
 const HungryServices := preload("hungry_services.gd")
 const HungryTuning := preload("hungry_tuning.gd")
 const HungryModes := preload("hungry_modes.gd")
-const HungryWorkbenchAuth := preload("hungry_workbench_auth.gd")
 const HungryWorld := preload("hungry_world.gd")
 
 ## Binds a [HungryWorld] and its netcode to a [DotServer].
@@ -163,6 +163,8 @@ var workbench: DotGameWorkbench = null
 ## dot-player-char's `sv_ragdoll*` set: how an eaten monster goes down. The module's, because
 ## the cvars outlive a mode change and the world does not; each world is handed this one.
 var ragdoll_rules: DotPlayerRagdollRules = DotPlayerRagdollRules.new()
+## The ambience cvars (`hungry_ambient*`): REPLICATED, because each client plays its own ambience under the server's intent.
+var ambient_rules: DotAmbienceRules = HungryAmbience.make_rules()
 var _cv_hazards: DotConVar = null
 
 ## Who last said something. What `hungry_status` reports, off the accepted line.
@@ -1767,6 +1769,11 @@ func _register_console() -> void:
 		add_cvar, DotConVar.FLAG_ARCHIVE | DotConVar.FLAG_NOTIFY | DotConVar.FLAG_REPLICATED
 	)
 
+	var _ambient := ambient_rules.bind_cvars(
+		add_cvar, DotConVar.FLAG_ARCHIVE | DotConVar.FLAG_NOTIFY | DotConVar.FLAG_REPLICATED,
+		DotConVar.FLAG_ARCHIVE | DotConVar.FLAG_NOTIFY
+	)
+
 	# The server config is every one of these as a `hungry_<field>` cvar; the six that used to
 	# be written by hand here (hunters_on ... backbone_config) are bound by the same call, so a
 	# yml key, a workbench edit and a console `set` are one value.
@@ -2224,8 +2231,6 @@ func _start_workbench() -> void:
 	HungryTuning.binder.attach(rt)
 	for id in HungryModes.IDS:
 		HungryModes.binders[id].attach(rt)
-	var auth := DotRegistry.get_node_service(DotAuthServer.SERVICE) as DotAuthServer
-	var _gate := HungryWorkbenchAuth.attach(workbench, HungryWorkbenchAuth.ticket_resolver(auth), admin_permit)
 	add_command("workbench", func(ctx: DotCmdContext) -> void: ctx.reply_lines(_workbench_lines()),
 		"Show the admin workbench's state", DotAdminFlags.CVAR)
 

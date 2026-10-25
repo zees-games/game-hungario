@@ -112,6 +112,8 @@ static func schema_for() -> DotSettingsSchema:
 	var s := DotSettingsSchema.from_config(HungryConfig.new(), SCOPES)
 	s.version = SCHEMA_VERSION
 	var _net := DotMenuStock.declare_net_stat(s, &"top_left")
+	s.add(DotSettingsDef.boolean(&"ambient", true, &"audio").with_description("Quiet sounds under the arena."))
+	s.add(DotSettingsDef.number(&"ambient_volume", 1.0, 0.0, 1.0, &"audio"))
 	return DotMenuStock.declare(s, DotMenuStock.DEFAULT_GROUPS, null, NOT_APPLIED)
 
 

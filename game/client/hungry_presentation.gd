@@ -1,5 +1,6 @@
 extends Node
 
+const HungryAmbience := preload("../hungry_ambience.gd")
 const HungryConfig := preload("../hungry_config.gd")
 const HungryEvents := preload("../net/hungry_events.gd")
 const HungryPaths := preload("../hungry_paths.gd")
@@ -63,6 +64,8 @@ var audio: DotAudioManager = null
 ## this game's generated cues and nothing with a file. Nobody walks here, so no footsteps.
 var bed_audio: DotAudioManager = null
 var ambience: DotAudioAmbience = null
+## Quiet moods under the arena (dot-audio's stock set); the old bed plays only when none loaded.
+var ambient: DotAmbienceDirector = null
 
 ## The bed under every mode: a wet, low room with something dripping, which is what a dish
 ## of cells eating each other sounds like.
@@ -344,8 +347,23 @@ func _build_audio() -> DotResult:
 	ambience.manager = bed_audio
 	ambience.fallback_bed = BED
 	add_child(ambience)
-	ambience.set_map_bed(BED)
+	ambient = DotAmbienceDirector.new()
+	ambient.name = "Ambient"
+	ambient.manager = bed_audio
+	ambient.default_mood = HungryAmbience.DEFAULT_MOOD
+	ambient.prefix_moods = HungryAmbience.PREFIX_MOODS
+	ambient.rules = HungryAmbience.make_rules()
+	add_child(ambient)
+	var _moods := ambient.setup()
+	if not ambient.has_moods():
+		ambience.set_map_bed(BED)
 	return DotResult.success(null)
+
+
+## A mode (map) arrived: its mood. The old bed stays only when no mood loaded.
+func on_map(id: StringName) -> void:
+	if ambient != null and ambient.has_moods():
+		ambient.on_map(id)
 
 
 ## Rebinds the sink when the bank is built after this layer was.
@@ -662,5 +680,7 @@ func describe_lines() -> PackedStringArray:
 	out.append("hungario's presentation layer")
 	out.append_array(settings.describe_lines())
 	out.append_array(audio.describe_lines())
+	if ambient != null:
+		out.append("ambience: %s" % str(ambient.describe()))
 	out.append_array(fx.describe_lines())
 	return out

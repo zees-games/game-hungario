@@ -38,7 +38,7 @@ const SCOPE_KEY := "user://hungry_sandbox_scope.key"
 const SERVER_DIR := "user://hungry_sandbox_server"
 
 ## Every check this suite runs. See the guard at the end of [method _run].
-const CHECKS := 115
+const CHECKS := 119
 
 var _passed := 0
 var _failed := 0
@@ -107,6 +107,7 @@ func _run() -> void:
 
 		if joined:
 			await _test_client_scene()
+			await _test_ambient_cvars()
 			await _test_playing()
 			await _test_admin_over_the_socket()
 			await _test_chat()
@@ -833,6 +834,31 @@ func _test_mass_actions_are_heard(module: HungryModule, mine: int) -> void:
 		sink.count_of(&"split") > 0,
 		"and so is a split (%s)" % ", ".join(sink.played_ids())
 	)
+
+
+## [b]`hungry_ambient*` on the client.[/b] The server's ambience intent rides the replicated cvars over the real socket into the client's own director.
+func _test_ambient_cvars() -> void:
+	_section("the server's hungry_ambient* reaches the client's ambience director, live")
+	var director := _client.presentation.ambient if _client != null and _client.presentation != null else null
+	if not _check(director != null and director.has_moods(), "the client has a director with dot-audio's moods"):
+		_done()
+		return
+	var rules := _client.ambient_rules
+	var _vol := _server.console.set_cvar("hungry_ambient_volume", "0.8")
+	var _mood := _server.console.set_cvar("hungry_ambient_mood", "swamp")
+	var _off := _server.console.set_cvar("hungry_ambient", "0")
+	var arrived := await _until(func() -> bool:
+		return is_equal_approx(director.ambient.config.volume, 0.8) and director.ambient.config.mood == "swamp" \
+			and not director.ambient.config.enabled
+	, 10.0)
+	_check(arrived, "a change of volume, mood and the switch reaches the director", str(rules.describe()))
+	_check(_link.replicated_cvar("hungry_ambient_dir", "x") == "x", "and the machine-local hungry_ambient_dir stayed home")
+	var _back_vol := _server.console.set_cvar("hungry_ambient_volume", "0.3")
+	var _back_mood := _server.console.set_cvar("hungry_ambient_mood", "")
+	var _back_on := _server.console.set_cvar("hungry_ambient", "1")
+	var back := await _until(func() -> bool: return rules.is_on() and rules.mood == "", 10.0)
+	_check(back, "and back", str(rules.describe()))
+	_done()
 
 
 func _test_chat() -> void:

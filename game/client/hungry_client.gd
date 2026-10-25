@@ -1,5 +1,6 @@
 extends Node2D
 
+const HungryAmbience := preload("../hungry_ambience.gd")
 const HungryBindings := preload("hungry_bindings.gd")
 const HungryBot := preload("../hungry_bot.gd")
 const HungryCamera := preload("hungry_camera.gd")
@@ -445,6 +446,9 @@ func _wire_falls() -> void:
 ## The server's `sv_ragdoll*` set on a connected client: this end draws the falls.
 var ragdoll_rules: DotPlayerRagdollRules = DotPlayerRagdollRules.new()
 
+## The server's `hungry_ambient*` set on a connected client; offline the defaults.
+var ambient_rules: DotAmbienceRules = HungryAmbience.make_rules()
+
 
 ## Settings, audio, effects and the console, over the config and the bank this game has.
 func _build_presentation() -> void:
@@ -483,6 +487,12 @@ func _build_presentation() -> void:
 	presentation.config = settings if settings != null else HungryConfig.new()
 	add_child(presentation)
 	DotLog.result(CHANNEL, "the presentation layer", presentation.setup())
+	if link != null and not _offline:
+		var _ambient := ambient_rules.follow_cvars(link)
+	if presentation.ambient != null:
+		presentation.ambient.follow_settings(presentation.settings, ambient_rules)
+		if world != null and world.preset != null:
+			presentation.on_map(world.preset.id)
 
 	if settings == null:
 		settings = presentation.config
@@ -897,6 +907,8 @@ func _release_map_hold() -> void:
 	if not _map_held:
 		return
 	_map_held = false
+	if presentation != null and world != null and world.preset != null:
+		presentation.on_map(world.preset.id)
 	if platform != null and platform.gate != null and is_instance_valid(platform.gate):
 		platform.gate.release(REASON_MAP)
 
