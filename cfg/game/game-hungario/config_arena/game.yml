@@ -1,0 +1,20 @@
+# game-hungario: every key of this file at its code default, commented out. Uncomment a line to change it;
+# an operator overrides in cfg/server/game/game-hungario/config_arena/game.yml. Layers: defaults < this < env < argv.
+
+# --- Hand-bound cvars
+# Release NPC hunters into the arena. Off: a mode about eating and a mode about being hunted are different ga...
+# hunters_on: false
+# Rocks scattered into the arena at load. [0..64]
+# hazards_count: 0
+# A monster wedged in a refuge it outgrew: accept, cap (food stops counting) or eject (sheds the excess). Emp...
+# outgrown: ""
+# The warrens' corner rocks: open, or quartered (shut into a quarter past about 903 mass). Empty: the mode's....
+# warrens_corners: ""
+# Manifest URL for this server's rider content. Empty: whatever the client shipped with.
+# avatar_pack: ""
+# Path of the file holding this server's site integration token (never the token itself).
+# backbone_config: "user://cfg/auth.json"
+
+# --- Hunters
+# Multiplier on every hunter's speed. [0.1..5.0]
+# hunter_speed_scale: 1.0

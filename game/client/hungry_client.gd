@@ -505,7 +505,8 @@ func _add_workbench() -> void:
 	var wb := DotGameWorkbench.new()
 	wb.name = "Workbench"
 	wb.listen_host_fn = func() -> bool: return true
-	wb.add_set(HungryTuning.binder.profile_set(), "Server settings")
+	for set: DotProfileSet in HungryTuning.binder.profile_sets():
+		wb.add_set(set, "Server settings: %s" % set.rel_path.trim_prefix("config_"))
 	for id in HungryModes.IDS:
 		wb.add_set(HungryModes.binders[id].profile_set(), "Mode: %s" % id)
 	add_child(wb)

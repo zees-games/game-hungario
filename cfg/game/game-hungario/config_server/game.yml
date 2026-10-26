@@ -1,0 +1,8 @@
+# game-hungario: every key of this file at its code default, commented out. Uncomment a line to change it;
+# an operator overrides in cfg/server/game/game-hungario/config_server/game.yml. Layers: defaults < this < env < argv.
+
+# --- Server
+# Player slots. Read when the roster is built, so a change takes a restart. [1..128]
+# max_players: 32
+# The default for `bot_quota` (bots kept in fill mode). Read once at load. [0..64]
+# bot_fill: 6

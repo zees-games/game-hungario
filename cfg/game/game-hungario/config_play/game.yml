@@ -1,0 +1,26 @@
+# game-hungario: every key of this file at its code default, commented out. Uncomment a line to change it;
+# an operator overrides in cfg/server/game/game-hungario/config_play/game.yml. Layers: defaults < this < env < argv.
+
+# --- Fruit and throwables
+# Seconds a fruit's effect lasts. [0.5..120.0]
+# fruit_effect_sec: 8.0
+# Seconds a frosted monster is slowed. [0.5..60.0]
+# frost_sec: 5.0
+# Pepper damage at point blank, in dot-combat's units; the falloff and the minimum scale from it. [1.0..1000.0]
+# pepper_damage: 100.0
+# Crumbs a lure plants where it lands. [1..200]
+# lure_food_count: 26
+# Ticks between two throws. [0..600]
+# throw_cooldown_ticks: 24
+
+# --- Round
+# Seconds a dead player waits before respawning. [0.0..60.0]
+# respawn_delay_sec: 3.0
+# Seconds of protection after a spawn. [0.0..60.0]
+# spawn_protection_sec: 3.0
+# Whether a thrown pepper hurts everybody (true), or nobody on the thrower's team (false, once teams exist).
+# friendly_fire: true
+# Seconds the scoreboard shows between rounds. [0.0..120.0]
+# intermission_sec: 8.0
+# Seconds a finished match lasts before the next. [0.0..120.0]
+# match_end_sec: 12.0

@@ -41,7 +41,7 @@ const SERVER_DIR := "user://hungry_dedicated"
 ## prints it to say which game this is, and nothing treats it as proof.
 const APP_URL := "hungario"
 
-const CHECKS := 262
+const CHECKS := 263
 
 var _passed := 0
 var _failed := 0
@@ -445,6 +445,9 @@ func _test_module() -> void:
 		_check(_server.console.find_cvar(cvar) != null, "and its %s cvar" % cvar)
 
 	_check(module.workbench != null and module.workbench.api != null, "and the workbench over its config")
+	var amb: DotResult = module.workbench.api.handle(DotGameWorkbench.LOCAL_ACTOR, {"op": "set", "kind": "ambience", "id": DotGameWorkbench.CVAR_SET_ID, "key": "hungry_ambient_volume", "value": 0.2})
+	_check(amb.ok and is_equal_approx(_server.console.get_float("hungry_ambient_volume"), 0.2), "the hungry_ambient* cvars are a workbench set and an edit moves the cvar", "" if amb.ok else amb.error.message)
+	var _amb_back := _server.console.set_cvar("hungry_ambient_volume", "0.3")
 	var respawn := _server.console.find_cvar("hungry_respawn_delay_sec")
 	var _set := respawn.set_value("7")
 	_check(is_equal_approx(_world().match_node.rules.respawn_delay_sec, 7.0), "a config cvar changes the live match rules")

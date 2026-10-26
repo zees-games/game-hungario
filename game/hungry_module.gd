@@ -18,6 +18,8 @@ const HungryServices := preload("hungry_services.gd")
 const HungryTuning := preload("hungry_tuning.gd")
 const HungryModes := preload("hungry_modes.gd")
 const HungryWorld := preload("hungry_world.gd")
+## The workbench kind of the ambience cvar set (saved to cfg/.../ambience/server.yml).
+const AMBIENT_KIND := "ambience"
 
 ## Binds a [HungryWorld] and its netcode to a [DotServer].
 ##
@@ -2220,7 +2222,13 @@ func _start_workbench() -> void:
 	workbench.listen_host_fn = func() -> bool: return DisplayServer.get_name() != "headless"
 	workbench.permit_fn = func(actor: Variant, flag: String) -> bool:
 		return admin_permit.is_valid() and actor is String and bool(admin_permit.call(actor, flag))
-	workbench.add_set(HungryTuning.binder.profile_set(), "Server settings")
+	for set: DotProfileSet in HungryTuning.binder.profile_sets():
+		workbench.add_set(set, "Server settings: %s" % set.rel_path.trim_prefix("config_"))
+	var ambient_set: DotProfileSet = null
+	if server != null and server.console != null:
+		ambient_set = DotGameWorkbench.cvar_set(server.console, HungryAmbience.cvar_types(), AMBIENT_KIND)
+	if ambient_set != null:
+		workbench.add_set(ambient_set, "Ambience (hungry_ambient*)")
 	for id in HungryModes.IDS:
 		workbench.add_set(HungryModes.binders[id].profile_set(), "Mode: %s" % id)
 	add_child(workbench)
@@ -2229,6 +2237,8 @@ func _start_workbench() -> void:
 		DotLog.result(CHANNEL, "the workbench", started)
 		return
 	HungryTuning.binder.attach(rt)
+	if ambient_set != null:
+		var _applied := DotGameWorkbench.bind_cvar_set(ambient_set, rt, server.console)
 	for id in HungryModes.IDS:
 		HungryModes.binders[id].attach(rt)
 	add_command("workbench", func(ctx: DotCmdContext) -> void: ctx.reply_lines(_workbench_lines()),

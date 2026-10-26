@@ -1,9 +1,25 @@
 @tool
 extends DotConfig
 
-## The server's tunables, which only the server decides: reachable as `hungry_<field>` cvars, `cfg/game/game-hungario/config/game.yml`, and the workbench (see [HungryTuning]).
+## The server's tunables, which only the server decides: reachable as `hungry_<field>` cvars, `cfg/game/game-hungario/config_arena|play|server/game.yml`, and the workbench (see [HungryTuning]).
 ##
 ## Not here, on purpose: anything a client predicts with (the rush and frost speed multipliers, split and eject cooldowns, a mode's top speed and merge delay). A client builds those from its own code, so a server that changed them would rubber-band every player.
+
+## `@export_group` -> the cfg file it lives in: `cfg/game/game-hungario/config_<file>/game.yml`.
+const CFG_FILES := {
+	"Hand-bound cvars": "arena", "Hunters": "arena",
+	"Fruit and throwables": "play", "Round": "play",
+	"Server": "server",
+}
+
+
+## The binder every entry point uses: [param config] layered, one cfg file per [constant CFG_FILES] entry.
+static func make_binder(config: DotConfig, json_path := "") -> DotGameConfigBinder:
+	var b := DotGameConfigBinder.create(config, "game-hungario", "hungry", json_path)
+	b.grouped = true
+	b.group_files = CFG_FILES
+	return b
+
 
 @export_group("Hand-bound cvars")
 

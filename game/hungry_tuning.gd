@@ -23,7 +23,7 @@ static func load_all() -> void:
 	if _result != null:
 		return
 	server = HungryServerConfig.new()
-	binder = DotGameConfigBinder.create(server, GAME_ID, "hungry")
+	binder = HungryServerConfig.make_binder(server)
 	_result = binder.load_layers()
 
 
