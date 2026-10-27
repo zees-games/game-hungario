@@ -4,8 +4,8 @@ extends RefCounted
 
 const PREFIX := "hungry"
 ## The cues are the game: the layer sits under them, with rare one-shots.
-const LEVEL := 0.3
-const RATE := 0.5
+const LEVEL := 0.15
+const RATE := 0.4
 const DEFAULT_MOOD := &"outdoor_night"
 
 ## By preset id prefix (the map id the client reports is the preset id).
