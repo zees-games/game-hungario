@@ -1,4 +1,4 @@
-extends Node
+extends DotGameCheckSuite
 
 const HungryMapConfig := preload("../game/hungry_map_config.gd")
 
@@ -10,10 +10,6 @@ const HungryMapConfig := preload("../game/hungry_map_config.gd")
 ## [/codeblock]
 
 const CHECKS := 8
-
-var _passed := 0
-var _failed := 0
-var _failures := PackedStringArray()
 
 
 func _ready() -> void:
@@ -54,28 +50,10 @@ func _run() -> void:
 	_check(cfg.applied().is_empty(), "a mode without a file applies nothing")
 
 	DirAccess.remove_absolute(dir.path_join("warrens.yml"))
-	print("")
-	print("%d passed, %d failed" % [_passed, _failed])
-	for line in _failures:
-		print("  FAIL  %s" % line)
-	if _passed + _failed != CHECKS:
-		print("ERROR: %d checks ran, %d expected." % [_passed + _failed, CHECKS])
-		get_tree().quit(1)
-		return
-	get_tree().quit(1 if _failed > 0 else 0)
+	_report(CHECKS)
 
 
 func _write(path: String, text: String) -> void:
 	var f := FileAccess.open(path, FileAccess.WRITE)
 	f.store_string(text)
 	f.close()
-
-
-func _check(ok: bool, what: String) -> void:
-	if ok:
-		_passed += 1
-		print("  ok    %s" % what)
-	else:
-		_failed += 1
-		_failures.append(what)
-		print("  FAIL  %s" % what)
