@@ -1,0 +1,25 @@
+# frame-hazards
+# Baselines only shrink: scripts/<gate> --update lowers or drops entries and refuses to add.
+examples/headless_presentation.gd::_answer::duplicate	1
+examples/headless_presentation.gd::_answer::string_build	2
+examples/headless_presentation.gd::_process::duplicate	1
+examples/headless_presentation.gd::_process::string_build	3
+game/client/hungry_client.gd::_tick_offline::alloc_dict	1
+game/client/hungry_hud.gd::_board_row_height::node_lookup	1
+game/client/hungry_hud.gd::_name_of::string_build	1
+game/client/hungry_hud.gd::_refresh_carry::string_build	1
+game/client/hungry_hud.gd::_refresh_mass::string_build	1
+game/client/hungry_hud.gd::_refresh_status::string_build	1
+game/client/hungry_hud.gd::refresh_leaderboard::alloc_array	1
+game/client/hungry_renderer.gd::present_beacons::alloc_dict	1
+game/hungry_module.gd::_drive_bots::alloc_array	1
+tools/screenshot_cover.gd::_process::string_build	1
+tools/screenshot_cover.gd::_save::string_build	1
+tools/screenshot_map.gd::_fx::find_children	1
+tools/screenshot_map.gd::_fx::string_build	1
+tools/screenshot_map.gd::_overlaps::string_build	2
+tools/screenshot_map.gd::_process::string_build	3
+tools/screenshot_menus.gd::_process::alloc_array	1
+tools/screenshot_menus.gd::_process::string_build	3
+tools/screenshot_workbench.gd::_process::node_lookup	1
+tools/screenshot_workbench.gd::_process::string_build	1
