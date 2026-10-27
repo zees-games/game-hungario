@@ -79,6 +79,10 @@ const BOARD_INTERVAL_SEC := 0.5
 var world: HungryWorld = null
 var net: DotNetManager = null
 var bridge: HungryNetBridge = null
+## Asks a server whether this player may edit it (sv_workbench_remote); null offline.
+var workbench_remote: DotGameWorkbenchRemoteClient = null
+## The tuning panel's host: F9 solo, the admin's remote panel on a server that allows it.
+var workbench: DotGameWorkbench = null
 var renderer: HungryRenderer = null
 var camera: HungryCamera = null
 var sampler: HungryInput = null
@@ -190,15 +194,22 @@ func _ready() -> void:
 	if _offline:
 		_start_offline()
 	elif link.has_method("is_playing") and bool(link.call("is_playing")):
-		bridge.ask_for_world()
+		_ask_world()
 	elif link.has_signal("spawned"):
 		# The scene can legitimately exist before the signon finishes — a host that
 		# instantiates it up front, an editor run — and asking a server that has not
 		# admitted this peer yet is a request it will drop. Waiting for `spawned` is the
 		# same wait [DotClientLink] already does.
-		link.connect("spawned", bridge.ask_for_world, CONNECT_ONE_SHOT)
+		link.connect("spawned", _ask_world, CONNECT_ONE_SHOT)
 	else:
-		bridge.ask_for_world()
+		_ask_world()
+
+
+## Asks for the world and, online, whether this player may edit the server (sv_workbench_remote).
+func _ask_world() -> void:
+	if workbench_remote != null:
+		workbench_remote.ask()
+	bridge.ask_for_world()
 
 
 ## The subscribed maps this solo client lists and plays; null online.
@@ -255,6 +266,7 @@ func _build() -> DotResult:
 
 		if not netted.ok:
 			return netted
+		_start_remote_workbench()
 
 	_build_client_services()
 	_build_view()
@@ -301,6 +313,8 @@ func _build_netcode() -> DotResult:
 	if not attached.ok:
 		return attached
 
+	# The server's order again (after the bridge): the remote workbench's frame.
+	workbench_remote = DotGameWorkbenchRemoteClient.attach(net)
 	net.messages.seal()
 
 	bridge.hello_received.connect(_on_hello)
@@ -517,6 +531,32 @@ func _add_workbench() -> void:
 		HungryTuning.binder.attach(rt)
 		for id in HungryModes.IDS:
 			HungryModes.binders[id].attach(rt)
+	workbench = wb
+	platform.add_workbench(wb)
+
+
+## Online: no local trust and no panel until the server names this player an admin. The rows are the server's, through the bridge's profile link.
+func _start_remote_workbench() -> void:
+	if workbench_remote == null:
+		return
+	HungryTuning.load_all()
+	HungryModes.load_all()
+	var wb := DotGameWorkbench.new()
+	wb.name = "Workbench"
+	wb.remote_client = workbench_remote
+	wb.remote_fn = func() -> bool: return true
+	wb.config = {"enabled": false}
+	for set: DotProfileSet in HungryTuning.binder.profile_sets():
+		wb.add_set(set, "Server settings: %s" % set.rel_path.trim_prefix("config_"))
+	for id in HungryModes.IDS:
+		wb.add_set(HungryModes.binders[id].profile_set(), "Mode: %s" % id)
+	add_child(wb)
+	var started := wb.start(bridge.ensure_runtime())
+	DotLog.result(CHANNEL, "the remote workbench", started)
+	if not started.ok:
+		wb.queue_free()
+		return
+	workbench = wb
 	platform.add_workbench(wb)
 
 

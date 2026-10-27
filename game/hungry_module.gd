@@ -792,6 +792,10 @@ func _build_netcode() -> DotResult:
 	# The same line DotGameNetcode.refuse_peer is for games built on dot-game.
 	net.peer_schema_refused.connect(_refuse_peer)
 
+	# After the bridge, before the seal: the remote workbench's frame (the client attaches it in the same order).
+	var remote_made := DotGameWorkbenchRemote.serve(net)
+	DotLog.result(CHANNEL, "the remote workbench frame", remote_made)
+
 	var started := net.start()
 
 	if not started.ok:
@@ -2209,7 +2213,7 @@ func _on_tuning_changed(key: String, _value: Variant, _source: String) -> void:
 
 ## dot-workbench over the server config and the six modes: the HTTP page only with `workbench.enabled` in cfg/server.yml, the F9 panel never on a dedicated server.
 func _start_workbench() -> void:
-	var rt := DotProfileRuntime.new()
+	var rt: DotProfileRuntime = bridge.ensure_runtime() if bridge != null else DotProfileRuntime.new()
 	var admin_permit := Callable()
 	if server != null and server.admins != null:
 		admin_permit = server.admins.uid_has_permission
@@ -2236,6 +2240,9 @@ func _start_workbench() -> void:
 	if not started.ok:
 		DotLog.result(CHANNEL, "the workbench", started)
 		return
+	# Off until the owner sets sv_workbench_remote 1; then flagged admins edit from a client.
+	if net != null:
+		var _served := workbench.serve_remote(net)
 	HungryTuning.binder.attach(rt)
 	if ambient_set != null:
 		var _applied := DotGameWorkbench.bind_cvar_set(ambient_set, rt, server.console)

@@ -207,6 +207,27 @@ var _field_dirty: bool = false
 
 # --- Wiring ----------------------------------------------------------------
 
+## Carries the workbench's profile runtime over this manager (rows down, for a remote admin's panel).
+var profile_link: DotNetProfileLink = null
+## The workbench's rows, made on first ask: the link must exist before the netcode seals, the workbench after.
+var profile_runtime: DotProfileRuntime = null
+
+
+func ensure_runtime() -> DotProfileRuntime:
+	if profile_runtime == null:
+		profile_runtime = DotProfileRuntime.new()
+		profile_runtime.permit = func(actor: Variant, _flag: String) -> bool:
+			return typeof(actor) == TYPE_STRING_NAME and actor == &"local"
+	return profile_runtime
+
+
+func _exit_tree() -> void:
+	# The link and the runtime hold each other through broadcast.
+	if profile_link != null:
+		profile_link.release()
+		profile_link = null
+
+
 ## Binds a world and a manager to each other and puts the link where RPCs will find it.
 ##
 ## [param link_parent] is [DotServer] on a server and [DotClientLink] on a client, and
@@ -261,6 +282,7 @@ func attach(
 	# exact rather than a heuristic, and it is why neither message type may ever be
 	# declared unreliable.
 	net.send_fn = _send
+	profile_link = DotNetProfileLink.attach(net, ensure_runtime())
 
 	var registered := _register_messages()
 
@@ -561,6 +583,9 @@ func _admit(peer_id: int, player_id: int) -> void:
 
 	if not net.peers().has(peer_id):
 		net.add_peer(peer_id)
+
+	if profile_link != null:
+		profile_link.peer_joined(peer_id)
 
 	_send_hello(peer_id, player_id)
 	_send_roster(peer_id)
