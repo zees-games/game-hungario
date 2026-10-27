@@ -353,6 +353,7 @@ func _build_audio() -> DotResult:
 	ambient.default_mood = HungryAmbience.DEFAULT_MOOD
 	ambient.prefix_moods = HungryAmbience.PREFIX_MOODS
 	ambient.rules = HungryAmbience.make_rules()
+	ambient.beds = ambience
 	add_child(ambient)
 	var _moods := ambient.setup()
 	if not ambient.has_moods():
