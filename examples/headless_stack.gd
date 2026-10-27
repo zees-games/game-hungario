@@ -1,4 +1,4 @@
-extends Node
+extends DotGameCheckSuite
 
 const HungryContent := preload("../game/hungry_content.gd")
 const HungryPlayerStack := preload("../game/hungry_player_stack.gd")
@@ -30,8 +30,6 @@ const TICK_RATE := 60
 const CHECKS := 24
 const SECTIONS := 4
 
-var _passed := 0
-var _failed := 0
 var _section_count := 0
 
 var _world: HungryWorld = null
@@ -56,21 +54,8 @@ func _run() -> void:
 	_test_spawn_director()
 
 	print("")
-	print("%d sections, %d passed, %d failed" % [_section_count, _passed, _failed])
-
-	if _section_count != SECTIONS:
-		print("ERROR: %d of %d sections ran." % [_section_count, SECTIONS])
-		get_tree().quit(1)
-		return
-
-	if _passed + _failed != CHECKS:
-		print("ERROR: %d checks ran, %d expected. A section aborted part-way." % [
-			_passed + _failed, CHECKS
-		])
-		get_tree().quit(1)
-		return
-
-	get_tree().quit(1 if _failed > 0 else 0)
+	print("%d sections" % _section_count)
+	_report_sections(_section_count, _section_count, SECTIONS, CHECKS)
 
 
 func _build() -> bool:
@@ -247,12 +232,3 @@ func _section(title: String) -> void:
 	_section_count += 1
 	print("")
 	print("-- %s" % title)
-
-
-func _check(condition: bool, what: String) -> void:
-	if condition:
-		_passed += 1
-		print("   ok   %s" % what)
-	else:
-		_failed += 1
-		print("  FAIL  %s" % what)

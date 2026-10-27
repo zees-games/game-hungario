@@ -1,4 +1,4 @@
-extends Node
+extends DotGameCheckSuite
 
 const HungryContent := preload("../game/hungry_content.gd")
 const HungryContentSource := preload("../game/client/hungry_content_source.gd")
@@ -28,10 +28,6 @@ const VERSION := "1.0.0"
 
 ## Every check this suite runs. See the guard at the end of [method _run].
 const CHECKS := 46
-
-var _passed := 0
-var _failed := 0
-var _failures := PackedStringArray()
 
 var _client: DotCloudClient = null
 var _keys: Dictionary = {}
@@ -72,23 +68,7 @@ func _run() -> void:
 		"a section that aborted stops adding checks and the total cannot show it"
 	)
 
-	print("")
-	print("%d passed, %d failed" % [_passed, _failed])
-
-	for line in _failures:
-		print("  FAIL  %s" % line)
-
-	# The total the section counter cannot be. A runtime error inside a section aborts
-	# that function, and the counter is satisfied because the section had already
-	# announced itself. See docs/testing.md.
-	if _passed + _failed != CHECKS:
-		print("ERROR: %d checks ran, %d expected. A section aborted part-way." % [
-			_passed + _failed, CHECKS
-		])
-		get_tree().quit(1)
-		return
-
-	get_tree().quit(1 if _failed > 0 else 0)
+	_report(CHECKS)
 
 
 ## Sections entered, and sections that ran to their last line.
@@ -111,17 +91,6 @@ func _section(title: String) -> void:
 
 func _done() -> void:
 	_completed += 1
-
-
-func _check(condition: bool, what: String, detail: String = "") -> bool:
-	if condition:
-		_passed += 1
-		print("  ok    %s" % what)
-	else:
-		_failed += 1
-		_failures.append(what if detail == "" else "%s - %s" % [what, detail])
-		print("  FAIL  %s%s" % [what, "" if detail == "" else "  (%s)" % detail])
-	return condition
 
 
 func _teardown() -> void:

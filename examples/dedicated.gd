@@ -1,4 +1,4 @@
-extends Node
+extends DotGameCheckSuite
 
 const HungryBrowser := preload("../game/client/hungry_browser.gd")
 const HungryContent := preload("../game/hungry_content.gd")
@@ -42,10 +42,6 @@ const SERVER_DIR := "user://hungry_dedicated"
 const APP_URL := "hungario"
 
 const CHECKS := 263
-
-var _passed := 0
-var _failed := 0
-var _failures := PackedStringArray()
 
 var _server: DotServer = null
 
@@ -128,28 +124,7 @@ func _run() -> void:
 		"a section that aborted stops adding checks and the total cannot show it"
 	)
 
-	print("")
-	print("%d passed, %d failed" % [_passed, _failed])
-
-	for line in _failures:
-		print("  FAIL  %s" % line)
-
-	# The total the section counter cannot be. A runtime error inside a section aborts
-	# that function, and the counter is satisfied because the section had already
-	# announced itself. See docs/testing.md. This suite had only the counter until
-	# 2026-09-24.
-	#
-	# The copy of this suite that the exit probe runs does not run the probe itself.
-	var checks := CHECKS - (EXIT_PROBE_CHECKS if _is_exit_probe() else 0)
-
-	if _passed + _failed != checks:
-		print("ERROR: %d checks ran, %d expected. A section aborted part-way." % [
-			_passed + _failed, checks
-		])
-		get_tree().quit(1)
-		return
-
-	get_tree().quit(1 if _failed > 0 else 0)
+	_report(CHECKS - (EXIT_PROBE_CHECKS if _is_exit_probe() else 0))
 
 
 ## Sections entered, and sections that ran to their last line.
@@ -267,17 +242,6 @@ func _section(title: String) -> void:
 
 func _done() -> void:
 	_completed += 1
-
-
-func _check(condition: bool, what: String, detail: String = "") -> bool:
-	if condition:
-		_passed += 1
-		print("  ok    %s" % what)
-	else:
-		_failed += 1
-		_failures.append(what if detail == "" else "%s — %s" % [what, detail])
-		print("  FAIL  %s%s" % [what, "" if detail == "" else "  (%s)" % detail])
-	return condition
 
 
 ## Waits for a condition, or gives up. Returns whether it happened.
