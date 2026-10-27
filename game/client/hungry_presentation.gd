@@ -328,7 +328,7 @@ func _build_audio() -> DotResult:
 		return res.wrap("hungario's audio")
 
 	var beds := DotAudioCatalogue.new()
-	DotAudioStock.add_to(beds)
+	DotAudioStock.add_to(beds, false)
 	bed_audio = DotAudioManager.new()
 	bed_audio.name = "BedAudio"
 	bed_audio.catalogue = beds
