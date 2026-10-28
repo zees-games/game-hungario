@@ -13,6 +13,19 @@ const PREFIX_MOODS := {
 	"warrens": &"cave_tunnel", "gauntlet": &"industrial", "reef": &"swamp", "shallows": &"swamp",
 }
 
+## The bed's `{level, lively}` per preset id, the shape a map document's `ambient` has; the client's director reads it through `map_lookup`.
+const LEVELS := {
+	&"warrens": {"level": 0.8, "lively": false}, &"gauntlet": {"level": 1.2, "lively": true},
+	&"reef": {"level": 1.0, "lively": true}, &"shallows": {"level": 0.9, "lively": true},
+}
+
+
+## The map-like record the director's lookup wants for a preset id, or null.
+static func map_for(id: StringName) -> Variant:
+	if LEVELS.has(id):
+		return {"meta": {"ambient": LEVELS[id]}}
+	return null
+
 
 static func make_rules() -> DotAmbienceRules:
 	var r := DotAmbienceRules.new()

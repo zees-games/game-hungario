@@ -35,7 +35,7 @@ const HungryPiece := preload("../game/hungry_piece.gd")
 ##
 ## Exits non-zero on any failure.
 
-const CHECKS := 147
+const CHECKS := 150
 
 var _entered := 0
 var _completed := 0
@@ -62,6 +62,7 @@ func _run() -> void:
 	_test_sound_is_still_the_bank()
 	_test_limits_the_bank_never_had()
 	_test_effects()
+	_test_ambient_reaches_the_bed()
 	_test_a_fall()
 	_test_console()
 	_test_console_stops_the_keys()
@@ -284,6 +285,18 @@ func _test_limits_the_bank_never_had() -> void:
 
 
 # --- 4 ----------------------------------------------------------------------
+
+func _test_ambient_reaches_the_bed() -> void:
+	_section("A map's ambient reaches the bed")
+	var p := _make()
+	_check(p.ambient != null and p.ambience != null and p.ambient.has_moods(), "the presentation has an ambience director with moods")
+	if p.ambient != null and p.ambience != null:
+		p.on_map(&"gauntlet")
+		_check(is_equal_approx(p.ambience._gain(), p.ambience.level * 1.2), "on_map(gauntlet) alone reaches the bed with its ambient level (%s)" % str(p.ambience._gain()))
+		p.on_map(&"frenzy")
+		_check(is_equal_approx(p.ambience._gain(), p.ambience.level), "and a preset without one is back at the default")
+	_done()
+
 
 func _test_effects() -> void:
 	_section("Only your own burst shakes your camera")
