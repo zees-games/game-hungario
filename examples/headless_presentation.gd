@@ -35,7 +35,7 @@ const HungryPiece := preload("../game/hungry_piece.gd")
 ##
 ## Exits non-zero on any failure.
 
-const CHECKS := 150
+const CHECKS := 155
 
 var _entered := 0
 var _completed := 0
@@ -73,6 +73,7 @@ func _run() -> void:
 	_test_blind_and_beacon()
 	_test_board_makes_room()
 	_test_help()
+	await _test_cover()
 	_test_migration()
 	# Last, on purpose: built after every other section has left worlds in the tree, which
 	# is what crashed the engine when the new client's match collected their spawn points.
@@ -725,6 +726,29 @@ func _test_party_over_http() -> void:
 	ada.leave()
 	for node: Node in [ada, bob, carol, stub]:
 		node.queue_free()
+	_done()
+
+
+## The loading cover names the game and gives a tip in words, not a key.
+func _test_cover() -> void:
+	_section("The loading cover carries the title and a tip")
+	var holder := Node.new()
+	add_child(holder)
+	var client: HungryClient = (load("res://game/client/hungry_client.tscn") as PackedScene).instantiate()
+	client.force_offline = true
+	client.offline_bots = 0
+	holder.add_child(client)
+	await get_tree().process_frame
+	var cover := client.platform.cover as HungryCover
+	_check(cover != null, "the platform's cover is the game's own")
+	if cover != null:
+		cover.set_status("Joining")
+		_check(cover.title() == "Hungario", "titled Hungario", cover.title())
+		_check(cover.tip().split(" ").size() >= 4 and not cover.tip().contains("_"),
+			"the tip is a sentence, not a raw key", cover.tip())
+		_check(cover.status() == "Joining", "the status line still reaches the label")
+		_check(cover.describe().has("showing"), "and the stock description holds")
+	holder.queue_free()
 	_done()
 
 

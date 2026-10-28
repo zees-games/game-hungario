@@ -170,6 +170,7 @@ func _ready() -> void:
 	platform.scoreboard_action = HungryBindings.SCOREBOARD
 	platform.spawned_text = "Joining"
 	platform.spawned_fn = _local_monster_exists
+	platform.cover = HungryCover.new()
 	add_child(platform)
 	link = platform.link
 	_offline = platform.offline
