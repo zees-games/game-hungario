@@ -9,11 +9,8 @@ func _physics_process(_delta: float) -> void:
 	_drive_bots()
 	bridge.server_tick(_tick)
 
-	# [b]After the world's own tick, and this is the ordering that matters.[/b] The hunters
-	# read where everybody is and the hazards push pieces out of rocks, and both have to
-	# happen on positions the movement has just produced — a list built before the tick is
-	# a list of where everybody WAS, which is the one-tick lag this family has now
-	# documented three times.
+		# After the world's own tick: hunters read where everybody is and hazards push pieces out of rocks,
+		# both on positions the movement just produced, or they see a one-tick lag.
 	if hunters != null and hunters.is_enabled():
 		hunters.tick(1.0 / float(world.tick_rate))
 
@@ -25,12 +22,8 @@ func _physics_process(_delta: float) -> void:
 
 
 ## A client finished joining.
-##
-## [b]The event carries `userid`, not `peer_id`.[/b] Looking a session up by a peer id
-## that is not in the payload returns null every time, so the handler returns early,
-## every time, and nobody is ever added to the world — with no error, because a null
-## session is a legitimate thing to find. game-blob's module has the same line and has
-## never connected a client, so it has never run.
+## The event carries `userid`, not `peer_id`: a lookup by a peer id absent from the payload returns
+## null silently, and nobody is ever added to the world.
 func _on_client_spawn(event: DotEvent) -> void:
 	var session := server.session_by_userid(event.get_int("userid"))
 
@@ -65,11 +58,8 @@ func _on_client_spawn(event: DotEvent) -> void:
 	if progress != null:
 		progress.begin(str(_stat_keys.get(session.userid, "")))
 
-	# The welcome is NOT sent from here. `client_spawn` is the end of signon, and the
-	# client builds its scene only after it — so at this point the peer is never ready,
-	# `_welcome` returned on its first line for every player there has ever been, and
-	# nobody was handed the backlog, the hunters or the hazards, and nobody was announced.
-	# See [method _on_peer_admitted].
+		# The welcome is not sent from here: `client_spawn` ends signon but the client builds its scene
+		# after it, so the peer is never ready yet. See [method _on_peer_admitted].
 
 ## A peer said it can receive: now it can be welcomed.
 func _on_peer_admitted(peer_id: int, player_id: int) -> void:
@@ -81,11 +71,8 @@ func _on_peer_admitted(peer_id: int, player_id: int) -> void:
 	_welcome(session)
 
 ## What somebody is told once they are in: the backlog, and what is already in the arena.
-##
-## [b]After the admission, never before it.[/b] Nothing may be sent to a peer before it has
-## said it can receive — dot-server's signon finishes and *then* the client builds its
-## scene, and everything sent in between lands on a node that does not exist and is lost,
-## one "Node not found" per call.
+## After the admission, never before: sent before the client builds its scene it is lost, one
+## "Node not found" per call.
 func _welcome(session: DotClientSession) -> void:
 	if not bridge.peer_is_ready(session.peer_id):
 		return
@@ -116,10 +103,8 @@ func _on_client_disconnected(session: DotClientSession, _reason: String) -> void
 	if not _joined.has(session.userid):
 		return
 
-	# [b]Off the broadcast set first.[/b] Everything below announces something about this
-	# person to everybody ELSE, and their socket has already gone — the "Attempt to call
-	# RPC with unknown peer ID" that ends up in the log of every single disconnect, which
-	# is where somebody looks when something else is wrong.
+		# Off the broadcast set first: everything below announces this person to everybody else, and their
+		# socket is gone ("Attempt to call RPC with unknown peer ID" in every disconnect log).
 	bridge.mark_not_ready(session.peer_id)
 
 	if services != null:
@@ -148,11 +133,8 @@ func _player_of_session(session: DotClientSession) -> int:
 
 
 ## Somebody said something through dot-server's own chat path.
-##
-## Taken and cancelled, not watched: this game's rules are [DotChatRouter]'s now, and
-## cancelling is what makes there be exactly one path. The line still reaches every player,
-## through a router that has already sanitised it, checked the gag and worked out who can
-## hear it.
+## Taken and cancelled, not watched: [DotChatRouter] owns this game's rules, so cancelling keeps one
+## path, and the line still reaches every player after sanitising, the gag check and hearing range.
 func _on_player_chat(event: DotEvent) -> void:
 	event.cancel("routed by the game's chat", _module_name())
 
@@ -190,11 +172,8 @@ func _on_chat_accepted(message: DotChatMessage, _recipients: PackedInt32Array) -
 		_last_spoke = message.sender_name
 
 ## An unclaimed `!command` from chat.
-##
-## Routed into dot-server's own console with the player's permissions rather than given a
-## second command table here: dot-server already decides what a session may run, logs it to
-## the audit log and answers it, and a game that reimplemented that would be a game whose
-## chat commands were not audited.
+## Routed into dot-server's console with the player's permissions, not a second command table, so
+## it is permission-checked and audited.
 func _on_chat_command(peer_id: int, command: String, args: PackedStringArray) -> void:
 	var session := server.session_of(peer_id)
 
@@ -222,11 +201,9 @@ func _on_chat_command(peer_id: int, command: String, args: PackedStringArray) ->
 
 	server.console.execute(line, ctx)
 
-## `rtv`, `nominate <id>`, `vote <n>`, `extend` — from this game's own wire.
-##
-## [b]A token, resolved here rather than an enum on the wire.[/b] What can be voted for is
-## a [DotVoteSource]'s business, which is what lets one engine drive dot-server's games and
-## dot-map's maps without this file naming either.
+## `rtv`, `nominate <id>`, `vote <n>`, `extend` from this game's own wire.
+## A token resolved here, not an enum on the wire: what can be voted for is a [DotVoteSource]'s
+## business, so one engine drives games and maps.
 func _on_vote_requested(peer_id: int, token: String) -> void:
 	if maps == null or maps.director == null:
 		return
@@ -341,18 +318,14 @@ func _on_earned(player_key: String, id: StringName, title: String, points: int) 
 		return
 
 
-## The game id a preset is played under, which is what dot-server, the vote and the rotation
-## call a mode. The preset id alone ("classic") is not one: handed to the vote, the running
-## mode was never recognised, so it was offered against itself and its play history and
-## time limit were never found.
+## The game id a preset is played under, which dot-server, the vote and the rotation call a mode.
+## The preset id alone ("classic") is not one: the vote would not recognise the running mode.
 static func game_id_of(preset_id: StringName) -> StringName:
 	return StringName("hungry_%s" % preset_id)
 
 ## The modes, so `changegame` and a vote have something to change to.
-##
-## Both ship inside the build, so [member DotGameDescriptor.manifest_url] is empty and no
-## client has to download anything to follow a change. A game whose content lives on a CDN
-## sets that instead, and dot-server's sync step then does the waiting.
+## Both ship inside the build, so [member DotGameDescriptor.manifest_url] is empty; a game whose
+## content lives on a CDN sets it instead.
 static func game_descriptors() -> Array[DotGameDescriptor]:
 	var out: Array[DotGameDescriptor] = []
 
@@ -368,13 +341,9 @@ static func game_descriptors() -> Array[DotGameDescriptor]:
 		descriptor.game_id = String(row[0])
 		descriptor.display_name = String(row[1])
 		descriptor.scene = String(row[2])
-		# Deliberately empty. [DotClientLink] refuses an absolute scene path that is not
-		# already inside dot-cloud's mount prefix, because a server that could name one
-		# could ask every client to load any scene in their build — and this game ships
-		# inside the build rather than as downloadable content, so there is no mount for
-		# it to be inside. The client owns its own scene ([HungryClient]) and the signon
-		# takes the no-scene path, which is the shape every game shipped with its server
-		# has. A game delivered through dot-cloud sets a *relative* path here instead.
+				# Deliberately empty: [DotClientLink] refuses an absolute scene path outside dot-cloud's mount
+				# prefix, and this game ships inside the build, so the client owns its scene ([HungryClient]).
+				# A game delivered through dot-cloud sets a relative path here.
 		descriptor.client_scene = ""
 		descriptor.min_players = 0
 		out.append(descriptor)
@@ -382,12 +351,8 @@ static func game_descriptors() -> Array[DotGameDescriptor]:
 	return out
 
 ## Registers both modes, unless the host already did.
-##
-## A host that wants one of these to be [member DotGameManager.initial_game] has to add
-## them [i]before[/i] the server boots, because the initial game is loaded during the
-## game manager's setup and this module cannot load until there is a world to bind to.
-## [method game_descriptors] is the same list for that case, which is why the registration
-## here is idempotent rather than an error.
+## A host wanting one as [member DotGameManager.initial_game] adds them before the server boots, so
+## registration here is idempotent; [method game_descriptors] is the same list for that case.
 func _register_games() -> void:
 	if server.games == null:
 		return

@@ -106,9 +106,8 @@ func _register_tuning() -> void:
 		DotConVar.FLAG_ARCHIVE | DotConVar.FLAG_NOTIFY
 	)
 
-	# The server config is every one of these as a `hungry_<field>` cvar; the six that used to
-	# be written by hand here (hunters_on ... backbone_config) are bound by the same call, so a
-	# yml key, a workbench edit and a console `set` are one value.
+		# Every server config field is a `hungry_<field>` cvar bound by the same call, so a yml key, a
+		# workbench edit and a console `set` are one value.
 	_bind_tuning()
 	_cv_hunters = HungryTuning.binder.cvar_for("hunters_on")
 	_cv_hunters.changed.connect(func(_old: String, value: String) -> void:
@@ -130,10 +129,8 @@ func _register_tuning() -> void:
 	outgrown.changed.connect(apply_outgrown)
 	apply_outgrown.call("", outgrown.get_string())
 
-	# `hungry_warrens_corners` is read by the world when it builds its layout, so it applies
-	# from the next mode change: rocks do not move under a live round.
-	# Registered whether or not hunters are on, so a config that sets them does not
-	# depend on the order it turns things on in.
+		# `hungry_warrens_corners` applies from the next mode change (rocks do not move under a live round);
+		# registered whether or not hunters are on, so config order does not matter.
 	npc_skill.bind_cvars(add_cvar, DotConVar.FLAG_NOTIFY)
 
 	# Where this server's rider cosmetics live. Empty means "whatever the client shipped
@@ -231,10 +228,8 @@ func _cmd_mute(ctx: DotCmdContext) -> void:
 	await _punish(ctx, DotPunishment.Kind.VOICE_MUTE, "muted")
 
 ## The shared half of gag and mute.
-##
-## One function because the only difference is a kind: dot-moderation already models both
-## as one record with an expiry, a scope and a revocation, and writing them separately
-## would be two chances to forget the duration parsing or the immunity.
+## One function because dot-moderation models both as one record, and two copies would each need the
+## duration parsing and the immunity.
 func _punish(ctx: DotCmdContext, kind: DotPunishment.Kind, verb: String) -> void:
 	if ctx.args.size() < 2:
 		ctx.reply("Usage: %s <who> <seconds, 0 for permanent> [reason]" % ctx.command)
@@ -365,11 +360,8 @@ func _cmd_burst(ctx: DotCmdContext) -> void:
 	var made := world.burst(monster, 0)
 	ctx.reply("Burst %s into %d more pieces." % [monster.display_name, made])
 
-## Resolves a console argument to a monster: a session, or a bot by name.
-##
-## Sessions go through [method DotServer.resolve_target] so that the usual `#userid`,
-## partial-name and `@all` forms work; bots have no session, so they are matched by name
-## afterwards rather than being invisible to every command.
+## Resolves a console argument to a monster: a session (through [method DotServer.resolve_target], so
+## `#userid`, partial names and `@all` work) or a bot by name.
 func _target(ctx: DotCmdContext, needle: String) -> HungryMonster:
 	var sessions := server.find_sessions(needle)
 

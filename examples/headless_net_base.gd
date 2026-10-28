@@ -36,19 +36,9 @@ const HungryWorld := preload("../game/hungry_world.gd")
 
 const HungryRequest := preload("../game/net/hungry_request.gd")
 
-## Runs a server and a client in one process and checks the netcode works.
-##
-## [codeblock]
-## godot --headless --path . res://examples/headless_net.tscn
-## [/codeblock]
-##
-## Exits non-zero on any failure.
-##
-## [b]Everything here is offline and reproducible.[/b] The two halves are wired to each
-## other through a loopback that can delay and drop packets, which is the only way to test
-## interpolation, loss recovery and reconciliation at all — a real socket does not
-## reproduce the same conditions twice. The socket itself is what
-## [code]examples/sandbox.tscn[/code] is for.
+## Runs a server and a client in one process and checks the netcode works; exits non-zero on failure.
+## Both halves share a loopback that can delay and drop packets, the only way to reproduce
+## interpolation and loss twice. The real socket is `sandbox.tscn`'s job.
 
 const TICK_RATE := 60
 
@@ -83,12 +73,8 @@ var _snapshot_count: int = 0
 var _tick: int = 0
 
 ## Sections entered, and sections that ran to their last line.
-##
-## [b]A check count is not coverage.[/b] A runtime error inside a section aborts that
-## function and nothing says so: the checks that already ran still print ok, the ones
-## after it never happen, and the total at the bottom cannot reveal a check that never
-## ran. dot-net's demo carries the same pair, reached from the other direction — there it
-## was a suspending section called without `await`.
+## A runtime error aborts a section silently, so the check total alone cannot show a check that
+## never ran.
 var _entered := 0
 
 var _completed := 0
@@ -249,15 +235,8 @@ func _flush() -> void:
 		_server_bridge.link.deliver(entry["method"], CLIENT_PEER, entry["payload"])
 
 ## How far ahead of the server the client stamps its inputs, roughly.
-##
-## [b]Not a fudge factor, and no longer the harness's to decide.[/b] A command for tick N
-## has to be in the server's hands [i]before[/i] it simulates N, and [DotNetClock] is what
-## puts it there: its input margin is two ticks over a link with no latency. The harness
-## used to stamp `_tick + INPUT_LEAD` by hand and never advanced the client's clock, so
-## the clock, synced once and then left standing, fell further behind every tick and
-## dot-net b26b6d0's catch-up jumped it on every snapshot -- to a tick this harness had not
-## predicted yet, which the replay then simulated and the next hand-stamped tick simulated
-## again. Each snapshot read as a correction (0.968) when the two simulations agreed.
+## A command for tick N must reach the server before it simulates N; [DotNetClock]'s input margin
+## provides that, so the harness only drives the clock.
 const INPUT_LEAD := 2
 
 ## One tick of both halves, with the wire drained in between.
@@ -268,10 +247,8 @@ func _step(command: Dot2DCommand = null) -> void:
 	_client_step(command)
 	_flush()
 
-## One tick of the client, driven the way [code]HungryClient._physics_process[/code] drives
-## it: the clock advances by a tick's worth of time, and every tick it moved through is
-## predicted and stamped from [method DotNetClock.input_tick] -- nothing until it is synced.
-## Returns the last tick predicted, or -1.
+## One tick of the client, driven as `HungryClient._physics_process` drives it: advance the clock,
+## predict and stamp every tick it moved through. Returns the last tick predicted, or -1.
 func _client_step(command: Dot2DCommand = null) -> int:
 	var clock := _client_net.clock
 	var ticks := clock.advance(1.0 / float(TICK_RATE))
@@ -323,12 +300,9 @@ func _admin_window(ticks: int, command: Dot2DCommand) -> Dictionary:
 
 	var worst := 0.0
 	var over := 0
-	# The SMALLEST gap in the middle and the last third of the window: the floor a client
-	# comes back to. A client pulled back every snapshot saws between that floor and its
-	# lead all window long, so the floor stays put; one that walks away has a floor that
-	# climbs with it. The worst gap cannot tell the two apart — one late snapshot on a
-	# healthy client raises it as far as a slow walk does — and the first third is left out
-	# because it holds the ticks before the client has started moving at all.
+		# The smallest gap in the last two thirds of the window is the floor a client returns to; a
+		# client that walks away has a climbing floor, which the worst gap cannot tell from one late snapshot.
+		# The first third is skipped: the client has not started moving.
 	var early := INF
 	var late := INF
 	var ordered: Array = server_at.keys()

@@ -26,35 +26,14 @@ const HungryRequest := preload("hungry_request.gd")
 
 const HungryWorld := preload("../hungry_world.gd")
 
-## How far a reconcile has to move the owning client's monster before dot-net counts it
-## as a correction, in [b]pixels[/b]. [member DotNetConfig.reconcile_position_epsilon]
-## defaults to 0.01, a centimetre in the 3D games it was written for and a hundredth of a
-## pixel here -- below the 1/128 the wire quantises a position to, so every replay from
-## a snapshot read as a correction (0.02 to 0.04 px apart). Half a pixel is the least a
-## screen can show. Every DotNetConfig this game builds sets it.
+## How far a reconcile has to move the owning client's monster before dot-net counts a correction, in
+## [b]pixels[/b]. The 0.01 default is below the 1/128 the wire quantises a position to, so every replay
+## read as a correction; half a pixel is the least a screen shows. Every DotNetConfig here sets it.
 const RECONCILE_EPSILON := 0.5
 
-## Joins a [HungryWorld] to a [DotNetManager]. The netcode seam, and the only file in
-## this project that names both.
-##
-## [b]Every other join here is a few lines because the addons refuse to know about each
-## other; this one is a file because the ordering is the hard part.[/b] dot-net drives
-## simulation per entity, and this game's tick order is a whole-world property —
-## everybody moves, then eating is resolved against the world as it is afterwards, then
-## merges, then projectiles, then the match. Reconciling those two facts is what
-## [method ensure_world_ticked] is.
-##
-## [codeblock]
-## # server
-## bridge.attach(world, net, server)          # `server` is the node the link mirrors
-## bridge.add_player(peer_id, session_id, "Ada", avatar)
-## bridge.server_tick(tick)                   # instead of world.tick()
-##
-## # client
-## bridge.attach(world, net, client_link)
-## bridge.ask_for_world()
-## bridge.client_tick(tick, command)
-## [/codeblock]
+## Joins a [HungryWorld] to a [DotNetManager]: the netcode seam, and the only file naming both.
+## dot-net ticks per entity but this game's tick order is whole-world; [method ensure_world_ticked]
+## reconciles the two. Server drives `server_tick(tick)` instead of `world.tick()`, client `client_tick`.
 
 const CHANNEL := "hungry.net"
 
@@ -62,12 +41,9 @@ const CHANNEL := "hungry.net"
 ## packet. Fixed width, so the command that follows starts at a known offset.
 const ACK_BYTES := 4
 
-## Commands in every input packet: this tick's and the four before it, so a lost packet
-## costs the server no tick unless the next four are lost too. Over WebSocket nothing is
-## ever lost; over ENet (the desktop client, since servers went dual-stack) one command a
-## packet was a tick the server ran on the previous command for every packet dropped.
-## game-arena measured it first: 80% of ticks with the right command at 20% loss with one
-## copy, 99-100% with three, and five closed the rest (2026-10-09).
+## Commands in every input packet: this tick's and the four before it, so a lost packet costs a tick
+## only if the next four are lost too. Over ENet one copy ran a tick on the previous command per drop;
+## measured at 20% loss, three copies gave 99-100% right and five closed the rest.
 const INPUT_COPIES := 5
 
 ## Ticks between two leaderboard broadcasts. Twice a second: it is a list of numbers that
@@ -78,11 +54,8 @@ const BOARD_INTERVAL_TICKS := 30
 signal hello_received(player_id: int)
 
 ## A peer said it can receive, for the first time on this connection. Server side.
-##
-## The moment anything a join owes somebody can be sent — the chat backlog, the join
-## notice, the hunters and the hazards already standing in the arena. dot-server's
-## `client_spawn` is too early for all of them, because the client builds its scene only
-## after signon and has nowhere for an RPC to land until it says so.
+## When a join's chat backlog, notice and standing hunters and hazards can be sent: dot-server's
+## `client_spawn` is too early, the client has no node to receive on until it says so.
 signal peer_admitted(peer_id: int, player_id: int)
 
 ## A player joined or left, or their avatar changed.
@@ -93,11 +66,8 @@ signal roster_changed(player_id: int)
 signal cue(kind: int, data: Dictionary)
 
 ## Somebody pressed Enter. Server side, and the only thing this bridge does with chat.
-##
-## [b]The bridge carries chat and decides nothing about it.[/b] Who may say what, on which
-## channel, how often and who hears it are [DotChatRouter]'s, and [HungryModule] joins the
-## two. A netcode that also held the chat rules would be a netcode somebody had to change
-## to add a channel.
+## The bridge carries chat and decides nothing: [DotChatRouter] owns the rules, [HungryModule] joins
+## the two.
 signal say_requested(peer_id: int, channel_id: StringName, text: String)
 
 ## Somebody typed a vote command. Server side; the token is resolved by a [DotVoteSource].
@@ -128,11 +98,9 @@ signal vote_cue_received(state: Dictionary)
 
 var world: HungryWorld = null
 
-## Where the clock learns how long the link is, in milliseconds. dot-net never
-## touches a transport and cannot measure it; dot-server's heartbeat already does
-## (`DotClientLink.ping_ms()`), and a client that feeds nothing has a clock that
-## assumes an instant connection and stamps every command for a tick the server has
-## already simulated. Read on every snapshot.
+## Where the clock learns how long the link is, in milliseconds. dot-net cannot measure a transport;
+## dot-server's heartbeat does (`DotClientLink.ping_ms()`), and without it the clock assumes an instant
+## connection. Read on every snapshot.
 var rtt_source: Callable = Callable()
 
 var net: DotNetManager = null
@@ -146,29 +114,19 @@ var avatar_schema: DotAvatarSchema = null
 ## server checks a loadout against.
 var loadout_schema: DotLoadoutSchema = null
 
-## `func(player_id: int, loadout: DotLoadout) -> DotResult`. Where a published loadout
-## goes. Server side.
-##
-## A [Callable] rather than a [DotLoadoutManager] reference, because a manager needs a
-## store and a store is a deployment decision — a LAN server keeps loadouts in memory, a
-## community server puts them behind its own service, and this file has no business
-## knowing which. Unset, a published loadout is validated against the schema and applied
-## for the session without being saved anywhere, which is what a server with no store
-## should do.
+## `func(player_id: int, loadout: DotLoadout) -> DotResult`. Where a published loadout goes. Server side.
+## A [Callable], not a [DotLoadoutManager], because the store is a deployment decision. Unset, a
+## loadout is validated and applied for the session without being saved.
 var loadout_sink: Callable = Callable()
 
 ## What each player is entitled to. Server side.
-##
-## `func(player_id: int) -> DotLoadoutEntitlements`. Unset, nobody owns anything and only
-## items marked free are permitted — which is the safe default and the one that is wrong
-## within thirty seconds rather than shipping a game where every unlock is free.
+## `func(player_id: int) -> DotLoadoutEntitlements`. Unset, only items marked free are permitted,
+## a safe default that is wrong within thirty seconds rather than shipping free unlocks.
 var entitlement_source: Callable = Callable()
 
-## Where this server's cosmetics live, as a manifest URL. Empty for "whatever you
-## shipped with", which is every deployment that has not published a pack.
-##
-## Set on the server by [HungryModule] from a cvar and sent in the hello; set on a client
-## from the hello it received. A client with no dot-cloud installed ignores it entirely.
+## Where this server's cosmetics live, as a manifest URL; empty means what the build shipped with.
+## Set on the server by [HungryModule] from a cvar and sent in the hello; a client without dot-cloud
+## ignores it.
 var avatar_pack_url: String = ""
 
 ## Which player this process is. Zero on a server.
@@ -192,18 +150,13 @@ var _player_of_peer: Dictionary = {}
 var _peer_of_player: Dictionary = {}
 
 ## Peers that have asked for the world, and can therefore receive it.
-##
-## [b]Nothing is sent to a peer before it asks.[/b] dot-server's signon finishes and
-## [i]then[/i] the client builds its scene, so between those two moments the client has no
-## node for an RPC to land on — Godot answers every one of them with "Node not found",
-## once per call, and the events themselves are simply lost. Waiting for
-## [constant HungryEvents.Ask.READY] is the client saying it has somewhere to put them.
+## Nothing is sent before: signon finishes and then the client builds its scene, and anything sent in
+## between is "Node not found" and lost. [constant HungryEvents.Ask.READY] says it has somewhere to put them.
 var _ready_peers: Dictionary = {}
 
-## Server: peers whose READY came before their seat ([method add_player]). A client sends READY
-## when its link says PLAYING, which the link decides itself after sending `loaded` on another
-## channel; over ENet with loss the READY can overtake `loaded`, and a READY dropped here left
-## that client waiting for a world for ever. Admitted when seated.
+## Server: peers whose READY came before their seat ([method add_player]). The link sends `loaded` on
+## another channel, so over ENet with loss READY can overtake it; a READY dropped here left that client
+## waiting for ever. Admitted when seated.
 var _ready_unseated: Dictionary = {}
 
 ## piece id -> [HungryPieceNet].
@@ -268,12 +221,8 @@ func _send(peer_id: int, payload: PackedByteArray, delivery: int) -> void:
 		link.send_request(payload)
 
 ## Sends an event to everybody who can receive one.
-##
-## Peer by peer rather than [method DotNetManager.send]'s broadcast, because a broadcast
-## goes to every connected peer including the ones that have not built their scene yet —
-## and every one of those is a "Node not found" in the log and an event nobody got. The
-## cost is encoding the body once per peer, which for a reliable event at this scale is
-## nothing next to knowing it arrived.
+## Peer by peer, not [method DotNetManager.send]'s broadcast, which also reaches peers that have not
+## built their scene ("Node not found", event lost). The cost is encoding the body once per peer.
 func _broadcast(kind: int, body: PackedByteArray) -> void:
 	if net == null or not net.is_server:
 		return
@@ -282,12 +231,8 @@ func _broadcast(kind: int, body: PackedByteArray) -> void:
 		net.send(HungryEvent.new(kind, body), int(peer_id))
 
 ## Sends an event to one peer.
-##
-## [b]A peer id of zero means "nobody", not "everybody".[/b] Bots are players with no
-## connection and this game gives them peer 0, so a `_tell` that fell through to
-## [method DotNetManager.send]'s broadcast would send every bot's private carry list, and
-## every bot's hello, to every real client. Broadcasting is [method _broadcast]'s job and
-## it says so.
+## Peer id zero means "nobody", not "everybody": bots have peer 0, and falling through to the broadcast
+## would send every bot's private carry list and hello to every client. Broadcasting is [method _broadcast]'s.
 func _tell(peer_id: int, kind: int, body: PackedByteArray) -> void:
 	if net == null or not net.is_server or peer_id <= 0:
 		return
@@ -295,12 +240,8 @@ func _tell(peer_id: int, kind: int, body: PackedByteArray) -> void:
 	net.send(HungryEvent.new(kind, body), peer_id)
 
 ## The world, or null when there isn't one any more.
-##
-## [b]`world == null` is not the check.[/b] A game change frees the scene the world lives
-## in, and a freed [Object] is not null — it is a reference that answers `is_instance_valid`
-## with false and throws "Nonexistent function ... in base 'previously freed'" on the next
-## call. Every read below can run while a change is in flight: interest management asks for
-## a monster while building a snapshot, and the module asks for one while being unloaded.
+## `world == null` is not the check: a game change frees the scene the world lives in, and a freed
+## [Object] is not null. Reads can run mid-change (interest management, module unload).
 func _live_world() -> HungryWorld:
 	return world if world != null and is_instance_valid(world) else null
 
@@ -316,11 +257,8 @@ func player_for_peer(peer_id: int) -> int:
 	return int(_player_of_peer.get(peer_id, 0))
 
 ## Everybody who has said they can receive. Server side.
-##
-## [b]The set chat and voice are addressed against, and deliberately not
-## [method DotServer.sessions].[/b] A session exists from the moment a socket connects; a
-## ready peer is one that has built its scene and can be sent to. Routing a chat line to
-## the first is a "Node not found" per recipient and a line nobody got.
+## The set chat and voice are addressed against, not [method DotServer.sessions]: a session exists from
+## the socket connecting, a ready peer can be sent to.
 func ready_peers() -> PackedInt32Array:
 	var out := PackedInt32Array()
 
@@ -330,17 +268,13 @@ func ready_peers() -> PackedInt32Array:
 	return out
 
 ## Whether a peer has already said it can receive. Server side.
-##
-## [b]What everything sent on a join has to check.[/b] dot-server's signon finishes and
-## *then* the client builds its scene; anything sent in between lands on a node that does
-## not exist and is lost, one "Node not found" per call.
+## What everything sent on a join checks: sent before the client builds its scene it is lost.
 func peer_is_ready(peer_id: int) -> bool:
 	return _ready_peers.has(peer_id)
 
 ## Takes a peer off the broadcast set without touching anything else. Server side.
-##
-## What a disconnect does first: everything a leave then triggers announces something
-## about that person to everybody else, and their socket has already gone.
+## What a disconnect does first: what a leave then triggers announces them to everybody else, and their
+## socket has already gone.
 func mark_not_ready(peer_id: int) -> void:
 	_ready_peers.erase(peer_id)
 

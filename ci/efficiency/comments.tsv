@@ -9,10 +9,10 @@ examples/dedicated.gd::history	3
 examples/dedicated.gd::long_block	32
 examples/headless_config.gd::long_block	1
 examples/headless_mapcfg.gd::long_block	1
-examples/headless_presentation.gd::banner	11
+examples/headless_presentation.gd::banner	10
 examples/headless_presentation.gd::commented_code	1
-examples/headless_presentation.gd::history	5
-examples/headless_presentation.gd::long_block	14
+examples/headless_presentation.gd::history	3
+examples/headless_presentation.gd::long_block	13
 examples/headless_round.gd::banner	91
 examples/headless_round.gd::history	13
 examples/headless_round.gd::long_block	67
@@ -30,7 +30,7 @@ game/client/hungry_browser.gd::long_block	8
 game/client/hungry_camera.gd::long_block	3
 game/client/hungry_client.gd::banner	6
 game/client/hungry_client.gd::history	1
-game/client/hungry_client.gd::long_block	28
+game/client/hungry_client.gd::long_block	26
 game/client/hungry_content_source.gd::banner	1
 game/client/hungry_content_source.gd::long_block	5
 game/client/hungry_fall.gd::long_block	1

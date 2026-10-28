@@ -129,11 +129,8 @@ func _test_loss() -> void:
 	_steps(150, command)
 	_drop_every = 0
 
-	# Stopped, and standing on bare ground. Mass is authoritative and interpolated, so a
-	# monster that is still eating is a monster whose two copies are always one crumb
-	# apart — which says nothing about whether the loss was recovered from. Clearing the
-	# ground under it is what makes the comparison mean "the value converged" rather than
-	# "the value is moving".
+		# Stopped, on bare ground: a monster still eating is always one crumb apart, which says nothing
+		# about whether the loss was recovered.
 	var head := _server_world.monster_for(7).rider_piece()
 
 	for grid_id in _server_world.arena.grid.query_circle(
@@ -153,10 +150,8 @@ func _test_loss() -> void:
 		"loss was detected (%d snapshots)" % _client_net.stats.snapshots_lost
 	)
 
-	# Recovery above depends entirely on the ack header the input packets carry, and
-	# the server degrades to a conservative view rather than failing when it never
-	# arrives — so a bridge whose ACK_BYTES and encode_ack() disagree would still get
-	# most of this section right. Ask the server whether the wiring took.
+		# Recovery depends on the ack header the input packets carry, and the server degrades quietly
+		# without it, so ask the server whether the wiring took.
 	_check(
 		_server_net.peer_acks_wired(CLIENT_PEER),
 		"because the client's acknowledgements are reaching the server",
@@ -240,26 +235,9 @@ func _test_game_change() -> void:
 	next.queue_free()
 	_done()
 
-## [warren-net-1]: a round of `warrens`, and a client predicting itself against one of its
-## rocks.
-##
-## [b]The half of the layout no single-world check can see.[/b] `headless_round` proves a
-## client world pushes itself out of the same rocks (`simulate_piece` runs `block_piece`),
-## and the admin section above proves a noclip is predicted through a stand-in rock. What
-## neither does is the thing a player meets: the server changed to a level, the client
-## built the level from the name in the hello, and the client's own monster pressed
-## against a rock face for seconds, reconciled against every snapshot. A push-out that the
-## replay did not repeat — or a client whose layout differed by one disc — reads as
-## rubber-banding along the face, which sends the next person to the netcode.
-##
-## [b]And its negative control.[/b] The same window with the rock missing from the CLIENT
-## only must come apart, or the first half passes because nothing was ever asked to
-## disagree.
-##
-## [b]A split monster against the rock is measured and bounded, not held to the same
-## number.[/b] `_separate` is applied live on both ends and not replayed, so while two
-## pieces overlap the replay and the shown positions differ by a fraction of the overlap;
-## that is the named cost in docs/netcode.md, and this is where its size is written down.
+## [warren-net-1]: a round of `warrens`, and a client predicting itself against one of its rocks.
+## A push-out the replay did not repeat reads as rubber-banding; the control (rock missing from the
+## client only) must come apart. A split monster is bounded, not held equal (docs/netcode.md).
 func _test_warrens_rock_converges() -> void:
 	_section("a round of warrens: a client predicting itself against a rock")
 
@@ -309,10 +287,8 @@ func _test_warrens_rock_converges() -> void:
 		_done()
 		return
 
-	# Outside ring rock 0, driven dead at its centre: pressed against the face for the whole
-	# window. Four degrees off, which the round suite uses to prove a monster slides in,
-	# leaves the face after 41 ticks here, and a window mostly spent in the open measures
-	# the open.
+		# Ring rock 0, driven dead at its centre so it stays pressed against the face for the window;
+		# four degrees off leaves the face after 41 ticks and measures the open.
 	var rock: Vector3 = warrens.layout.blocks[0]
 	var rock_at := Vector2(rock.x, rock.y)
 	var centre := warrens.arena.bounds.get_center()
@@ -352,11 +328,8 @@ func _rock_pressed(warrens: HungryWorld, start: Vector2, command: Dot2DCommand, 
 		"the server never let it into the rock",
 		"deepest %.2f" % float(pressed["deepest"])
 	)
-	# [b]On the ticks in contact, because that is where a push-out that was not replayed
-	# would show.[/b] Over the whole window both this and the control below are bounded by
-	# the snapshot corrections — 3.6 and 7.5 units when this was first measured, too close
-	# to call — while pressed against the face the replay either agrees with the server to
-	# a rounding error or is corrected on every snapshot.
+		# On the ticks in contact, where an unreplayed push-out shows; over the whole window this and
+		# the control are both bounded by snapshot corrections and too close to call.
 	_check(
 		float(pressed["contact_mean"]) < 1.0,
 		"and while it was pressed there the client agreed with the server to within a unit",

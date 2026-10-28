@@ -3,14 +3,9 @@ extends "res://examples/headless_net_wire.gd"
 func _test_handshake() -> void:
 	_section("a client joins")
 
-	# The client asking is what admits it. Between dot-server's signon finishing and the
-	# client building its scene there is a window in which it has no node for an RPC to
-	# land on, so everything sent in it is lost and logged as a missing node.
-	#
-	# Asked FIRST, as over ENet with loss: a client is PLAYING by its own reckoning once it
-	# has sent `loaded`, on another channel, so its READY can reach the server before its
-	# seat. The server sends nothing on it, keeps it, and answers it when the seat comes; a
-	# bridge that dropped it never told this client anything.
+		# The client asking is what admits it: before its scene exists, anything sent is lost as a missing node.
+		# Asked first, as over ENet with loss: READY can reach the server before its seat, so the server
+		# keeps it and answers when the seat comes.
 	_client_bridge.ask_for_world()
 	_flush()
 	_flush()
@@ -132,17 +127,9 @@ func _test_replication() -> void:
 func _test_prediction() -> void:
 	_section("prediction")
 
-	# [b]It is not zero in this game, and that is correct.[/b] A client predicts where its
-	# monster went; it does not predict what its monster ate, because eating is the
-	# authority's and a client that resolved its own would be a client that decides what
-	# it weighs. Every crumb swallowed is therefore a mass the client did not have, a
-	# speed it did not use, and a small correction on the next snapshot.
-	#
-	# What it must not be is [i]most[/i] snapshots. This read 0.500 while the bridge was
-	# reconciling a second time on top of the reconciliation
-	# [method DotNetManager.receive_snapshot] had already done — replaying the same inputs
-	# twice against values that had already been rewound. Removing that pass took it to
-	# 0.03, and neither number produced an error or a failed check anywhere else.
+			# Not zero here, and correct: a client does not predict what its monster ate (the authority's).
+			# It must not be most snapshots: a second reconcile on top of [method DotNetManager.receive_snapshot]'s
+			# replayed the same inputs twice.
 	var rate := _client_net.predictor.correction_rate()
 	_check(
 		rate < 0.25,
@@ -207,11 +194,9 @@ func _prediction_same_tick(command: Dot2DCommand) -> void:
 			% [median, gaps.size()]
 	)
 
-## Your own monster is drawn between its ticks at the clock's render alpha, and a physics
-## frame the clock's drift leaves with no tick, or with two, is drawn through: frames drawn a
-## third of the way through a tick, with one of each forced, beside a control drawn at that
-## third alone (the engine's fraction, how it would be drawn without the clock). A frame is
-## stalled under half the steady step, doubled over one and a half.
+## Your own monster is drawn between its ticks at the clock's render alpha, and a frame with no tick
+## or two is drawn through: one of each forced, beside a control drawn at that third alone.
+## A frame is stalled under half the steady step, doubled over one and a half.
 func _test_drawn_through_a_slip() -> void:
 	_section("your own monster is drawn through a frame with no tick, or two")
 	var command := Dot2DCommand.new()
@@ -282,16 +267,9 @@ func _test_drawn_through_a_slip() -> void:
 	_steps(90)
 	_done()
 
-## An administrator noclips and freezes a monster on the server, and the monster's own
-## client has to PREDICT both.
-##
-## [b]The symptom this exists for is rubber-banding, and no server-side check can see
-## it.[/b] So each window records, tick by tick, where the client predicted its monster and
-## where the server put it, and compares the two at the same tick — once the shipped way,
-## through the moderator handlers and [Dot2DAdminModifiers], and once the naive way, a
-## server-only change the client is never told about. The naive half has to DIVERGE: a
-## window in which the client was never asked to disagree would pass the first half too.
-## Game-arena's `headless_net` is the same shape for the first-person motor.
+## An administrator noclips and freezes a monster on the server, and its own client has to PREDICT both.
+## Each window compares predicted and server position per tick, once the shipped way and once as a
+## server-only change the client is never told about, which must DIVERGE.
 func _test_admin_is_predicted() -> void:
 	_section("an admin's noclip and freeze, predicted by the client they happen to")
 

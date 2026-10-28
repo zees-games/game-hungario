@@ -39,10 +39,8 @@ func _build_piece_entity(piece: HungryPiece, peer_id: int) -> DotNetIdentity:
 	var identity := DotNetIdentity.new()
 	identity.name = "Identity"
 	identity.owner_peer_id = peer_id
-	# SHARED, not SERVER: the server stays authoritative and corrects, and the owning
-	# client predicts. `DotNetIdentity.is_predicted()` is false for any other authority,
-	# so SERVER would mean a player seeing their own monster a full round trip late —
-	# noticeable at 80 ms and unplayable at 150.
+		# SHARED, not SERVER: `DotNetIdentity.is_predicted()` is false for any other authority, so the
+		# player would see their own monster a full round trip late.
 	identity.authority = DotNetIdentity.Authority.SHARED
 	identity.interest_tags = PackedStringArray(["piece"])
 	root.add_child(identity)
@@ -53,11 +51,8 @@ func _build_piece_entity(piece: HungryPiece, peer_id: int) -> DotNetIdentity:
 	return identity
 
 ## One client tick: record the local command, predict, separate.
-##
-## The command is recorded into the manager's input history [i]before[/i] predicting,
-## because reconciliation replays that history — an input the buffer never saw is a tick
-## the replay cannot reproduce, and the correction is then measured against a state the
-## server never computed.
+## The command is recorded [i]before[/i] predicting, because reconciliation replays that history and
+## an unrecorded input cannot be reproduced.
 func client_tick(tick: int, command: Dot2DCommand) -> void:
 	if net == null or net.is_server or world == null:
 		return
@@ -111,13 +106,8 @@ func predict_piece(piece: HungryPiece, tick: int, delta: float) -> void:
 
 
 ## Applies a snapshot. Client side.
-##
-## [b]Reconciliation is [DotNetManager]'s, not this file's.[/b]
-## [method DotNetManager.receive_snapshot] already routes a predicted entity's state to
-## [method DotNetPredictor.reconcile] instead of applying it — applying it directly would
-## undo everything predicted since — and acknowledges the inputs it covers. A second pass
-## here would reconcile against values that had already been reconciled and replay the
-## same inputs twice, turning one correction into two.
+## Reconciliation is [DotNetManager]'s ([method DotNetManager.receive_snapshot] routes a predicted
+## entity to the predictor); a second pass here would replay the same inputs twice.
 func receive_snapshot(payload: PackedByteArray) -> DotResult:
 	if net == null or net.is_server:
 		return DotResult.fail(DotError.CODE_FORBIDDEN, "Only a client receives these.")
@@ -374,11 +364,8 @@ func _apply_impact(reader: DotNetReader) -> void:
 	cue.emit(HungryEvents.Kind.IMPACT, row)
 
 ## A monster a client has been told about but does not have yet.
-##
-## Joins and spawns are independent messages on a reliable channel, and the ordering
-## between "this player exists" and "this piece belongs to them" is guaranteed here but
-## would not be after a reconnect or a mid-round join. Creating a placeholder is cheaper
-## than dropping the piece: the next JOIN fills the name and the avatar in.
+## Joins and spawns are independent messages, so a mid-round join or reconnect can deliver the piece
+## first; a placeholder is cheaper than dropping it, and the next JOIN fills the name in.
 func _ensure_monster(player_id: int, display_name: String) -> HungryMonster:
 	if player_id <= 0:
 		return null
@@ -403,10 +390,7 @@ func ask_for_world() -> void:
 	net.send(HungryRequest.new(HungryEvents.Ask.READY, PackedByteArray()), 0)
 
 ## Publishes this client's chosen loadout. Client side.
-##
-## It takes effect on the next spawn rather than immediately, which is dot-loadout's own
-## rule and the right one: a player who could change their trait mid-fight would change it
-## the moment they were losing.
+## It takes effect on the next spawn (dot-loadout's rule), so nobody swaps trait mid-fight.
 func publish_loadout(loadout: DotLoadout) -> void:
 	if net == null or net.is_server or loadout == null:
 		return
@@ -418,13 +402,8 @@ func publish_loadout(loadout: DotLoadout) -> void:
 		0
 	)
 
-## One chat line to one peer. Server side, and what [member DotChatRouter.send_fn] points
-## at.
-##
-## [b]Peer by peer, never a broadcast, and that is the router's decision rather than this
-## one's.[/b] It has already worked out exactly who may hear a line — everybody, a radius,
-## two people in a whisper — and handing the result to a broadcast would throw that away in
-## the one place it matters most.
+## One chat line to one peer. Server side; what [member DotChatRouter.send_fn] points at.
+## Peer by peer, never a broadcast: the router has already worked out who may hear it.
 func send_chat(peer_id: int, wire: Dictionary) -> void:
 	_tell(peer_id, HungryEvents.Kind.CHAT, HungryEvents.write_chat(wire))
 

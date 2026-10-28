@@ -37,21 +37,9 @@ const HungryWorld := preload("hungry_world.gd")
 ## The workbench kind of the ambience cvar set (saved to cfg/.../ambience/server.yml).
 const AMBIENT_KIND := "ambience"
 
-## Binds a [HungryWorld] and its netcode to a [DotServer].
-##
-## The only file in this project that names dot-server, and the whole of the dedicated
-## server integration: the tick, the join, the console surface, the bots, and the two game
-## descriptors that make `changegame` mean something.
-##
-## [codeblock]
-## server.modules.load_module("res://game/hungry_module.gd")
-## [/codeblock]
-##
-## [b]The manager outlives the world, and that is the point.[/b] A game change frees the
-## scene the world lives in and instantiates the next one; rebuilding the
-## [DotNetManager] with it would reset the message ids, the peer records and the clock,
-## which is a disconnect for everybody — exactly what changing the map is supposed to
-## avoid. So the manager and the bridge are the module's, and the bridge is rebound.
+## Binds a [HungryWorld] and its netcode to a [DotServer]: the tick, join, console, bots and game
+## descriptors. The only file naming dot-server. The manager outlives the world: rebuilding
+## [DotNetManager] on a game change would reset ids, peers and the clock, so only the bridge is rebound.
 
 const CHANNEL := "hungry.module"
 
@@ -88,12 +76,8 @@ var net: DotNetManager = null
 var bridge: HungryNetBridge = null
 
 ## What players may bring in, and where their choices are kept.
-##
-## Backed by memory, which is the right default for a dedicated server: a loadout that
-## outlives a session is a profile, and a profile is dot-user's. An operator who wants
-## them to persist points the config at the local backend, or subclasses
-## [DotLoadoutStore] and points it at their own service — that is the seam, and it is why
-## this is a manager rather than a dictionary.
+## Memory-backed, right for a dedicated server (a persistent loadout is dot-user's profile); an operator
+## points the config at the local backend or subclasses [DotLoadoutStore], which is the seam.
 var loadouts: DotLoadoutManager = null
 
 ## Chat, moderation and voice. Built here rather than in the world, because they are about
@@ -101,14 +85,9 @@ var loadouts: DotLoadoutManager = null
 ## these have to survive it, exactly as the netcode manager does.
 var services: HungryServices = null
 
-## Where the services write punishments. [constant HungryServices.PUNISHMENTS_PATH] — the
-## store a real server enforces — unless a host says otherwise before this loads.
-##
-## [b]Static, because nothing holds this module before it exists[/b]: dot-server constructs
-## it from a path inside `load_module`, so there is no instance for a host to set a field on
-## first. The suites point it at a directory of their own; before they could, every run of
-## `dedicated` and `sandbox` wrote a test gag and the live tools' warnings to the real
-## store, 417 records by the time anybody counted.
+## Where the services write punishments: [constant HungryServices.PUNISHMENTS_PATH] unless a host says
+## otherwise before this loads. Static because dot-server constructs the module in `load_module`,
+## so no instance exists to set a field on.
 static var punishments_path: String = HungryServices.PUNISHMENTS_PATH
 
 ## dot-moderation's live tools with this game's verbs (`HungryModTools`), and their
@@ -144,12 +123,8 @@ var maps: HungryMaps = null
 var backbone: DotBackboneClient = null
 
 ## Counts what every monster did, and reports it through [member backbone].
-##
-## Always built, because the session figures are the game's own (a match summary
-## reads them) and counting costs nothing; reporting happens only when there is a
-## backbone to report through. Players are keyed by the scoped id dot-platform
-## resolved, never the account id — a session with no scoped key, which is every
-## guest on a LAN server, is counted under nothing and reported nowhere.
+## Always built (the session figures are the game's own); reported only with a backbone. Keyed by the
+## scoped id dot-platform resolved, so a guest with no scoped key is counted under nothing.
 var stats: DotStatsTracker = null
 
 ## userid -> the scoped key the tracker knows them by.
@@ -158,10 +133,9 @@ var _stat_keys: Dictionary = {}
 ## userid -> true, for the humans this module put in the world.
 var _joined: Dictionary = {}
 
-## Who is still behind their loading cover, from dot-game's roster used for that alone: this
-## module is not on DotGameModule, so it seats people itself and only borrows the bookkeeping
-## (joined until the client says its cover lifted, again from a mode change). A player id is
-## the userid, so [method HungryWorld.can_be_harmed] asks it by that.
+## Who is still behind their loading cover, from dot-game's roster used for that alone: this module
+## is not on DotGameModule, so it only borrows the bookkeeping. A player id is the userid, so
+## [method HungryWorld.can_be_harmed] asks it by that.
 var loading: DotGameRoster = null
 
 var _handles_cover: bool = false
@@ -222,12 +196,8 @@ func _module_author() -> String:
 
 
 ## What a player owns.
-##
-## [b]Nothing, by default, and deliberately.[/b] A server that granted everything would
-## work perfectly in every test, ship, and quietly be a game where every unlock is free —
-## and nobody reports that as a bug. Only items marked free are permitted until something
-## says otherwise, and the something is dot-platform: an entitlement source there is
-## whatever a deployment's store or backbone says.
+## Nothing by default, deliberately: granting everything passes every test and ships free unlocks nobody
+## reports. Only items marked free are permitted until dot-platform's entitlement source says otherwise.
 func _entitlements_for_key(user_key: String) -> DotLoadoutEntitlements:
 	var granted := DotLoadoutEntitlements.none()
 	var platform: Object = server.modules.get_module("platform")
@@ -247,23 +217,16 @@ func _entitlements_for_player(player_id: int) -> DotLoadoutEntitlements:
 	return _entitlements_for_key(HungryContent.loadout_key(player_id))
 
 ## Saves a published loadout, so it survives a respawn and a mode change.
-##
-## Through the manager rather than straight to the store, because the manager is the trust
-## boundary: rate limit, per-player cap, schema membership, entitlements and key
-## usability, in that order. The bridge has already validated the document against the
-## schema; doing it twice costs nothing and means neither half can be the only check.
+## Through the manager, the trust boundary (rate limit, cap, schema, entitlements, key usability);
+## the bridge's schema validation is repeated so neither half is the only check.
 func _store_loadout(player_id: int, loadout: DotLoadout) -> DotResult:
-	# Awaited: a store write may be slow — the whole reason DotLoadoutStore is pluggable
-	# is that somebody will point it at a database — and the cache must not be updated
-	# before the write succeeds. A player who sees their change, plays with it and loses
-	# it at the next load with no explanation is worse than a refusal.
+		# Awaited: a store write may be slow, and the cache must not update before it succeeds, or a player
+		# loses their change at the next load without explanation.
 	return await loadouts.publish(HungryContent.loadout_key(player_id), loadout, 0)
 
 ## The loadout a player spawns with, loaded from the store.
-##
-## Awaited, and therefore not on the join path: a store may be slow and a join may not be.
-## The player is in the world with the schema's default and their own arrives a moment
-## later, which is the same trade game-arena makes for the same reason.
+## Awaited, so not on the join path: the player enters with the schema default and their own arrives
+## a moment later.
 func _apply_stored_loadout(player_id: int) -> void:
 	var active: DotResult = await loadouts.active_for(
 		HungryContent.loadout_key(player_id)
@@ -282,15 +245,8 @@ func _apply_stored_loadout(player_id: int) -> void:
 
 
 ## Starts reporting this server to its listing, if an operator has configured one.
-##
-## [b]The token comes from a config file and from nowhere else.[/b] `DotAuthConfig` lists
-## `integration_token` in its sensitive keys, so the layered loader refuses it from the
-## environment and from argv — both are readable by other processes on the box and both
-## end up in `ps` output and in pasted bug reports. A cvar would be worse still: it is
-## settable over RCON and printable by anybody with the `cvar` flag.
-##
-## Absent one, nothing here runs and the server is simply not listed, which is the correct
-## behaviour for a LAN game and for every test.
+## The token comes from a config file only: it is a sensitive key (refused from environment and argv)
+## and a cvar would be settable over RCON. Absent one, the server is simply not listed.
 func _build_reporting() -> void:
 	var config := DotAuthConfig.new()
 	var path := _cv_auth_config.get_string() if _cv_auth_config != null else ""
@@ -332,15 +288,8 @@ func _build_reporting() -> void:
 	log_info("reporting to the site listing", {"url": config.backbone_url})
 
 ## What this server looks like from outside.
-##
-## [b]dot-server's own report says `bots: 0` unconditionally[/b], because dot-server has no
-## bots and no way to know a game has any. This one does, and a listing that shows eight
-## players on a server holding one human is a listing that stops being trusted. The map is
-## the mode rather than the content id for the same reason: `hungry_frenzy` means something
-## to somebody reading a server browser.
-##
-## Public so it can be checked without a token, which is the only way it is ever checked
-## here — nothing in this repository has a backbone to send it to.
+## dot-server's own report says `bots: 0`, so a listing would overstate humans; the map is the mode
+## (`hungry_frenzy`), not the content id. Public so it can be checked without a token.
 func stats_report() -> Dictionary:
 	var report := server.to_stats_report()
 
@@ -358,9 +307,7 @@ func roster_report() -> Array:
 
 
 ## What this game counts per player. Declared once; the site learns it at boot.
-##
-## Every stat is published: a grow-by-eating game has nothing to count privately.
-## The kinds are the contract — `top_mass` is a BEST, so a monster that shrank
+## Every stat is published. The kinds are the contract: `top_mass` is a BEST, so a monster that shrank
 ## keeps its record, and everything else adds.
 static func stats_schema() -> DotStatsSchema:
 	var schema := DotStatsSchema.new()
@@ -441,12 +388,8 @@ func _on_stat_burst(_player_id: int, by_player: int, _pieces: int) -> void:
 		stats.record(key, &"bursts")
 
 ## Starts counting for a session, under the scoped key dot-platform resolved.
-##
-## Duck-typed like [method _avatar_for]: a LAN server has no platform module,
-## and a session without a key is counted under nothing rather than under the
-## account id the identity carries — which is the one thing that must never be
-## filed. The tracker's reporter would refuse it anyway; not offering it is the
-## first line.
+## Duck-typed like [method _avatar_for]: a LAN server has no platform module, and a session without a
+## key is counted under nothing, never under the account id the identity carries.
 func _begin_stats(session: DotClientSession) -> void:
 	if stats == null:
 		return
@@ -470,12 +413,8 @@ func _end_stats(session: DotClientSession) -> void:
 
 
 ## The avatar dot-platform resolved for this session, if there is a dot-platform.
-##
-## [b]Duck-typed on purpose.[/b] This game needs dot-user-avatar — the schema is what a
-## rider is — but it does not need the whole identity stack, and naming
-## [code]DotPlatformModule[/code] here would make a LAN server impossible without
-## dot-auth, dot-user and a profile store. A module that answers to `player_for` is
-## enough, which is the same contract dot-server uses for its admin sources.
+## Duck-typed on purpose: naming [code]DotPlatformModule[/code] would make a LAN server impossible
+## without dot-auth and dot-user. A module answering to `player_for` is enough (dot-server's admin contract).
 func _avatar_for(session: DotClientSession) -> DotAvatar:
 	var platform: Object = server.modules.get_module("platform")
 
@@ -492,11 +431,8 @@ func _avatar_for(session: DotClientSession) -> DotAvatar:
 
 
 ## Keeps the bot population where [DotBotQuota] says and hands each one its command.
-##
-## Every tick rather than on an interval, as the population always was here: it is two
-## counts and a comparison, and it means a person who joins takes a bot's place on the tick
-## they arrive. People are everybody in the world who is not one of this module's bots; a
-## leaver is out of the world before the next tick, so nobody half-disconnected counts.
+## Every tick: it is two counts and a comparison, and a joining person takes a bot's place on the tick
+## they arrive. A leaver is out of the world before the next tick, so nobody half-disconnected counts.
 func _drive_bots() -> void:
 	var wanted := 0
 
@@ -539,10 +475,8 @@ func _add_bot(display_name: String) -> int:
 		log_warn("could not add a bot", {"error": str(added.error)})
 		return 0
 
-	# Bots take turns through the traits and the throwables. Not for their sake — they
-	# play the same either way — but so that an operator watching a server full of them
-	# sees the loadout doing something, and so that the paths a human's choice takes are
-	# exercised on a server nobody has joined yet.
+		# Bots take turns through the traits and throwables so the loadout paths a human's choice takes are
+		# exercised on a server nobody has joined, and an operator sees them doing something.
 	var monster: HungryMonster = added.value
 	var loadout := DotLoadout.empty(bridge.loadout_schema.id)
 	loadout.set_item(
@@ -572,28 +506,16 @@ func bot_count() -> int:
 	return _bots.size()
 
 ## Pushes the cosmetics manifest URL onto the bridge, so joining clients are told it.
-##
-## Clients already connected are not re-told: the hello is sent once, on admission, and a
-## cosmetic that arrives mid-session is a nicety rather than a requirement. An operator
-## setting this on a running server means it from the next join.
+## Connected clients are not re-told (the hello is sent once, on admission); a change takes effect
+## from the next join.
 func _sync_pack() -> void:
 	if bridge != null and _cv_pack != null:
 		bridge.avatar_pack_url = _cv_pack.get_string()
 
 
 ## What a server browser is told about this game.
-##
-## [b]This game shipped a full server browser and answered no query at all.[/b]
-## `HungryBrowser` is a real dot-browser list — DQP, DQP over a WebSocket, A2S,
-## favourites, history and a mode filter — and a hungario server it was handed the address
-## of could not answer it. The tracker in the middle is still missing and is written down
-## as such; this is the half that was missing at *this* end, which nothing had noticed
-## because the browser's own suite queries a server built by dot-browser.
-##
-## What goes in is what a person filtering a list filters on. The mode is the map here, so
-## `map` is the preset rather than a file: a browser showing "hungry_classic" under Map is
-## showing what a player would call the map, and showing the content id would be showing
-## them dot-server's bookkeeping.
+## `HungryBrowser` lists DQP, A2S and the rest; this is the answering end. The mode is the map, so
+## `map` is the preset ("hungry_classic"), not a file or a content id.
 func _build_query_provider() -> void:
 	var provider := HungryQueryProvider.new()
 	provider.module = self

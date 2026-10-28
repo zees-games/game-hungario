@@ -98,10 +98,8 @@ func _test_splitting_replicates() -> void:
 	)
 	_done()
 
-## A death goes down the same way on every screen: DIED carries the server's pick
-## (dot-player-char's DotPlayerDeath), last and optional. Armed by dropping the fall from
-## `write_died` (the reaction checks fail) and by reading it unconditionally (the bare check
-## fails: an older server's DIED would read garbage).
+## A death goes the same way on every screen: DIED carries the server's pick, last and optional.
+## Armed by dropping the fall from `write_died`, and by reading it unconditionally.
 func _test_death_carries_its_fall() -> void:
 	_section("a death carries its fall")
 
@@ -261,16 +259,8 @@ func _test_interest() -> void:
 	_done()
 
 ## An administrator's blind and beacon, through the real handlers, over the link.
-##
-## [b]The audience is the whole point of both.[/b] The client is peer 2 and owns player 7;
-## player 99 is a bot on the far side of the arena that `_test_interest` put there, owned
-## by nobody on this link. A blind is its owner's screen and nobody else's, so the client
-## must receive 7's and must NOT receive 99's — an opponent who could read it would know
-## the moment somebody could not see them coming. A beacon is everybody's, and 99's has to
-## arrive although 99 is outside the client's view: that is what making a beaconed monster
-## always relevant is for, and the negative control is that before the beacon the client
-## was told nothing about 99 at all. Asserted on the client's own copy of each monster,
-## which is what its HUD and its renderer read.
+## A blind is its owner's screen only (7's arrives, bot 99's must not); a beacon is everybody's and
+## must arrive although 99 is outside the view. Asserted on the client's own copy of each monster.
 func _test_blind_and_beacon() -> void:
 	_section("an admin's blind and beacon: who is told")
 
@@ -394,13 +384,8 @@ func _test_avatar() -> void:
 	_done()
 
 ## A monster somebody else is steering has to move smoothly.
-##
-## [b]The interpolated value has to reach the simulation, not just the property.[/b]
-## Snapshots arrive 20 times a second; frames render far more often. dot-net computes the
-## smoothed position every frame and writes it into `net_position` — and if the only thing
-## that copies `net_position` into the piece is the snapshot handler, every remote monster
-## moves in 50 ms steps while the smooth value sits in a property nothing reads. It looks
-## exactly like an interpolator that does not work.
+## The interpolated `net_position` must reach the simulation, not only the property, or every remote
+## monster moves in 50 ms snapshot steps.
 func _test_interpolation() -> void:
 	_section("watching somebody else move")
 
@@ -408,10 +393,8 @@ func _test_interpolation() -> void:
 	# own and therefore does not predict — which is the only kind interpolation applies to.
 	_server_bridge.add_player(0, 42, "Someone Else")
 
-	# Both near the middle, with room to move. An earlier section parked the client's
-	# monster against a wall, and a monster pushed into a wall does not move — which
-	# produces a track of identical samples and an interpolation check that passes for
-	# the wrong reason.
+		# Both near the middle with room to move: a monster pushed into a wall gives identical samples
+		# and an interpolation check that passes for the wrong reason.
 	_server_world.spawn(7, Vector2.ZERO)
 	_server_world.spawn(42, Vector2(220.0, 0.0))
 
@@ -446,11 +429,8 @@ func _test_interpolation() -> void:
 	_client_net.interpolate_frame()
 	var first := mirrored.pieces[0].position()
 
-	# [b]Behind the snapshot, not equal to it.[/b] Rendering happens in the past by one
-	# buffer length so that both bracketing samples have arrived, so an interpolated
-	# position that exactly equalled the newest snapshot would mean nothing had
-	# interpolated at all — which is what a value written only by the snapshot handler
-	# looks like.
+		# Behind the snapshot, not equal to it: rendering is one buffer in the past, so an exact match
+		# would mean nothing interpolated.
 	_check(
 		first != snapshotted,
 		"interpolation renders behind the newest snapshot (%.2f units)"

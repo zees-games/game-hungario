@@ -1,10 +1,8 @@
 extends "res://game/net/hungry_net_bridge_client.gd"
 
 ## Marks a peer able to receive, and gives it everything it has missed.
-##
-## Also where the peer joins the manager: a peer registered before it can receive is a
-## peer the server builds and sends a snapshot to every tick, into a node that does not
-## exist yet.
+## Also where the peer joins the manager: registered earlier, the server would send it snapshots
+## into a node that does not exist yet.
 func _admit(peer_id: int, player_id: int) -> void:
 	if peer_id <= 0:
 		return
@@ -78,12 +76,8 @@ func _send_roster(peer_id: int) -> void:
 			)
 		)
 
-## The whole field, in chunks.
-##
-## [b]Chunked, and that is not premature.[/b] A full field is eleven hundred food slots
-## plus fruit and drops, and one reliable packet of that size fragments on a UDP transport
-## and blocks the head of the line on a WebSocket one — which is the transport a browser
-## client is on, always.
+## The whole field, in chunks: about eleven hundred food slots plus fruit and drops in one reliable
+## packet fragments over UDP and blocks the head of the line over a WebSocket.
 func _send_full_field(peer_id: int) -> void:
 	_tell(
 		peer_id,
@@ -194,9 +188,7 @@ func _on_player_died(player_id: int, killer_id: int) -> void:
 	)
 
 ## What a player is carrying, sent only to that player.
-##
-## Owner-only because it is information an opponent should not have: knowing that the
-## monster bearing down on you is out of peppers is worth a great deal, and data never
+## Owner-only because an opponent knowing you are out of peppers is an advantage, and data never
 ## sent cannot be read out of a modified client.
 func _on_item_taken(player_id: int, _grid_id: int, _item: StringName) -> void:
 	send_carry(player_id)
@@ -256,10 +248,8 @@ func _on_request(message: DotNetMessage) -> void:
 			_apply_avatar(player_id, ask.reader())
 
 		HungryEvents.Ask.LOADOUT:
-			# Not awaited, and it suspends: the store write is the suspension, and
-			# everything after it — applying the loadout and telling everybody — resumes
-			# when the write returns. Nothing in this handler depends on it having
-			# finished, which is the only reason dropping the await here is safe.
+						# Not awaited though it suspends on the store write: nothing in this handler depends on
+						# it having finished.
 			_apply_loadout(player_id, ask.reader())
 
 		HungryEvents.Ask.SAY:
@@ -277,11 +267,8 @@ func _on_request(message: DotNetMessage) -> void:
 			vote_requested.emit(peer_id, HungryEvents.read_vote(ask.reader()))
 
 ## Takes a client's avatar, through the schema.
-##
-## [b]The schema is the whole check, and it loads nothing.[/b] Every index is validated
-## against the slot and part tables on the way in, so a document naming a part that does
-## not exist is refused rather than clamped to whatever sits at the boundary — and a
-## dedicated server holding none of the art can still say no.
+## The schema is the whole check and loads nothing: every index is validated against the slot and part
+## tables, so a bad part is refused, not clamped, and a server with no art can still say no.
 func _apply_avatar(player_id: int, reader: DotNetReader) -> void:
 	var monster := world.monster_for(player_id)
 
@@ -307,15 +294,9 @@ func _apply_avatar(player_id: int, reader: DotNetReader) -> void:
 	_announce(monster)
 	roster_changed.emit(player_id)
 
-## Takes a client's loadout, through the schema.
-##
-## [b]Validated, never conformed.[/b] Conforming is right on the way out of a store, where
-## the alternative is a player who cannot spawn. It is wrong here: a client that can make
-## the server repair its way to a legal loadout can put anything in any slot and have the
-## server pick the nearest legal thing for it, which is a different feature from the one
-## being offered.
-##
-## Suspends on the store write. See the caller.
+## Takes a client's loadout, through the schema. Suspends on the store write; see the caller.
+## Validated, never conformed: conforming is right out of a store, but here it would let a client make
+## the server pick the nearest legal thing for any slot.
 func _apply_loadout(player_id: int, reader: DotNetReader) -> void:
 	var monster := world.monster_for(player_id)
 

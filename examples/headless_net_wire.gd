@@ -389,10 +389,8 @@ func _event_wire_world() -> void:
 	)
 
 func _event_wire_catalogue() -> void:
-	# The catalogue orders both ends index by. [b]Sorted as String, not as StringName[/b]:
-	# `Array.sort()` on a StringName compares interned pointers, so two peers give one
-	# thing two different indices — dot-net shipped that with message ids and only a
-	# browser client, which is a separate program with its own intern table, could see it.
+		# The catalogue orders both ends index by, sorted as String: `Array.sort()` on StringName compares
+		# interned pointers, so two peers would give one thing two indices.
 	for ids in [HungryHunters.wire_ids(), HungryHazards.wire_ids()]:
 		var sorted: PackedStringArray = (ids as PackedStringArray).duplicate()
 		sorted.sort()
@@ -461,11 +459,7 @@ func _test_field_wire() -> void:
 
 	_done()
 
-## Delivers everything in flight, in order.
 ## The mode vote's cue and countdown, server to client.
-##
-## Before this nothing carried either: the ballot went out as chat and the vote's sounds
-## and its count went nowhere, so a client heard a ballot open by reading about it.
 func _test_vote_wire() -> void:
 	_section("the mode vote's cues over the link")
 

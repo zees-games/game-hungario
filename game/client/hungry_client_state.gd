@@ -101,18 +101,14 @@ var _last_pieces: int = 0
 var _asked_at: Dictionary = {}
 
 ## How long after asking a split or an eject may take to show up in the monster.
-##
-## Long enough for a round trip, a snapshot interval and the interpolation delay on a real
-## connection; short enough that a burst arriving well after the key was let go is not
-## heard as a split the player made.
+## A round trip, a snapshot interval and the interpolation delay; short enough that a late burst
+## is not heard as the player's split.
 const ASKED_WINDOW_MSEC := 750
 
 ## Who ate us, so a dead player has somebody to watch. See [method _watched].
 var _watching: int = 0
 var _bots: Array[int] = []
 
-## The platform layer (dot-game's [DotGameClient]): the loading cover, closed until the local
-## monster exists so nobody sees an empty field or steers before the server has placed them;
-## the settings, the Escape menu, the console, Tab and M; the pointer rules and the browser's
-## filesystem flush. See [method _ready].
+## The platform layer ([DotGameClient]): loading cover, settings, Escape menu, console, Tab and M,
+## pointer rules and the browser filesystem flush. See [method _ready].
 var platform: DotGameClient = null
