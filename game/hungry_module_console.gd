@@ -1,16 +1,14 @@
 extends "res://game/hungry_module_state.gd"
 
 func _register_console() -> void:
-	# **`.with_chat()` says a command is typable whatever the server's default is.**
-	# `sv_chat_commands` ships on, so an unmarked command is reachable from chat too and
-	# the flag it carries is what decides who may run it — the same check, on the same
-	# line, for chat, RCON and the terminal. What marking buys is survival: these stay
-	# typable on a server whose operator turned that default off, because they are what
-	# a player is expected to type.
-	#
-	# Marked here are the player-facing ones and the moderation ones dot-server marks on
-	# its own equivalents. A command whose answer is about the operation rather than about
-	# who is asking says so with `.no_chat()`, the way dot-server's `quit` does.
+	_register_commands()
+	_register_bots()
+	_register_tuning()
+
+func _register_commands() -> void:
+	# `.with_chat()` keeps a command typable from chat on a server whose operator turned sv_chat_commands off;
+	# the flag still decides who may run it. `.no_chat()` marks one about the operation, not the asker.
+	# Marked here are the player-facing and moderation commands.
 	add_command(
 		"hungry_status", _cmd_status, "Show the world", DotAdminFlags.GENERIC
 	).with_chat()
@@ -76,13 +74,9 @@ func _register_console() -> void:
 		"hungry_mute <who> <seconds> [reason]", DotAdminFlags.MUTE
 	).with_chat()
 
-	# [b]How many bots is dot-server's [DotBotQuota], so `bot_quota` and `bot_quota_mode`
-	# mean the same thing on every server in the family.[/b] Before it, this game had no
-	# bots unless an operator typed a number, and then that many beside everybody. The
-	# default now is six in fill mode: an arena about eating and being eaten is an empty
-	# plate for one person on their own, and six is what the offline client plays against,
-	# so a person alone on a server gets the game they get offline less one bot, and each
-	# person who joins takes a bot's place until there are six people and no bots.
+func _register_bots() -> void:
+	# How many bots is dot-server's DotBotQuota, so bot_quota means the same on every server.
+	# The fill default of six gives a lone player the game they get offline less one bot.
 	_quota = DotBotQuota.install(self, HungryTuning.settings().bot_fill)
 
 	# How well they play: dot-bot's `bot_difficulty` and its `bot_*` settings, on the world
@@ -99,10 +93,8 @@ func _register_console() -> void:
 		var _mode := _quota.mode_cvar.set_value("fixed")
 		var _count := _quota.quota_cvar.set_value(str(maxi(_cv_bots.get_int(), 0))))
 
-	# [b]Hunters are off by default, and that is an operator's decision rather than an
-	# addon's.[/b] A mode about eating food and a mode about being hunted are different
-	# games, and turning one into the other silently because an addon was installed is
-	# exactly what a cvar exists to prevent.
+func _register_tuning() -> void:
+	# Hunters are off by default: that is an operator's decision, not an addon's.
 	# How an eaten monster goes down on every screen: the server picks each death's reaction
 	# from these (HungryWorld.decide_death); REPLICATED, because the clients draw the falls.
 	var _ragdolls := ragdoll_rules.bind_cvars(

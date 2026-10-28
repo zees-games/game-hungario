@@ -32,14 +32,8 @@ func _test_the_remote_workbench() -> void:
 	var _l1 := sbinder.load_layers()
 	var _l2 := cbinder.load_layers()
 	var kind := "config_play"
-	var set: DotProfileSet = null
-	for candidate: DotProfileSet in sbinder.profile_sets():
-		if candidate.rel_path == kind:
-			set = candidate
-	var cset: DotProfileSet = null
-	for candidate: DotProfileSet in cbinder.profile_sets():
-		if candidate.rel_path == kind:
-			cset = candidate
+	var set := _profile_set(sbinder, kind)
+	var cset := _profile_set(cbinder, kind)
 	var swb := DotGameWorkbench.new()
 	swb.dedicated = true
 	swb.config = {"enabled": false}
@@ -83,6 +77,11 @@ func _test_the_remote_workbench() -> void:
 	}
 	_workbench_scenario(rig)
 
+func _profile_set(binder: DotGameConfigBinder, kind: String) -> DotProfileSet:
+	for candidate: DotProfileSet in binder.profile_sets():
+		if candidate.rel_path == kind:
+			return candidate
+	return null
 
 ## The admin, guest, non-admin and revoked-admin turns of the remote workbench test, on the rig it built.
 func _workbench_scenario(rig: Dictionary) -> void:
@@ -146,7 +145,6 @@ func _workbench_scenario(rig: Dictionary) -> void:
 	for node: Node in rig["nodes"]:
 		node.queue_free()
 	_done()
-
 
 func _test_command_wire() -> void:
 	_section("commands on the wire")
@@ -257,6 +255,17 @@ func _test_event_wire() -> void:
 	)
 	_check(is_equal_approx(float(spawn["mass"]), 412.0), "and the mass")
 
+	_event_wire_throw()
+
+	_event_wire_chat()
+
+	_event_wire_world()
+
+	_event_wire_catalogue()
+
+	_done()
+
+func _event_wire_throw() -> void:
 	var shot := HungryProjectile.make(
 		9, 7, HungryContent.ITEM_FROST, Vector2(100.0, -50.0), Vector2(0.6, 0.8), 512
 	)
@@ -282,11 +291,8 @@ func _test_event_wire() -> void:
 		"and a carry list round-trips"
 	)
 
-	#
-	# [b]Every encoder against its decoder, which is what this section is for.[/b] The two
-	# have to be exact inverses and nothing can check that for you: dot-moderation shipped
-	# a store whose writer and reader never met and every voice mute loaded back as a
-	# warning, which enforces nothing.
+func _event_wire_chat() -> void:
+	# Every encoder against its decoder: only a round trip proves the two are exact inverses.
 	var line := DotChatMessage.make(
 		DotChatMessage.Kind.SAY, HungryServices.CHANNEL_NEAR, "42", "Ada", "hello there"
 	)
@@ -333,6 +339,7 @@ func _test_event_wire() -> void:
 		"and a client's own line round-trips with the channel it chose"
 	)
 
+func _event_wire_world() -> void:
 	var hunter := HungryEvents.read_hunter(
 		DotNetReader.new(
 			HungryEvents.write_hunter(
@@ -381,6 +388,7 @@ func _test_event_wire() -> void:
 		"and a vote token, which is a token because what an id MEANS is a source's business"
 	)
 
+func _event_wire_catalogue() -> void:
 	# The catalogue orders both ends index by. [b]Sorted as String, not as StringName[/b]:
 	# `Array.sort()` on a StringName compares interned pointers, so two peers give one
 	# thing two different indices — dot-net shipped that with message ids and only a
@@ -412,8 +420,6 @@ func _test_event_wire() -> void:
 	_check(HungryHazards.wire_ids().size() <= (1 << HungryEvents.HAZARD_KIND_BITS),
 		"every hazard kind fits the hazard event's kind field",
 		"%d kinds in %d bits" % [HungryHazards.wire_ids().size(), HungryEvents.HAZARD_KIND_BITS])
-
-	_done()
 
 func _test_field_wire() -> void:
 	_section("the field on the wire")
@@ -452,7 +458,6 @@ func _test_field_wire() -> void:
 	hostile.write_varint(4_000_000_000)
 	var refused := HungryEvents.read_field(hostile.to_reader())
 	_check(not bool(refused["ok"]), "an absurd count is refused, not iterated")
-
 
 	_done()
 

@@ -339,6 +339,10 @@ func _test_blind_and_beacon() -> void:
 		"and the beacon lands on nobody else"
 	)
 
+	_blind_beacon_off(blind, beacon, far_piece)
+	_done()
+
+func _blind_beacon_off(blind: Callable, beacon: Callable, far_piece: int) -> void:
 	var _off_mine: DotResult = blind.call(&"7", {"on": false, "actor": "1"})
 	var _off_far: DotResult = blind.call(&"99", {"on": false, "actor": "1"})
 	var _unlit: DotResult = beacon.call(&"99", {"on": false, "actor": "1"})
@@ -352,7 +356,6 @@ func _test_blind_and_beacon() -> void:
 		not _server_bridge.behaviour_for(far_piece).identity.always_relevant,
 		"and puts the far player back under the ordinary interest rules"
 	)
-	_done()
 
 func _test_avatar() -> void:
 	_section("avatars")
@@ -459,16 +462,21 @@ func _test_interpolation() -> void:
 			% first.distance_to(behaviour.net_position)
 	)
 
-	# Advance the client's own clock without delivering anything, and the drawn position
-	# has to keep moving. This is the whole difference between rendering at the snapshot
-	# rate and rendering at the frame rate: `render_tick` is derived from the client's
-	# estimate of the server tick, and an estimate that only moved when a packet arrived
-	# would give the same answer on every frame in between.
+	_between_snapshots(mirrored, first)
+
+	_server_bridge.remove_peer(0)
+	_server_world.remove_player(42)
+	_flush()
+	_done()
+
+func _between_snapshots(mirrored, first: Vector2) -> void:
+	# Advance the clock without delivering a packet: render_tick comes from the clock's estimate of the
+	# server tick, so the drawn position must keep moving between snapshots.
 	for _i in range(6):
 		_client_net.clock.advance(1.0 / float(TICK_RATE))
 
 	_client_net.interpolate_frame()
-	var second := mirrored.pieces[0].position()
+	var second: Vector2 = mirrored.pieces[0].position()
 
 	_check(
 		second != first,
@@ -479,8 +487,3 @@ func _test_interpolation() -> void:
 		"by a plausible amount rather than extrapolating away (%.2f)"
 			% second.distance_to(first)
 	)
-
-	_server_bridge.remove_peer(0)
-	_server_world.remove_player(42)
-	_flush()
-	_done()

@@ -56,6 +56,10 @@ func _test_loadout() -> void:
 		"holding what they asked for"
 	)
 
+	_loadout_refusals(schema)
+	_done()
+
+func _loadout_refusals(schema: DotLoadoutSchema) -> void:
 	# Nobody owns the greedy trait, so the server must refuse it — a client that could
 	# make the server repair its way to a legal loadout can put anything in any slot.
 	var cheating := DotLoadout.empty(schema.id)
@@ -86,7 +90,6 @@ func _test_loadout() -> void:
 		_server_world.monster_for(7).starter_item() == HungryContent.ITEM_LURE,
 		"and so is an item in the wrong slot"
 	)
-	_done()
 
 func _test_direction_enforced() -> void:
 	_section("direction")
@@ -320,6 +323,20 @@ func _test_warrens_rock_converges() -> void:
 	command.reach = 900.0
 
 	_put(warrens, start)
+	var pressed := _rock_pressed(warrens, start, command, rock)
+
+	_rock_naive(warrens, start, command, rock, pressed)
+
+	_rock_split(warrens, start, command, rock)
+
+	# Back onto the world every later line of this file expects.
+	_server_bridge.rebind(_server_world)
+	_flush()
+	remove_child(warrens)
+	warrens.queue_free()
+	_done()
+
+func _rock_pressed(warrens: HungryWorld, start: Vector2, command: Dot2DCommand, rock: Vector3) -> Dictionary:
 	var pressed := _rock_window(warrens, 150, command, rock)
 	print("  measured: against a rock, worst %.2f over %d ticks; %d in contact, worst %.2f and mean %.2f there; deepest %.2f" % [
 		float(pressed["worst"]), int(pressed["ticks"]), int(pressed["contact"]),
@@ -346,7 +363,9 @@ func _test_warrens_rock_converges() -> void:
 		"worst %.2f, mean %.2f in contact; %.2f over the whole window"
 			% [float(pressed["contact_worst"]), float(pressed["contact_mean"]), float(pressed["worst"])]
 	)
+	return pressed
 
+func _rock_naive(warrens: HungryWorld, start: Vector2, command: Dot2DCommand, rock: Vector3, pressed: Dictionary) -> void:
 	# The negative control: the rock gone from the client's world only.
 	_put(warrens, start)
 	_client_world.layout = HungryLayout.none()
@@ -363,6 +382,7 @@ func _test_warrens_rock_converges() -> void:
 			% [float(naive["contact_mean"]), float(pressed["contact_mean"])]
 	)
 
+func _rock_split(warrens: HungryWorld, start: Vector2, command: Dot2DCommand, rock: Vector3) -> void:
 	# Split against the face: the pieces overlap, and `_separate` is not replayed.
 	_put(warrens, start)
 	warrens.feed_player(7, 200.0)
@@ -387,10 +407,3 @@ func _test_warrens_rock_converges() -> void:
 		"and its client comes back to the server once the pieces are apart",
 		"worst %.2f on the way, %.2f at the end" % [float(halves["worst"]), float(halves["final"])]
 	)
-
-	# Back onto the world every later line of this file expects.
-	_server_bridge.rebind(_server_world)
-	_flush()
-	remove_child(warrens)
-	warrens.queue_free()
-	_done()

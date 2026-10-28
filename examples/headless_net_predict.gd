@@ -51,20 +51,7 @@ func _test_handshake() -> void:
 		]
 	)
 
-	# The whole point of a seed: a client that received eleven hundred positions would
-	# have paid about 5 kB for what an integer bought.
-	var mismatched := 0
-
-	for grid_id in _server_world.field.alive_ids():
-		if _client_world.field.position_of(grid_id).distance_to(
-			_server_world.field.position_of(grid_id)
-		) > 0.001:
-			mismatched += 1
-
-	_check(
-		mismatched == 0,
-		"and every crumb is in the same place without a position being sent"
-	)
+	_handshake_field_matches()
 
 	_steps(4)
 
@@ -84,6 +71,22 @@ func _test_handshake() -> void:
 		"and the client predicts every piece it owns (%d)" % predicted.size()
 	)
 	_done()
+
+func _handshake_field_matches() -> void:
+	# The whole point of a seed: a client that received eleven hundred positions would
+	# have paid about 5 kB for what an integer bought.
+	var mismatched := 0
+
+	for grid_id in _server_world.field.alive_ids():
+		if _client_world.field.position_of(grid_id).distance_to(
+			_server_world.field.position_of(grid_id)
+		) > 0.001:
+			mismatched += 1
+
+	_check(
+		mismatched == 0,
+		"and every crumb is in the same place without a position being sent"
+	)
 
 func _test_replication() -> void:
 	_section("state")
@@ -129,12 +132,6 @@ func _test_replication() -> void:
 func _test_prediction() -> void:
 	_section("prediction")
 
-	# [b]Not near zero in this game, and that is correct.[/b] A client predicts where its
-	# monster went; it does not predict what its monster ate, because eating is the
-	# authority's and a client that resolved its own would be a client that decides what
-	# it weighs. So every crumb swallowed is a mass the client did not have, a speed it
-	# did not use, and a small correction on the next snapshot. What matters is that the
-	# corrections stay small — the distance checks below — rather than that they stop.
 	# [b]It is not zero in this game, and that is correct.[/b] A client predicts where its
 	# monster went; it does not predict what its monster ate, because eating is the
 	# authority's and a client that resolved its own would be a client that decides what
@@ -178,11 +175,12 @@ func _test_prediction() -> void:
 		"and stays with the server afterwards"
 	)
 
-	# [b]On the same tick, not merely close.[/b] The rate above cannot see a client a
-	# whole tick ahead of the server: an offset that never changes reconciles to itself
-	# and counts as no correction at all. That is what the hand-stamped harness had -- its
-	# replay ran one tick the next stamp ran again -- and it passed. Tick N on the client
-	# against tick N on the server; one tick of this monster's motion is 2 units.
+	_prediction_same_tick(command)
+	_done()
+
+func _prediction_same_tick(command: Dot2DCommand) -> void:
+	# Tick N against tick N: the correction rate cannot see a client a whole tick ahead, because a
+	# constant offset reconciles to itself. One tick of this monster's motion is 2 units.
 	var server_at := {}
 	var client_at := {}
 
@@ -208,7 +206,6 @@ func _test_prediction() -> void:
 		"and predicts tick N where the server simulated tick N (median %.3f over %d ticks)"
 			% [median, gaps.size()]
 	)
-	_done()
 
 ## Your own monster is drawn between its ticks at the clock's render alpha, and a physics
 ## frame the clock's drift leaves with no tick, or with two, is drawn through: frames drawn a
@@ -355,6 +352,12 @@ func _test_admin_is_predicted() -> void:
 	_client_world.layout = HungryLayout.none()
 	_back_to(from)
 
+	_admin_freeze(freeze, command)
+
+	_back_to(from)
+	_done()
+
+func _admin_freeze(freeze: Callable, command: Dot2DCommand) -> void:
 	# Freeze: held still with the pointer at full reach, on both ends.
 	var frozen: DotResult = freeze.call(&"7", {"on": true})
 	_check(frozen.ok, "the moderator handler freezes player 7", str(frozen.error))
@@ -371,17 +374,8 @@ func _test_admin_is_predicted() -> void:
 		"worst %.2f" % float(still["worst"])
 	)
 
-	# And naive: unfrozen, with the server alone refusing to move anybody.
-	#
-	# This used to be worse than a rubber band: the client walked away and was NEVER pulled
-	# back (112.80 units over the window, and growing), because a snapshot that carried the
-	# monster with nothing changed handed [DotNetPredictor] the client's own prediction as
-	# the server's answer. dot-net now rewinds a predicted entity to the server's whole
-	# state — what the snapshot left out is what the server last sent — so the naive
-	# freeze is an ordinary rubber band: the client predicts its lead of movement the
-	# server refuses, and every snapshot pulls it back. Both halves of that are asserted.
-	# The first is still what makes the shipped freeze worth checking: a client that is
-	# not told about the freeze is visibly wrong, every snapshot, for as long as it lasts.
+	# Naive: the server alone refuses to move anybody. dot-net rewinds a predicted entity to the server's
+	# whole state, so this is an ordinary rubber band: the client leads, every snapshot pulls it back.
 	var _thaw: DotResult = freeze.call(&"7", {"on": false})
 	var speed := _server_world.tunables.max_speed
 	_server_world.tunables.max_speed = 0.0
@@ -403,6 +397,3 @@ func _test_admin_is_predicted() -> void:
 			float(naive_freeze["early"]), float(naive_freeze["late"])
 		]
 	)
-
-	_back_to(from)
-	_done()

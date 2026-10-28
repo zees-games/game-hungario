@@ -185,6 +185,11 @@ func _on_event(message: DotNetMessage) -> void:
 			if bool(voted["ok"]):
 				vote_cue_received.emit(voted)
 
+		_:
+			_on_event_world(event.kind, reader)
+
+func _on_event_world(kind: int, reader: DotNetReader) -> void:
+	match kind:
 		HungryEvents.Kind.SPAWN:
 			_apply_spawn(reader)
 
@@ -210,16 +215,16 @@ func _on_event(message: DotNetMessage) -> void:
 		HungryEvents.Kind.BURST:
 			var pair := HungryEvents.read_pair(reader)
 			if bool(pair["ok"]):
-				cue.emit(event.kind, pair)
+				cue.emit(kind, pair)
 
 		HungryEvents.Kind.DIED:
 			var died := HungryEvents.read_died(reader)
 			if bool(died["ok"]):
-				cue.emit(event.kind, died)
+				cue.emit(kind, died)
 
 		HungryEvents.Kind.BOARD:
 			board = HungryEvents.read_board(reader)
-			cue.emit(event.kind, {"rows": board})
+			cue.emit(kind, {"rows": board})
 
 		HungryEvents.Kind.CARRY:
 			var monster := local_monster()
@@ -228,7 +233,7 @@ func _on_event(message: DotNetMessage) -> void:
 				monster.carried.clear()
 				for item in carried:
 					monster.carried.append(item)
-			cue.emit(event.kind, {"carried": carried})
+			cue.emit(kind, {"carried": carried})
 
 func _apply_hello(reader: DotNetReader) -> void:
 	var hello := HungryEvents.read_hello(reader)
