@@ -1,0 +1,406 @@
+extends "res://game/hungry_module_console.gd"
+
+func _physics_process(_delta: float) -> void:
+	if not loaded or bridge == null or world == null:
+		return
+
+	_tick += 1
+	loading.poll_loading()
+	_drive_bots()
+	bridge.server_tick(_tick)
+
+	# [b]After the world's own tick, and this is the ordering that matters.[/b] The hunters
+	# read where everybody is and the hazards push pieces out of rocks, and both have to
+	# happen on positions the movement has just produced — a list built before the tick is
+	# a list of where everybody WAS, which is the one-tick lag this family has now
+	# documented three times.
+	if hunters != null and hunters.is_enabled():
+		hunters.tick(1.0 / float(world.tick_rate))
+
+	if hazards != null:
+		hazards.resolve()
+
+	if maps != null:
+		maps.advance(1.0 / float(world.tick_rate))
+
+
+## A client finished joining.
+##
+## [b]The event carries `userid`, not `peer_id`.[/b] Looking a session up by a peer id
+## that is not in the payload returns null every time, so the handler returns early,
+## every time, and nobody is ever added to the world — with no error, because a null
+## session is a legitimate thing to find. game-blob's module has the same line and has
+## never connected a client, so it has never run.
+func _on_client_spawn(event: DotEvent) -> void:
+	var session := server.session_by_userid(event.get_int("userid"))
+
+	if session == null or _joined.has(session.userid):
+		return
+
+	# The session id, not the peer id: a peer id is reassigned on reconnect and the next
+	# player to join would inherit this one's monster.
+	var added := bridge.add_player(
+		session.peer_id,
+		session.userid,
+		session.display_name,
+		_avatar_for(session)
+	)
+
+	if not added.ok:
+		log_warn("could not add a player", {
+			"userid": session.userid, "error": str(added.error)
+		})
+		return
+
+	_joined[session.userid] = true
+	loading.add(session)
+	_apply_stored_loadout(session.userid)
+	_begin_stats(session)
+
+	# Voice and chat learn about them before anything is sent, so a frame or a line that
+	# lands in the same flush as the admission has somewhere to go.
+	if services != null:
+		services.add_peer(session.peer_id)
+
+	if progress != null:
+		progress.begin(str(_stat_keys.get(session.userid, "")))
+
+	# The welcome is NOT sent from here. `client_spawn` is the end of signon, and the
+	# client builds its scene only after it — so at this point the peer is never ready,
+	# `_welcome` returned on its first line for every player there has ever been, and
+	# nobody was handed the backlog, the hunters or the hazards, and nobody was announced.
+	# See [method _on_peer_admitted].
+
+## A peer said it can receive: now it can be welcomed.
+func _on_peer_admitted(peer_id: int, player_id: int) -> void:
+	var session := server.session_by_userid(player_id) if server != null else null
+
+	if session == null or session.peer_id != peer_id or not _joined.has(session.userid):
+		return
+
+	_welcome(session)
+
+## What somebody is told once they are in: the backlog, and what is already in the arena.
+##
+## [b]After the admission, never before it.[/b] Nothing may be sent to a peer before it has
+## said it can receive — dot-server's signon finishes and *then* the client builds its
+## scene, and everything sent in between lands on a node that does not exist and is lost,
+## one "Node not found" per call.
+func _welcome(session: DotClientSession) -> void:
+	if not bridge.peer_is_ready(session.peer_id):
+		return
+
+	if services != null:
+		# The backlog: what was said before they walked in. dot-chat computes it per peer,
+		# because a channel with `backlog = 0` — the proximity one — must not replay a
+		# line somebody said quietly in a corner to a stranger who was not there.
+		for line in services.chat.backlog_for(session.peer_id):
+			bridge.send_chat(session.peer_id, line)
+
+		services.chat.join_notice(session.peer_id, HungryServices.CHANNEL_ALL)
+
+	# The hunters and the hazards already in the arena. A client that joined mid-wave
+	# would otherwise be told about a hunter only when it next moved, and would walk
+	# through a rock in the meantime — both ends resolve the same list.
+	if hunters != null:
+		for row in hunters.wire_rows():
+			bridge.send_hunter(
+				session.peer_id, row[0], row[1], row[2], row[3], row[4]
+			)
+
+	if hazards != null:
+		for row in hazards.wire_rows():
+			bridge.send_hazard(session.peer_id, row[0], row[1], row[2], true)
+
+func _on_client_disconnected(session: DotClientSession, _reason: String) -> void:
+	if not _joined.has(session.userid):
+		return
+
+	# [b]Off the broadcast set first.[/b] Everything below announces something about this
+	# person to everybody ELSE, and their socket has already gone — the "Attempt to call
+	# RPC with unknown peer ID" that ends up in the log of every single disconnect, which
+	# is where somebody looks when something else is wrong.
+	bridge.mark_not_ready(session.peer_id)
+
+	if services != null:
+		services.chat.leave_notice(session.peer_id, HungryServices.CHANNEL_ALL)
+		services.remove_peer(session.peer_id)
+
+	if mod_tools != null:
+		mod_tools.forget(StringName(str(session.userid)))
+
+	if maps != null and maps.director != null:
+		# The vote forgets them, or a rock-the-vote threshold counts a ballot from
+		# somebody who has left — which is how a server ends up unable to change at all.
+		maps.director.forget_voter(StringName(str(session.userid)))
+
+	if progress != null:
+		progress.end(str(_stat_keys.get(_player_of_session(session), "")))
+
+	bridge.remove_peer(session.peer_id)
+	loading.remove(session)
+	_joined.erase(session.userid)
+	_end_stats(session)
+
+## The world player id a session is in the arena under, or zero.
+func _player_of_session(session: DotClientSession) -> int:
+	return bridge.player_for_peer(session.peer_id) if bridge != null else 0
+
+
+## Somebody said something through dot-server's own chat path.
+##
+## Taken and cancelled, not watched: this game's rules are [DotChatRouter]'s now, and
+## cancelling is what makes there be exactly one path. The line still reaches every player,
+## through a router that has already sanitised it, checked the gag and worked out who can
+## hear it.
+func _on_player_chat(event: DotEvent) -> void:
+	event.cancel("routed by the game's chat", _module_name())
+
+	var session := event.get_session()
+
+	if session == null or services == null or services.chat == null:
+		return
+
+	# A browser shell's own chat box has no way to name a channel, so the legacy path
+	# lands on the room channel — which is the one they would have picked.
+	_on_say_requested(
+		session.peer_id, HungryServices.CHANNEL_ALL, event.get_string("text")
+	)
+
+func _on_say_requested(peer_id: int, channel_id: StringName, text: String) -> void:
+	var said := services.chat.submit(peer_id, channel_id, text)
+
+	if not said.ok and said.error != null:
+		# Back to the sender and nowhere else. dot-chat is deliberate that a rate-limited
+		# or gagged player must not be able to measure the difference from outside, and a
+		# refusal broadcast to the room is exactly that measurement.
+		services.chat.notice(peer_id, said.error.message, channel_id)
+
+## A voice frame. Relayed, never inspected — the router stamps the speaker from the
+## transport's own sender id, and without that any client can put words in any other
+## player's mouth.
+func _on_voice_requested(peer_id: int, payload: PackedByteArray) -> void:
+	services.voice.relay(peer_id, payload)
+
+func _on_chat_accepted(message: DotChatMessage, _recipients: PackedInt32Array) -> void:
+	# Nothing to draw over a head here — a monster is not a nameplate — but the server's
+	# own view of who last spoke is what `hungry_status` reports from, and it is taken off
+	# the accepted line rather than off the request so a refused one is not counted.
+	if message.sender_peer > 0:
+		_last_spoke = message.sender_name
+
+## An unclaimed `!command` from chat.
+##
+## Routed into dot-server's own console with the player's permissions rather than given a
+## second command table here: dot-server already decides what a session may run, logs it to
+## the audit log and answers it, and a game that reimplemented that would be a game whose
+## chat commands were not audited.
+func _on_chat_command(peer_id: int, command: String, args: PackedStringArray) -> void:
+	var session := server.session_of(peer_id)
+
+	if session == null:
+		return
+
+	if server.console.find_command(command) == null:
+		DotLog.debug(CHANNEL, "an unknown chat command was ignored", {
+			"peer": peer_id, "command": command,
+		})
+		return
+
+	var ctx := session.make_context(
+		command,
+		args,
+		DotCmdContext.Source.CHAT,
+		func(line: String) -> void:
+			services.chat.notice(peer_id, line, HungryServices.CHANNEL_ALL)
+	)
+
+	var line := command
+
+	for arg in args:
+		line += " " + arg
+
+	server.console.execute(line, ctx)
+
+## `rtv`, `nominate <id>`, `vote <n>`, `extend` — from this game's own wire.
+##
+## [b]A token, resolved here rather than an enum on the wire.[/b] What can be voted for is
+## a [DotVoteSource]'s business, which is what lets one engine drive dot-server's games and
+## dot-map's maps without this file naming either.
+func _on_vote_requested(peer_id: int, token: String) -> void:
+	if maps == null or maps.director == null:
+		return
+
+	var player_id := bridge.player_for_peer(peer_id)
+
+	# Nobody in the world yet. `player_for_peer` answers 0 for every such peer, so they
+	# would all rock, nominate and vote as the one voter "0" — each undoing the last.
+	if player_id <= 0:
+		return
+
+	var voter := StringName(str(player_id))
+	var parts := token.strip_edges().split(" ", false)
+
+	if parts.is_empty():
+		return
+
+	var result: DotResult = null
+
+	match parts[0].to_lower():
+		"rtv":
+			result = maps.director.rock_the_vote(voter)
+		"nominate":
+			if parts.size() > 1:
+				result = maps.director.nominate(voter, StringName(parts[1]))
+		"vote":
+			if parts.size() > 1:
+				result = maps.director.cast_one(voter, StringName(parts[1]))
+		"extend":
+			# An admin's, not a player's, as in game-playground: extending without a vote
+			# is what the ballot's own "extend" option exists to make a decision of the
+			# players. This line let anybody on the wire do it, as often as it allowed.
+			if not _voter_is_admin(voter):
+				result = DotResult.fail(
+					DotError.CODE_FORBIDDEN, "Only an admin can extend without a vote."
+				)
+			else:
+				result = maps.director.extend()
+
+	if result != null and not result.ok and services != null:
+		services.chat.notice(
+			peer_id, result.error.message, HungryServices.CHANNEL_ALL
+		)
+
+func _voter_is_admin(voter: StringName) -> bool:
+	var player_id := String(voter).to_int()
+	var peer_id := bridge.peer_for_player(player_id)
+	var session := server.session_of(peer_id) if peer_id > 0 else null
+	# CHANGEMAP, not any flag: `is_admin()` is "holds a flag at all", which a reserved slot
+	# or admin chat satisfies, and this gates extending the map, an instant rtv and the
+	# nomination bypasses. The console's own extend asks for CHANGEMAP; the wire must too.
+	return session != null and session.has_permission(DotAdminFlags.CHANGEMAP)
+
+func _on_vote_announced(line: String) -> void:
+	if services != null and services.chat != null:
+		services.chat.announce(line, HungryServices.CHANNEL_ALL)
+
+## The vote picked something. dot-server changes the game; nothing here does.
+func _on_change_due(game_id: StringName) -> void:
+	if not maps.available(game_id):
+		log_warn("the vote picked a mode this head count cannot play", {
+			"game": String(game_id)
+		})
+		return
+
+	server.games.change_game(game_id, "vote")
+
+
+func _on_hunter_changed(hunter_id: int) -> void:
+	var state := hunters.state_of(hunter_id)
+
+	if state.is_empty():
+		# Gone. Announced as not-alive so a client drops it, rather than simply stopping
+		# being mentioned — which would leave it drawn for ever.
+		bridge.broadcast_hunter(hunter_id, 0, Vector2.ZERO, 0.0, false)
+		return
+
+	bridge.broadcast_hunter(
+		hunter_id,
+		HungryHunters.index_of(state["kind"]),
+		state["at"],
+		float(state["radius"]),
+		bool(state["alive"])
+	)
+
+## A hunter ate somebody's piece. Counted, so the secret achievement can be earned.
+func _on_piece_hunted(player_id: int, _mass: float) -> void:
+	var key := _stat_key(player_id)
+
+	if key != &"":
+		stats.record(key, &"hunted", 1.0)
+
+func _on_hazard_placed(place_id: int, def: DotPropDef, at: Vector2) -> void:
+	bridge.broadcast_hazard(place_id, HungryHazards.index_of(def.id), at, true)
+
+func _on_hazard_cleared(place_id: int) -> void:
+	bridge.broadcast_hazard(place_id, 0, Vector2.ZERO, false)
+
+## A spike. What "burst" means is the world's; this is where it is asked for.
+func _on_hazard_struck(player_id: int, _piece_id: int, effect: StringName) -> void:
+	if effect == &"burst":
+		world.burst(world.monster_for(player_id), 0)
+
+func _on_earned(player_key: String, id: StringName, title: String, points: int) -> void:
+	# The player id the key belongs to, so a client can colour the line. Linear over at
+	# most a few dozen players, a few times a session.
+	for player_id in _stat_keys.keys():
+		if str(_stat_keys[player_id]) != player_key:
+			continue
+
+		bridge.broadcast_progress(int(player_id), id, title, points)
+		return
+
+
+## The game id a preset is played under, which is what dot-server, the vote and the rotation
+## call a mode. The preset id alone ("classic") is not one: handed to the vote, the running
+## mode was never recognised, so it was offered against itself and its play history and
+## time limit were never found.
+static func game_id_of(preset_id: StringName) -> StringName:
+	return StringName("hungry_%s" % preset_id)
+
+## The modes, so `changegame` and a vote have something to change to.
+##
+## Both ship inside the build, so [member DotGameDescriptor.manifest_url] is empty and no
+## client has to download anything to follow a change. A game whose content lives on a CDN
+## sets that instead, and dot-server's sync step then does the waiting.
+static func game_descriptors() -> Array[DotGameDescriptor]:
+	var out: Array[DotGameDescriptor] = []
+
+	for row in [
+		[GAME_CLASSIC, "Hungario: Classic", HungryPaths.rebase("res://game/modes/classic.tscn")],
+		[GAME_FRENZY, "Hungario: Frenzy", HungryPaths.rebase("res://game/modes/frenzy.tscn")],
+		[GAME_GAUNTLET, "Hungario: Gauntlet", HungryPaths.rebase("res://game/modes/gauntlet.tscn")],
+		[GAME_WARRENS, "Hungario: Warrens", HungryPaths.rebase("res://game/modes/warrens.tscn")],
+		[GAME_REEF, "Hungario: Reef", HungryPaths.rebase("res://game/modes/reef.tscn")],
+		[GAME_SHALLOWS, "Hungario: Shallows", HungryPaths.rebase("res://game/modes/shallows.tscn")],
+	]:
+		var descriptor := DotGameDescriptor.new()
+		descriptor.game_id = String(row[0])
+		descriptor.display_name = String(row[1])
+		descriptor.scene = String(row[2])
+		# Deliberately empty. [DotClientLink] refuses an absolute scene path that is not
+		# already inside dot-cloud's mount prefix, because a server that could name one
+		# could ask every client to load any scene in their build — and this game ships
+		# inside the build rather than as downloadable content, so there is no mount for
+		# it to be inside. The client owns its own scene ([HungryClient]) and the signon
+		# takes the no-scene path, which is the shape every game shipped with its server
+		# has. A game delivered through dot-cloud sets a *relative* path here instead.
+		descriptor.client_scene = ""
+		descriptor.min_players = 0
+		out.append(descriptor)
+
+	return out
+
+## Registers both modes, unless the host already did.
+##
+## A host that wants one of these to be [member DotGameManager.initial_game] has to add
+## them [i]before[/i] the server boots, because the initial game is loaded during the
+## game manager's setup and this module cannot load until there is a world to bind to.
+## [method game_descriptors] is the same list for that case, which is why the registration
+## here is idempotent rather than an error.
+func _register_games() -> void:
+	if server.games == null:
+		return
+
+	for descriptor in game_descriptors():
+		if server.games.find_game(descriptor.game_id) != null:
+			continue
+
+		var added := server.games.add_game(descriptor)
+
+		if not added.ok:
+			log_warn("could not register a game", {
+				"game": descriptor.game_id, "error": str(added.error)
+			})
+
+
