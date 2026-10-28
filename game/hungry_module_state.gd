@@ -193,6 +193,9 @@ var _map_config: DotGameMapConfig = null
 ## dot-workbench over the config and the modes; null until the load finishes.
 var workbench: DotGameWorkbench = null
 
+## The admins' permission check the workbench runtime asks through [method _runtime_permit].
+var _admin_permit := Callable()
+
 ## dot-player-char's `sv_ragdoll*` set: how an eaten monster goes down. The module's, because
 ## the cvars outlive a mode change and the world does not; each world is handed this one.
 var ragdoll_rules: DotPlayerRagdollRules = DotPlayerRagdollRules.new()
@@ -705,9 +708,11 @@ func _start_workbench() -> void:
 	var admin_permit := Callable()
 	if server != null and server.admins != null:
 		admin_permit = server.admins.uid_has_permission
-	rt.permit = func(actor: Variant, flag: String) -> bool:
-		return admin_permit.is_valid() and actor is String and bool(admin_permit.call(actor, flag))
-	rt.actor_name = func(actor: Variant) -> String: return str(actor)
+	# Methods, not lambdas: the static HungryTuning.binder keeps rt past the tree, and a lambda
+	# there holds this base script until the engine's exit walk frees it mid-walk (exit 134).
+	_admin_permit = admin_permit
+	rt.permit = _runtime_permit
+	rt.actor_name = _runtime_actor_name
 	workbench = DotGameWorkbench.new()
 	workbench.name = "Workbench"
 	workbench.dedicated = DisplayServer.get_name() == "headless"
@@ -738,6 +743,14 @@ func _start_workbench() -> void:
 		HungryModes.binders[id].attach(rt)
 	add_command("workbench", func(ctx: DotCmdContext) -> void: ctx.reply_lines(_workbench_lines()),
 		"Show the admin workbench's state", DotAdminFlags.CVAR)
+
+## [member DotProfileRuntime.permit]: the server's admin flags, by user id.
+func _runtime_permit(actor: Variant, flag: String) -> bool:
+	return _admin_permit.is_valid() and actor is String and bool(_admin_permit.call(actor, flag))
+
+## [member DotProfileRuntime.actor_name].
+func _runtime_actor_name(actor: Variant) -> String:
+	return str(actor)
 
 func _workbench_lines() -> PackedStringArray:
 	if workbench == null:

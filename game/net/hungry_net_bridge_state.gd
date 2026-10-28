@@ -235,9 +235,12 @@ var profile_runtime: DotProfileRuntime = null
 func ensure_runtime() -> DotProfileRuntime:
 	if profile_runtime == null:
 		profile_runtime = DotProfileRuntime.new()
-		profile_runtime.permit = func(actor: Variant, _flag: String) -> bool:
-			return typeof(actor) == TYPE_STRING_NAME and actor == &"local"
+		# A method, not a lambda: a static binder may keep the runtime past the tree (see HungryModule).
+		profile_runtime.permit = _local_permit
 	return profile_runtime
+
+func _local_permit(actor: Variant, _flag: String) -> bool:
+	return typeof(actor) == TYPE_STRING_NAME and actor == &"local"
 
 func _exit_tree() -> void:
 	# The link and the runtime hold each other through broadcast.
