@@ -101,6 +101,7 @@ func fall(player_id: int, death: DotPlayerDeath) -> Node2D:
 	add_child(made)
 	made.start(rules)
 	_live.append(made)
+	DotLog.debug(CHANNEL, "a player fell apart", {"player": player_id, "live": _live.size()})
 	return made
 
 
