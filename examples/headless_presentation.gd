@@ -743,9 +743,9 @@ func _test_cover() -> void:
 	_check(cover != null, "the platform's cover is the game's own")
 	if cover != null:
 		cover.set_status("Joining")
-		_check(cover.title() == "Hungario", "titled Hungario", cover.title())
-		_check(cover.tip().split(" ").size() >= 4 and not cover.tip().contains("_"),
-			"the tip is a sentence, not a raw key", cover.tip())
+		_check(cover.title == "Hungario", "titled Hungario", cover.title)
+		_check(cover.tip.split(" ").size() >= 4 and not cover.tip.contains("_"),
+			"the tip is a sentence, not a raw key", cover.tip)
 		_check(cover.status() == "Joining", "the status line still reaches the label")
 		_check(cover.describe().has("showing"), "and the stock description holds")
 	holder.queue_free()
