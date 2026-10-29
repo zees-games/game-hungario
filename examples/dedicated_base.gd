@@ -1,4 +1,4 @@
-extends DotGameCheckSuite
+extends "exit_probe.gd"
 
 const HungryBrowser := preload("../game/client/hungry_browser.gd")
 const HungryContent := preload("../game/hungry_content.gd")
@@ -186,3 +186,7 @@ func _line_with(text: String, needle: String) -> String:
 func _last_lines(text: String, count: int) -> String:
 	var lines := text.strip_edges().split("\n")
 	return "\n".join(lines.slice(maxi(0, lines.size() - count)))
+
+
+func _exit_probe_scene() -> String:
+	return "res://examples/dedicated.tscn"

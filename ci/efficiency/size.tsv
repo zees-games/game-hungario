@@ -1,17 +1,5 @@
 # size
 # Baselines only shrink: scripts/<gate> --update lowers or drops entries and refuses to add.
-examples/dedicated.gd	2528
-examples/dedicated.gd::_test_bots	120
-examples/dedicated.gd::_test_game_change	121
-examples/dedicated.gd::_test_hunters	85
-examples/dedicated.gd::_test_hunters_hunt	123
-examples/dedicated.gd::_test_live_tools	166
-examples/dedicated.gd::_test_loadouts	85
-examples/dedicated.gd::_test_progress	117
-examples/dedicated.gd::_test_query	87
-examples/dedicated.gd::_test_rotation_file	105
-examples/dedicated.gd::_test_stats	103
-examples/dedicated.gd::_test_vote	214
 examples/headless_presentation.gd	1490
 examples/headless_presentation.gd::_test_blind_and_beacon	141
 examples/headless_presentation.gd::_test_board_makes_room	148

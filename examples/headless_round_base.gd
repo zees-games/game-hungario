@@ -43,12 +43,9 @@ func _done() -> void:
 	_completed += 1
 
 
-# --- Fixtures --------------------------------------------------------------
-
 ## A world nobody else can see, so a test can do what it likes to it.
 ##
-## `register_service` is off for every one of these: two worlds registered under the same
-## name would displace each other, and several of these tests hold two at once.
+## `register_service` is off: two worlds registered under one name would displace each other.
 func _make_world(
 	preset: HungryPreset = null, world_seed: int = SEED, authority: bool = true
 ) -> HungryWorld:
@@ -83,25 +80,8 @@ func _run_ticks(world: HungryWorld, count: int, commands: Dictionary = {}) -> vo
 		world.tick(commands)
 
 
-## Ticks until the round is actually live.
-##
-## [b]Not optional, and the first thing every arrangement in this file learned.[/b] The
-## transition into [constant DotMatch.State.LIVE] runs [method HungryWorld.reset_world] —
-## that is what a new round [i]is[/i] — and it clears every piece, every carried item and
-## every effect, then respawns everybody somewhere safe. A test that arranged the world
-## before that happened had its arrangement thrown away, and the symptom was a monster
-## standing a thousand units from where it was put, holding nothing.
-##
-## [b]And it has to be able to go live, which a world with nobody in it cannot.[/b]
-## dot-match waits in warmup for its minimum head count, so a settle called before the
-## first player is added runs out its five seconds and returns with the round still in
-## warmup — and then the FIRST tick after somebody joins is the transition, which resets
-## the world and respawns them wherever the safe spawn likes. Every level section here
-## settled before adding its player, so every one of them arranged a monster in front of
-## a rock or a gate, ticked twice, and drove whatever the reset had put somewhere else.
-## The reef's "a starting monster comes out the far side of the tight channel" was
-## measuring a monster respawned 900 units past it. A settle that gives up is a failure
-## now, recorded without adding to the total so a passing run's count is unchanged.
+## Ticks until the round is actually live, which resets the world: arrange after it.
+## Needs a player first (dot-match waits in warmup); giving up is a failure, recorded without adding to the total.
 func _settle(world: HungryWorld) -> void:
 	# A client's round state arrives from the authority; its own match never advances,
 	# and nothing it holds is reset by a transition it does not run.
@@ -133,8 +113,6 @@ func _aim_at(from: Vector2, to: Vector2, buttons: int = 0) -> Dot2DCommand:
 	command.buttons = buttons
 	return command
 
-
-# --- Setup -----------------------------------------------------------------
 
 
 ## A list of gap widths, for a check's detail line.
