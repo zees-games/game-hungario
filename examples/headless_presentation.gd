@@ -739,8 +739,8 @@ func _test_cover() -> void:
 	client.offline_bots = 0
 	holder.add_child(client)
 	await get_tree().process_frame
-	var cover := client.platform.cover as HungryCover
-	_check(cover != null, "the platform's cover is the game's own")
+	var cover := client.platform.cover as DotLoadingCover
+	_check(cover != null and cover.get_script().resource_path.ends_with("hungry_cover.gd"), "the platform's cover is the game's own")
 	if cover != null:
 		cover.set_status("Joining")
 		_check(cover.title == "Hungario", "titled Hungario", cover.title)

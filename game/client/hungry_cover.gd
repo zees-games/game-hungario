@@ -1,4 +1,3 @@
-class_name HungryCover
 extends DotLoadingCover
 
 ## The loading cover: the game's title and a tip over the arena's own sky and gold, with the
