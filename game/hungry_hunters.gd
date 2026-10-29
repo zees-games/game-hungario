@@ -7,68 +7,20 @@ const HungryWorld := preload("hungry_world.gd")
 const HungryLayout := preload("hungry_layout.gd")
 
 ## NPC monsters that roam the arena, eat what they can and run from what they cannot.
-##
-## [b]Three addons, and each is here for the half this game would otherwise get wrong.[/b]
-##
-## - **dot-npc** is the catalogue, the population budget, the per-kind cap and — the part
-##   that matters — the *perception*. A hunter that called "who is nearest" every tick is
-##   the classic broken NPC, and both of its failures are reachable in ten seconds: two
-##   players a hundred units apart make it turn back and forth for ever, and one who moves
-##   out of range makes it forget instantly and wander off mid-chase. [DotNpcSenses]
-##   acquires at one threshold, drops at a weaker one, and keeps chasing for a grace period
-##   measured from the **last sighting**.
-## - **dot-npc-ai** is the decision: a state machine, a wander that wanders rather than
-##   re-rolling, separation so a pack at one player does not become a tower, and the arena
-##   shooters' characteristics — a reaction time, so a hunter cannot commit on the tick
-##   it first sees you. The character is the difficulty, per kind (`skill` in the
-##   catalogue); `npc_skill` and `npc_reaction_scale` move every kind at once without
-##   making them the same.
-## - **dot-npc-ai-director** decides *when*. Hunters do not arrive on a timer: the director
-##   builds up, sustains, fades and relaxes against an estimate of what the players are
-##   experiencing, which in this game is being chased rather than being shot.
-##
-## [b]What this game supplies is what none of the three can know.[/b] A hunter's mass and
-## the eat ratio are [HungryRules]'; the candidate list is the monsters; the stress is
-## whether somebody is being hunted. Everything else is the addons'.
-##
-## [b]Hunters are not dot-net entities, and that is deliberate.[/b] A monster's piece is:
-## it is predicted, reconciled and interest-managed, all of which a player's own input
-## needs. A hunter is server-authoritative and unpredicted — dot-props' argument about a
-## rigid body, reached from the other side — and there are at most a handful, so one
-## reliable event a few times a second is cheaper than an entity's declarations and does
-## not put a second id space beside the piece ids.
 
 const CHANNEL := "hungry.hunters"
 
 ## The scene every hunter is. Bare: a hunter has no art and is drawn by the client from
 ## its kind and its radius, exactly as a piece of food is.
-## The scene every hunter is. Bare: a hunter has no art and is drawn by the client from
-## its kind and its radius, exactly as a piece of food is.
-##
-## [b]In `game/` and `hungry_`-prefixed, and that is a deployment constraint.[/b]
-## dot-server-deploy vendors each built-in game's `game/` and `scenes/` into ONE
-## directory — a `.tscn` names its scripts by absolute `res://` path and there is no
-## relative form — and `content/` is not among the directories it copies. A scene under
-## `content/` therefore mounts in a developer checkout and is missing in the deployment,
-## where the only symptom is dot-npc refusing every spawn with "that NPC's content is not
-## loaded on this server", which is a correct answer to a question nobody meant to ask.
 static var HUNTER_SCENE := HungryPaths.rebase("res://game/hungry_hunter_body.tscn")
 
 ## The brain, named by PATH. See the note at the top of `hunter_brain.gd`.
 static var HUNTER_BRAIN := HungryPaths.rebase("res://game/hungry_hunter_brain.gd")
 
 ## Candidate id prefix for a player, so a hunter's target id can be turned back into one.
-##
-## [b]A prefix rather than a bare number, because a candidate id is a [StringName] and
-## this game has two id spaces in it.[/b] A hunter's target is a player today and could be
-## another hunter tomorrow; an id that said only "7" would be ambiguous the moment it was.
 const PLAYER_PREFIX := "p"
 
 ## How often a hunter's state goes out, in ticks.
-##
-## [b]Not every tick.[/b] Six hunters at 60 Hz is 360 reliable events a second for
-## something that moves slowly and is drawn interpolated. Five a second is enough to draw
-## smoothly from and is two orders of magnitude less traffic than a piece.
 const BROADCAST_EVERY := 12
 
 
@@ -93,17 +45,9 @@ var world: HungryWorld = null
 var authoritative: bool = false
 
 ## hunter id -> {"kind": StringName, "at": Vector2, "radius": float, "alive": bool}
-##
-## [b]Both ends have this and only the authority has a spawner.[/b] What a client holds is
-## a drawing, and every property that makes a hunter what it is comes out of
-## [method catalogue] — which both ends build from this file. Nothing about a stalker
-## travels except that it is a stalker and where it is.
 var _hunters: Dictionary = {}
 
 ## instance id -> wire id, and back. Authority only.
-##
-## The wire id is this class's own, because `Object.get_instance_id()` means nothing on the
-## receiving machine — the same reason [RoomProps] keeps a place id.
 var _wire_of_instance: Dictionary = {}
 var _instance_of_wire: Dictionary = {}
 var _next_wire_id: int = 1
@@ -118,13 +62,8 @@ var _nav_built: bool = false
 var _static_catalogue: DotNpcCatalogue = null
 
 
-# --- The catalogue ---------------------------------------------------------
 
 ## What a hunter can be. Three kinds, and each is a different problem for a player.
-##
-## Built in code rather than loaded from JSON, for [RoomProps]' reason: both ends need to
-## agree exactly, and a file one end could have a different version of is the same silent
-## mismatch as a different arena size.
 static func catalogue() -> DotNpcCatalogue:
 	var out := DotNpcCatalogue.new()
 
@@ -165,16 +104,11 @@ static func _add(
 	# Hearing is deliberately shorter than sight in an arena where nothing is opaque: it
 	# is what lets a hunter notice somebody who split behind it.
 	def.hearing_range = sight * 0.4
-	# [b]Off, and it has to be for a 2D NPC.[/b] There is no 3D physics world to cast
-	# through; dot-npc answers "clear" rather than blinding it, and saying so here makes
-	# that a decision rather than a fallback nobody noticed. This arena has no walls, so
-	# there is nothing to be occluded by in any case.
+	# Off, as it has to be for a 2D NPC: there is no 3D physics world to cast through and this arena has no walls.
 	def.require_line_of_sight = false
 	# `skill` names the hunter's character — dot-npc-ai's brain reads it from here. Until
 	# this was added no hunter had one, so `has_reacted()` answered true on the tick a
 	# hunter first saw somebody: the reaction time this file's header promised was zero.
-	# The stalker is the sharp one and the lurker is slow to notice, which is the trade
-	# its size already makes.
 	def.meta = {"mass": mass, "speed": speed, "skill": skill}
 	into.add(def)
 
@@ -191,10 +125,6 @@ static func _make_shared() -> DotNpcCatalogue:
 
 
 ## The catalogue's ids, sorted as [String], so an index can travel instead of a name.
-##
-## Sorted as String and not as StringName: `Array.sort()` on a StringName compares interned
-## pointers, and dot-net shipped exactly that bug — two peers gave one message type two
-## different ids and hashed two different schemas.
 static func wire_ids() -> PackedStringArray:
 	var out := PackedStringArray()
 
@@ -226,7 +156,6 @@ static func radius_of(id: StringName) -> float:
 	return sqrt(maxf(mass_of(id), 1.0) / PI) * 4.0
 
 
-# --- Lifecycle -------------------------------------------------------------
 
 ## Builds the spawner and the director on the authority, and nothing on a client.
 func setup(p_authoritative: bool, p_world: HungryWorld) -> DotResult:
@@ -240,20 +169,13 @@ func setup(p_authoritative: bool, p_world: HungryWorld) -> DotResult:
 	limits.world_budget = 40
 	limits.per_kind_cap = 12
 	limits.spawn_interval = 0.0
-	# [b]No navigable-spawn requirement: this arena has no navigation graph and does not
-	# need one.[/b] dot-npc is explicit that "no navigation" is not the same as "off the
-	# navigation" — a flat arena where every point is reachable is exactly the case the
-	# flag exists to allow, and requiring a graph would refuse every spawn on a game that
-	# has no walls.
+	# No navigable-spawn requirement: this arena has no navigation graph, and "no navigation" is not "off the navigation" to dot-npc.
+	# Requiring a graph would refuse every spawn.
 	limits.require_navigable_spawn = false
 	# Longer than the addon's default, because being chased across an arena is the
 	# experience and a hunter reclaimed after six seconds of it is a hunter that gives up.
 	limits.reclaim_grace = 25.0
-	# [b]The path's snap, in world units[/b]: dot-npc snaps a path's ends to the nearest
-	# navigation point within this, and its default of 4 is metres. A hunter or a target
-	# is never more than a grid step and a bit from a point of [method nav_for]'s grid, and
-	# a snap that found none would be a path that is never found — a hunter walking
-	# straight again with nothing saying why.
+	# The path's snap in world units: dot-npc's default of 4 is metres, and a snap that found no grid point would mean a path that is never found.
 	limits.spawn_snap_radius = 100.0
 
 	var problem := limits.validate()
@@ -269,12 +191,8 @@ func setup(p_authoritative: bool, p_world: HungryWorld) -> DotResult:
 	# One flag says this spawner serves a 2D world; `spawn_group` and the director both
 	# read it, so neither needs a 2D twin.
 	spawner.two_dimensional = true
-	# A target moves every tick, and dot-npc's default drift is 2.5 metres — here, 2.5
-	# units, which is a repath every tick for every hunter. Three grid steps, and at most
-	# once a second otherwise: a search across the whole of a map costs 15-40 ms in
-	# GDScript (measured 2026-09-25: warrens 15, reef 23, gauntlet 42 end to end; a chase
-	# inside a hunter's sight is much shorter), and a path's last leg is the goal itself,
-	# so a target that has moved a little is still steered at where it is.
+	# A target moves every tick and dot-npc's default drift is 2.5 metres, which would repath every tick for every hunter.
+	# Three grid steps and at most once a second: a whole-map search costs 15-40 ms in GDScript.
 	spawner.repath_drift = NAV_SPACING * 3.0
 	spawner.repath_interval = 1.0
 	if npc_skill != null:
@@ -290,10 +208,8 @@ func setup(p_authoritative: bool, p_world: HungryWorld) -> DotResult:
 ## The director, and the one number in it that is this game rather than the genre.
 func _build_director() -> DotResult:
 	var rules := DotNpcDirectorRules.new()
-	# An arena is not a corridor: there is no critical path to spawn ahead along, and
-	# "behind the party" means nothing when the party is scattered. So the distances are
-	# the arena's and `spawn_ahead` is zero, which turns the placement into "far enough
-	# away not to be a jump scare, near enough to arrive".
+	# An arena has no critical path to spawn ahead along, so the distances are the arena's and `spawn_ahead` is zero:
+	# far enough away not to be a jump scare, near enough to arrive.
 	rules.spawn_min_distance = 600.0
 	rules.spawn_max_distance = 2200.0
 	rules.spawn_ahead = 0.0
@@ -306,10 +222,7 @@ func _build_director() -> DotResult:
 	rules.spawn_burst = 2
 	rules.spawn_interval = 1.5
 	rules.reclaim_interval = 4.0
-	# [b]Zero would mean "never" here and "every tick" for `spawn_interval`.[/b] Two
-	# settings named the same way meaning opposite things at zero is the kind of
-	# difference nobody reads twice, and dot-npc-ai-director documents it — so this is
-	# set explicitly rather than left.
+	# Zero would mean "never" here and "every tick" for `spawn_interval`, so this is set explicitly rather than left.
 	rules.relax_distance = 1200.0
 	rules.stress_decay = 0.10
 	rules.stress_per_damage = 0.9
@@ -362,23 +275,6 @@ static func largest_radius() -> float:
 
 
 ## Where a hunter may appear in [param layout] inside [param bounds].
-##
-## Three rings rather than a grid: an arena is a square and its corners are where nobody
-## goes, so a grid spends most of its points on places a player never is — and
-## `spawn_min_distance` would reject them anyway. Each point is walked out of the level's
-## rocks, because two of the three rings pass straight through Warrens' ring — a spawn
-## point inside a rock is a hunter that appears inside one, and the push-out would shove it
-## out at the first tick in a direction nobody chose.
-##
-## [b]And then two refusals ([hunter-nav-1], 2026-09-27).[/b] A point behind a gauntlet
-## harbour's fence is refused: a harbour is the refuge at the end of a corridor everybody
-## is chased along, and a hunter that appears inside it has been put where the level
-## promised the players furthest behind nobody would follow them. And a point outside the
-## biggest floor [method largest_radius] can move about in is refused — a room whose door
-## the biggest hunter does not fit, or a cranny it cannot leave. No layout has one of those
-## at the hunters' sizes today (a lurker is 135 across and the narrowest gate on any map is
-## 201); the refusal is for the layout that does, which would otherwise hold a hunter for
-## its whole life with nothing saying why.
 static func spawn_points_for(layout: HungryLayout, bounds: Rect2) -> PackedVector2Array:
 	var out := PackedVector2Array()
 	var centre := bounds.get_center()
@@ -403,10 +299,8 @@ static func spawn_points_for(layout: HungryLayout, bounds: Rect2) -> PackedVecto
 	return out
 
 
-## Whether a hunter may appear at [param at]: not behind a harbour's fence, in the reef's
-## cove, behind the shallows' tightest line, in one of its rock pools or in its inlet (refuges for the same
-## reason, and a lurker fits all their doors), and inside
-## [param region] ([method HungryLayout.main_region] at the size being placed).
+## Whether a hunter may appear at [param at]: not behind a harbour's fence, in the reef's cove, the shallows' tightest line, a rock pool or the inlet,
+## and inside [param region] ([method HungryLayout.main_region] at the size being placed).
 static func spawnable(layout: HungryLayout, bounds: Rect2, at: Vector2, region: Dictionary) -> bool:
 	if layout == null or layout.is_empty():
 		return bounds.has_point(at)
@@ -420,10 +314,6 @@ static func spawnable(layout: HungryLayout, bounds: Rect2, at: Vector2, region: 
 
 
 ## Whether the director is releasing hunters.
-##
-## Off by default, and an operator's decision. A mode that is about eating food and a mode
-## that is about being hunted are different games, and turning one into the other silently
-## because an addon was installed is exactly what a `cvar` exists to prevent.
 func set_enabled(on: bool) -> void:
 	# INFO on the edge only: an operator turned the mode into a different game, and that is
 	# worth keeping. The cvar may be re-applied with the same value on every game change.
@@ -443,7 +333,6 @@ func is_enabled() -> bool:
 	return director != null and director.enabled
 
 
-# --- The tick --------------------------------------------------------------
 
 ## One authoritative step. Called from the module's tick, inside the netcode's.
 func tick(delta: float) -> void:
@@ -453,22 +342,15 @@ func tick(delta: float) -> void:
 	_tick += 1
 	_keep_nav_current()
 
-	# [b]The candidate list is built once per tick, before the hunters run.[/b] Once per
-	# tick and not once per hunter, because thirty hunters each building their own list of
-	# eight players is two hundred and forty allocations a tick for a list that does not
-	# differ between them. Before rather than after, because a list built at the end of a
-	# tick is a list of where everybody *was*, which is the one-tick lag the ordering
-	# exists to avoid. game-playground reached the same two sentences from the other side.
+	# The candidate list is built once per tick, before the hunters run: once rather than per hunter to save allocations, and before so it holds where everybody is, not was.
 	spawner.set_candidates(_candidates())
 	_report_stress()
 
 	spawner.tick(delta)
 	director.tick(delta)
 
-	# After the steering and before the eating, which is the same ordering argument
-	# [HungryWorld.tick] makes about the players: a hunter has to be stopped by a rock
-	# before it is asked whether it has reached anybody, or it eats through a wall for one
-	# tick every time it walks into one.
+	# After the steering and before the eating, so a hunter is stopped by a rock before it is asked whether it has reached anybody.
+	# [HungryWorld.tick] makes the same ordering argument about players.
 	_keep_out_of_the_level()
 
 	_resolve_eating()
@@ -477,39 +359,15 @@ func tick(delta: float) -> void:
 		_broadcast_all()
 
 
-# --- Navigation, from the layout -----------------------------------------------
 
 ## The navigation grid's step, in world units.
-##
-## [b]Sized by the narrowest gate a hunter should find[/b], not by the arena: the den's
-## gates are 202 and a point has to stand in one with [constant NAV_CLEARANCE] either side
-## of it, which a step of 64 always gives and a step of 128 does not. Finer is paid for in
-## every search — dot-npc's nearest-point lookup is a scan — and warrens is 4200 across.
 const NAV_SPACING := 64.0
 
 ## How far off a rock a navigation point stands.
-##
-## [b]The smallest hunter's clearance, deliberately, rather than each hunter's own.[/b]
-## A grid per hunter kind would be three graphs for one map. A bigger hunter following
-## a path laid for a small one is steered along a rock's face and slides along it on
-## [method _keep_out_of_the_level]'s push-out, which is the behaviour a player expects.
-## No hunter meets a gate it cannot fit: the biggest, a lurker, is 135 across and the
-## narrowest gate on any map is 201, and driven through both of the narrowest it is held
-## against a rock for no tick at all (`headless_round`, 2026-09-27) — so per-kind graphs
-## would buy nothing today. A layout with a gate under 135 is where to revisit this; until
-## then [method spawn_points_for] keeps a hunter out of anywhere it could not leave.
-## What the path fixes is the hunter that walked at the middle of a rock with its
-## target behind it and stayed there.
 const NAV_CLEARANCE := 40.0
 
 
 ## Navigation for [param layout] inside [param bounds], or null for an empty one.
-##
-## [b]Built from the same discs the world pushes a hunter out of[/b], so the graph and
-## the push-out cannot disagree about where a rock is: a grid on dot-npc's XZ plane, a
-## point wherever [constant NAV_CLEARANCE] fits, and an edge to each of the eight
-## neighbours whose straight line keeps that clearance. An empty box gets null, which is
-## dot-npc's "walk straight at the goal" — the right answer where nothing is in the way.
 static func nav_for(layout: HungryLayout, bounds: Rect2) -> DotNpcNavData:
 	if layout == null or layout.is_empty():
 		return null
@@ -572,10 +430,6 @@ static func nav_for(layout: HungryLayout, bounds: Rect2) -> DotNpcNavData:
 
 
 ## Hands the spawner navigation for whatever layout the world has now.
-##
-## Every tick, and it costs a comparison: the world is replaced on a game change and the
-## hunters are re-pointed at it by the module, and a graph held across that is a graph of
-## the level nobody is in — dot-npc's own warning, and the one failure worse than none.
 func _keep_nav_current() -> void:
 	if spawner == null or world == null:
 		return
@@ -589,24 +443,12 @@ func _keep_nav_current() -> void:
 	_nav_built = true
 	var bounds := world.arena.bounds if world.arena != null else Rect2()
 	spawner.set_nav_data(nav_for(layout, bounds))
-	# The spawn points are the level's as much as the graph is. Until 2026-09-27 they were
-	# seeded once, from the world the server booted in, so after a game change a director
-	# placed hunters on the last map's rings: off the edge of a corridor that followed a
-	# square, and never refused out of the new map's harbours ([hunter-nav-1]).
+	# The spawn points are the level's as much as the graph is, so they are rebuilt on a game change.
+	# Seeded once from the boot world, a director placed hunters on the last map's rings ([hunter-nav-1]).
 	_seed_spawn_points()
 
 
 ## Pushes every hunter out of the level's own geometry.
-##
-## [b]The half of navigation a path does not do.[/b] Until 2026-09-25 this was all there
-## was: hunters steered straight at a target and pressed against the far side of any rock
-## between them ([warren-nav-1]). They follow a path now — [method nav_for] builds dot-npc
-## navigation from the layout and the chase steers along it — but a path is laid at
-## [constant NAV_CLEARANCE] for the smallest hunter, and steering overshoots on a turn, so
-## this still stops a hunter being INSIDE a rock, which is the part a player can see.
-##
-## Server side only. A hunter's position is broadcast rather than derived, so a client that
-## mirrors one is mirroring a position that has already been pushed out.
 func _keep_out_of_the_level() -> void:
 	if world == null or world.layout == null or world.layout.is_empty():
 		return
@@ -626,9 +468,6 @@ func _keep_out_of_the_level() -> void:
 
 
 ## Everybody a hunter might notice, as dot-npc's candidates.
-##
-## A **monster**, not a piece. A hunter chasing one fragment of a split player walks past
-## the other seven, and the mass that decides whether it may eat at all is the set's.
 func _candidates() -> Array:
 	var out: Array = []
 
@@ -650,12 +489,6 @@ func _candidates() -> Array:
 
 
 ## What the director measures its phases against.
-##
-## [b]The stress is being hunted, not being shot.[/b] The director's own model is damage
-## and proximity to a threat; this game has neither in the sense it means, so what is
-## reported is the thing a player here actually experiences — how close the nearest hunter
-## that could eat them is, expressed as the "health" the director understands. A player
-## with nothing near them is at full health and the director relaxes.
 func _report_stress() -> void:
 	for monster in world.monsters():
 		if not monster.alive or monster.piece_count() == 0:
@@ -695,15 +528,8 @@ func _pressure_on(monster: HungryMonster) -> float:
 	return 1.0 - worst
 
 
-# --- Eating ----------------------------------------------------------------
 
 ## A hunter and a monster meeting. The same ratio everything else in this game uses.
-##
-## [b]Resolved here rather than in [HungryWorld], and that is the one seam worth
-## defending.[/b] The world's eat check is a spatial-hash query over eleven hundred things
-## and runs on every piece every tick; hunters are a handful and are not in that grid.
-## Putting them in it would make every food lookup pay for a feature most servers have
-## turned off.
 func _resolve_eating() -> void:
 	var ratio := eat_ratio()
 
@@ -738,10 +564,7 @@ func _resolve_eating() -> void:
 					world.devour_piece(piece.id, at)
 					break
 				elif piece.mass() >= hunter_mass * ratio:
-					# The player eats the hunter. Through the spawner's own death path,
-					# so the population budget, the director's count and the removal
-					# event all agree — a hunter deleted by hand would be one the
-					# director never replaced.
+					# The player eats the hunter through the spawner's own death path, so the population budget, the director's count and the removal event agree.
 					DotLog.debug(CHANNEL, "a player ate a hunter", {
 						"hunter": int(wire_id), "kind": String(kind), "player": monster.id,
 					})
@@ -751,7 +574,6 @@ func _resolve_eating() -> void:
 					break
 
 
-# --- The books -------------------------------------------------------------
 
 func _on_spawned(npc: DotNpcInstance) -> void:
 	var wire_id := _next_wire_id
@@ -762,13 +584,8 @@ func _on_spawned(npc: DotNpcInstance) -> void:
 	# would be a brain that cannot be delivered in a pack.
 	npc.meta["hunters"] = self
 
-	# [b]On the layout's `enemy` layer.[/b] `top_down_2d`'s `enemy` row is
-	# [world, one_way, player, enemy, prop, projectile]; the body arrives on Godot's
-	# default layer 1 masking layer 1, which makes a hunter solid against nothing it is
-	# supposed to be solid against and puts it on the layer the layout calls `world`.
-	# Most of this game is analytic — `Dot2DArena` is not a physics space — so a hunter
-	# body and a hazard body are nearly all there is here to classify, which is why
-	# getting the two of them right is cheap.
+	# On the layout's `enemy` layer: `top_down_2d`'s `enemy` row differs from Godot's default layer 1, which would make a hunter solid against nothing it should be.
+	# Most of this game is analytic, so a hunter body and a hazard body are nearly all there is to classify.
 	if world != null and world.player_stack != null and npc.node != null:
 		var _put := world.player_stack.classify(npc.node, &"enemy")
 
@@ -827,13 +644,8 @@ func _broadcast_all() -> void:
 			_hunters.erase(wire_id)
 
 
-# --- A client's mirror -----------------------------------------------------
 
 ## Takes a hunter's state the authority announced. Client side.
-##
-## [b]The id is adopted, never allocated.[/b] A receiving peer that numbered things itself
-## gives the same hunter two names on two machines, and every count still matches — the bug
-## dot-2d had to gain `Dot2DScatter.adopt` to fix.
 func adopt(wire_id: int, kind: StringName, at: Vector2, radius: float, alive: bool) -> void:
 	if not alive:
 		_hunters.erase(wire_id)
@@ -850,19 +662,12 @@ func forget_all() -> void:
 	_hunters.clear()
 
 
-# --- Reading ---------------------------------------------------------------
 
 func hunters() -> Dictionary:
 	return _hunters.duplicate()
 
 
 ## How many are actually in the arena.
-##
-## [b]Alive ones only, and the difference is not pedantry.[/b] A removed hunter is kept for
-## exactly one broadcast so every client is told it has gone — erasing it here would simply
-## stop mentioning it, and a client would draw a hunter that no longer exists for ever. So
-## the dictionary briefly holds things that are not there, and everything that asks "how
-## many" means the ones that are.
 func count() -> int:
 	var alive := 0
 
@@ -894,7 +699,6 @@ func wire_rows() -> Array:
 	return out
 
 
-# --- What the brain asks ---------------------------------------------------
 
 ## The world's eat ratio. Asked for rather than copied into the brain.
 func eat_ratio() -> float:
@@ -905,11 +709,6 @@ func eat_ratio() -> float:
 
 
 ## Where a candidate is, in dot-npc's plane. `Vector3.INF` when it has gone.
-##
-## [b]Infinity rather than zero for "gone".[/b] Zero is the middle of the arena, so a
-## hunter whose target disconnected would sprint to the centre and mill about — which
-## reads as a pathfinding bug and is a missing null check. game-playground's chaser
-## learned the same lesson with a target's last position.
 func position_of(candidate_id: StringName) -> Vector3:
 	var monster := _monster_for(candidate_id)
 

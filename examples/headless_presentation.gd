@@ -22,18 +22,6 @@ const HungryVoice := preload("../game/client/hungry_voice.gd")
 const HungryPiece := preload("../game/hungry_piece.gd")
 
 ## Settings, audio, effects, the console and the private arena.
-##
-## [codeblock]
-## godot --headless --path . res://examples/headless_presentation.tscn
-## [/codeblock]
-##
-## [b]The point of this game's integration is what it does NOT duplicate[/b], so that is
-## what most of these checks are about: the settings schema is read out of `HungryConfig`
-## rather than written beside it, and dot-audio's sink is `HungrySound` rather than a
-## second bank. Both are the same decision twice — two copies of one list is this family's
-## most repeated bug.
-##
-## Exits non-zero on any failure.
 
 const CHECKS := 155
 
@@ -98,13 +86,6 @@ func _make() -> HungryPresentation:
 	p.sound = HungrySound.make()
 	# A memory store, in place of the file one this game ships with, and no old files to
 	# migrate.
-	#
-	# [b]A suite that writes to `user://` is a suite whose result depends on what the last
-	# run left there.[/b] This game already shipped that bug once: `dedicated` recorded
-	# bites against a fixed player key, the totals accumulated across runs, and it began
-	# failing on its ninth run for a reason that had nothing to do with the code. Here it
-	# was subtler -- a value stored by the previous run made `set_value` a no-op, the
-	# signal never fired, and the check failed for a setting that was already correct.
 	p.menu_settings = HungrySettings.new()
 	p.menu_settings.store = DotSettingsStoreMemory.new()
 	p.menu_settings.legacy_config_path = ""
@@ -115,7 +96,6 @@ func _make() -> HungryPresentation:
 	return p
 
 
-# --- 1 ----------------------------------------------------------------------
 
 func _test_schema_is_the_config() -> void:
 	_section("The schema is HungryConfig, read rather than repeated, beside dot-menu's stock")
@@ -166,10 +146,8 @@ func _test_schema_is_the_config() -> void:
 	)
 	p.queue_free()
 
-	# [b]The voice settings are the stock ones and reach the player's voice.[/b] Until
-	# 2026-10-12 they were left out as reaching nothing; the client's HungryVoice publishes its
-	# manager as dot_voice_client and dot-menu's applier binds it by that name, so the rows
-	# are real. Armed: drop the publish and the mode never reaches the manager.
+	# The voice settings are the stock ones and reach the player's voice: the client's HungryVoice publishes its manager as dot_voice_client and dot-menu's applier binds it by that name.
+	# Armed: drop the publish and the mode never reaches the manager.
 	_check(schema.has(&"voice_mode") and schema.has(&"voice_input_device") and schema.has(&"voice_volume"),
 		"the stock voice settings are declared: talk mode, microphone, voice volume")
 	var voice := HungryVoice.new()
@@ -189,7 +167,6 @@ func _test_schema_is_the_config() -> void:
 	_done()
 
 
-# --- 2 ----------------------------------------------------------------------
 
 func _test_sound_is_still_the_bank() -> void:
 	_section("dot-audio's sink is the bank this game already had")
@@ -227,7 +204,6 @@ func _test_sound_is_still_the_bank() -> void:
 	_done()
 
 
-# --- 3 ----------------------------------------------------------------------
 
 func _test_limits_the_bank_never_had() -> void:
 	_section("A monster in a dense field eats several times a second")
@@ -248,9 +224,6 @@ func _test_limits_the_bank_never_had() -> void:
 
 	# The pitch is information -- bigger is lower -- and it has to survive the trip
 	# through dot-audio rather than being played around it.
-	# Past the cooldown the burst above just used. A check that measures a pitch while the
-	# sound is being refused for a cooldown measures nothing, and reads as the pitch
-	# mapping being broken.
 	OS.delay_msec(60)
 	sink.forget()
 	p.on_food_eaten(Vector2(5, 5), 0)
@@ -285,7 +258,6 @@ func _test_limits_the_bank_never_had() -> void:
 	_done()
 
 
-# --- 4 ----------------------------------------------------------------------
 
 func _test_ambient_reaches_the_bed() -> void:
 	_section("A map's ambient reaches the bed")
@@ -322,9 +294,8 @@ func _test_effects() -> void:
 	_check(p.camera_shake() != Vector2.ZERO, "while your own does both")
 	_check(p.fx.flash_colour.a > 0.0, "including the tint")
 
-	# [b]Drawn, not only decided.[/b] Until 2026-09-27 neither scene existed, dot-fx
-	# refused both at DEBUG, and every check above passed: a shake and a tint need no
-	# scene. So: are the files there, and does an event put a node where it happened.
+	# Drawn, not only decided: a shake and a tint need no scene, so check the scene files
+	# exist and that an event puts a node where it happened.
 	var missing := HungryPresentation.fx_catalogue().missing_scenes()
 	_check(
 		missing.is_empty(),
@@ -369,7 +340,6 @@ func _test_effects() -> void:
 	_done()
 
 
-# --- 5 ----------------------------------------------------------------------
 
 func _test_console() -> void:
 	_section("Every config key is a console variable")
@@ -401,12 +371,8 @@ func _test_console() -> void:
 	_done()
 
 
-## Typing at the console must not steer, split or eject. The sampler polls the keys and the
-## stick every tick, and a focused line edit does not stop `Input.is_action_pressed`; what
-## stops it is the client suspending the sampler while the console is open. Driven through
-## the real wiring (the platform's `input_blocked_changed` into [method HungryClient._suspend_input]) with
-## the keys held down. The platform polls its busy hook once a frame; the suite has no frames between
-## steps, so it polls by hand.
+## Typing at the console must not steer, split or eject: a focused line edit does not stop `Input.is_action_pressed`, so the client suspends the sampler while the console is open.
+## Driven through the real wiring (`input_blocked_changed` into [method HungryClient._suspend_input]); the suite polls the busy hook by hand.
 func _test_console_stops_the_keys() -> void:
 	_section("Held keys do not reach the command while the console is open")
 
@@ -483,7 +449,6 @@ func _test_console_stops_the_keys() -> void:
 	_done()
 
 
-# --- 6 ----------------------------------------------------------------------
 
 func _test_party() -> void:
 	_section("A private arena whose host may leave")
@@ -515,15 +480,9 @@ func _test_party() -> void:
 	_done()
 
 
-# --- 6b ---------------------------------------------------------------------
 
 ## A stand-in rendezvous: the four routes `DotP2PSignallerHttp` speaks, on a real socket,
 ## answering each request [member delay] frames after it arrives.
-##
-## [b]The delay is the point.[/b] Every other party check here uses the loopback
-## signaller, which answers inside the call — and a coroutine that never suspends is
-## indistinguishable from a function, so a caller that forgot `await` passes against it.
-## A rendezvous that answers frames later is the shape the real one has.
 class RendezvousStub:
 	extends Node
 
@@ -617,17 +576,6 @@ class RendezvousStub:
 ## `[p2p-await-games]`: a party over the HTTP rendezvous, host and join, each awaited
 ## end to end — through `HungryParty`, `DotP2PSession` and `DotP2PSignallerHttp` to a
 ## socket and back.
-##
-## [b]What "awaited" is asserted as.[/b] The answer the caller gets back is the one the
-## stub sent, and it arrives at least [member RendezvousStub.delay] frames after the call:
-## a link in the chain that dropped its `await` hands its caller null (GDScript refuses a
-## coroutine called as a function at runtime) or returns before the stub has answered,
-## and either fails here. Ported from game-playground (d4ff040), where it was armed by
-## taking the `await` off `DotP2PSession.join`'s call to its signaller. Here it was armed
-## without touching dot-peer-to-peer, 2026-09-26, twice: a stub whose join answer lists
-## nobody fired one check (Bob alone in his lobby, electing himself), and a stub that
-## answers every request with a 500 fired six (no code, nothing open, and a join of the
-## empty code refused on its shape).
 func _test_party_over_http() -> void:
 	_section("A party that meets over HTTP waits for the answer")
 
@@ -698,12 +646,8 @@ func _test_party_over_http() -> void:
 		"under the code as the host has it, not as it was typed",
 		str(stub.seen)
 	)
-	# Asserted immediately after join(), and that matters here in a way it does not in the
-	# playground: this party has `migrate_host` on, and the stub relays no heartbeats, so
-	# after `host_timeout_sec` of silence Bob's session would decide Ada had gone and elect
-	# itself. That is migration working, not a joiner electing itself on arrival -- which
-	# is all this check is about, and the election on join runs the same with migration on
-	# or off.
+	# Asserted immediately after join(): this party has `migrate_host` on and the stub relays no heartbeats,
+	# so after `host_timeout_sec` Bob's session would elect itself, which is migration working, not what this check is about.
 	_check(
 		bob.session.lobby.has(ada.session.local_id) and not bob.session.is_host(),
 		"and the joiner learns who is already there from the answer, and does not elect itself",
@@ -752,7 +696,6 @@ func _test_cover() -> void:
 	_done()
 
 
-# --- Harness ---------------------------------------------------------------
 
 func _section(title: String) -> void:
 	_entered += 1
@@ -978,17 +921,9 @@ func _test_chat_box() -> void:
 	_done()
 
 
-# --- M, the modes -------------------------------------------------------------
 
-## The family's rule since the first play test: M opens the mode list, and solo a choice
-## starts that mode now, as a fresh client on its preset (a mode is a game here). A whole
-## offline client, because that is what is replaced. The server's half is dot-vote's map menu
-## over this game's mode vote (dot-vote's suite, and `dedicated`).
-##
-## [b]Run last.[/b] Built late, with other sections' nodes still in the tree, the fresh client's
-## match once collected spawn points that were not its own and crashed the engine (signal 11
-## in `DotMatch._begin_round`) when they were freed; the world now hands the match its own
-## point (`spawns_ref`) and dot-match forgets freed ones.
+## The family's rule: M opens the mode list, and solo a choice starts that mode now as a fresh client on its preset. The server's half is dot-vote's map menu (dot-vote's suite, and `dedicated`).
+## Run last: built late, the fresh client's match once collected spawn points that were not its own and crashed the engine when they were freed.
 func _test_the_mode_list() -> void:
 	_section("M opens the mode list, and solo a choice starts that mode")
 	var holder := Node.new()
@@ -1028,12 +963,8 @@ func _test_the_mode_list() -> void:
 	_done()
 
 
-# --- The mode vote ----------------------------------------------------------# --- The mode vote ----------------------------------------------------------
 
 ## The vote's cues, played through this game's own generated bank, and its countdown drawn.
-##
-## The server has named these ids in the vote's rules since the vote was wired, and no
-## client had a noise for any of them: the ballot was something a player read about.
 func _test_the_vote_is_heard() -> void:
 	_section("The mode vote is heard, through the bank, and counted on the HUD")
 
@@ -1109,8 +1040,6 @@ func _test_the_vote_is_heard() -> void:
 
 ## The leaderboard under a ballot: something in dot-ui's `dot_hud_cover` group over the
 ## board's corner shrinks it to the rows above that, and the corner comes back when it goes.
-## Where the rows end up on screen is `tools/screenshot_map.sh <mode> --ballot`'s; this is the
-## arithmetic, and the player's own row surviving the cut.
 func _test_board_makes_room() -> void:
 	_section("The leaderboard makes room for a ballot over its corner")
 
@@ -1255,10 +1184,8 @@ func _test_board_makes_room() -> void:
 	_done()
 
 
-## An administrator's blind and beacon, on the client: what the HUD and the renderer do
-## with the two flags a snapshot sets. Who receives which flag is `headless_net`'s; what it
-## LOOKS like is `tools/screenshot_map.sh <mode> --admin`'s, because a headless viewport is
-## 64 x 64 and nothing here can say anything about a picture.
+## An administrator's blind and beacon on the client: what the HUD and renderer do with the two snapshot flags.
+## Who receives which is `headless_net`'s; how it looks is `tools/screenshot_map.sh <mode> --admin`'s, since a headless viewport is 64 x 64.
 func _test_blind_and_beacon() -> void:
 	_section("An admin's blind covers the screen, and a beacon rings and pings once a second")
 
@@ -1396,10 +1323,8 @@ func _test_blind_and_beacon() -> void:
 	_done()
 
 
-## An eaten monster goes down the way the server picked: the last piece it lost, the
-## reaction's pose and its sounds, the server's styles. Armed by ignoring the rules (the
-## topple and hide checks fail) and by dropping a sound id from the sink (the sound check
-## fails: dot-audio decides to play it and the bank has nothing).
+## An eaten monster goes down the way the server picked: the last piece lost, the reaction's pose and sounds, the server's styles.
+## Armed by ignoring the rules (topple and hide checks fail) and by dropping a sound id from the sink (the sound check fails).
 func _test_a_fall() -> void:
 	_section("an eaten monster goes down")
 	var falls := HungryFalls.new()

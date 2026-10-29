@@ -11,14 +11,6 @@ const HungryTouch := preload("hungry_touch.gd")
 const HungryWorld := preload("../hungry_world.gd")
 
 ## Mass, the leaderboard, the clock, what you are carrying, the feed and a minimap.
-##
-## Every widget is a dot-ui class bound to a game value. dot-ui does not know what a
-## monster is; it knows how to draw a bar from a [Callable], a table from rows of
-## dictionaries and a feed from coloured fragments, which is all any of this needs.
-##
-## The one exception is the minimap, and it is the same exception game-blob found: a
-## minimap is world-specific, and a [Control] per monster would be a hundred nodes created
-## and freed every time somebody split.
 
 
 var world: HungryWorld = null
@@ -34,28 +26,14 @@ var watching_source: Callable = Callable()
 var mass_bar: DotStatBar = null
 
 ## The mass bar's number, drawn by a [Label] over the bar instead of by the bar itself.
-##
-## [b]Because [DotStatBar] draws its text with no outline[/b], and white text with no
-## outline over this game's pale sky is a smudge: "20 mass" was unreadable from the look
-## pass on. A Label takes the HUD theme's outline (see [constant TEXT_OUTLINE]) like every
-## other line here.
 var mass_label: Label = null
 var leaderboard: DotTableView = null
 var feed: DotFeedView = null
 ## The round clock, dot-ui's: the time on its plate, or the match's state as the line under
 ## it while there is no time to count. See [method piece_theme] for its colours.
-##
-## [b]A [DotScoreStrip] with no scores[/b], because this is a free-for-all whose standings are
-## the leaderboard. It was a centred `Label` writing "%d:%02d" with the floor, so a round with
-## half a second left said 0:00; the strip rounds up. Decided 2026-10-11 (hud-pieces).
 var strip: DotScoreStrip = null
 
 ## The countdown before a mode-vote ballot, directly under the round clock's plate.
-##
-## [b]Not the feed, although the feed is where this game's notices go.[/b] The feed holds
-## five lines, and a countdown is one line a second: a five-second one would push out the
-## chat line announcing the vote, and whatever anybody said, and leave a column of
-## numbers. One label that changes in place says the same thing and costs nothing else.
 var vote_label: Label = null
 var carry_label: Label = null
 var status_label: Label = null
@@ -65,16 +43,6 @@ var minimap: Minimap = null
 var touch: HungryTouch = null
 
 ## An administrator's `blind`, over the arena and under the rest of the HUD.
-##
-## [b]Under the widgets, on purpose.[/b] A blind takes the game away, not the player's
-## bearings: the clock, the feed, their own mass and the chat box still say the round is
-## going on and that they are in it, which is what makes it read as "an admin did this"
-## rather than as a client that stopped drawing. [b]The minimap is the exception and goes
-## under it[/b]: it is the arena in miniature, every monster's position on one square, and
-## a blind that left it showing would be a blind a player could play straight through.
-##
-## Black rather than white. A white screen at full brightness is a thing a player can be
-## hurt by in a dark room, and taking the picture away is the whole of the point.
 var blind_overlay: ColorRect = null
 
 ## Seconds a blind takes to come down and to lift. Short, so it is unmistakably on, and
@@ -83,26 +51,12 @@ const BLIND_FADE_SEC := 0.25
 
 const BLIND_COLOUR := Color(0.01, 0.01, 0.015)
 
-## [b]The leaderboard makes room for a ballot.[/b] The client shell draws every ballot — the
-## server's game vote and this game's mode vote — as a panel in a column down the right-hand
-## side from 110 px down, over whatever the game drew, and this board's rows 3 to 10 sat under
-## it unread for the whole vote. The shell cannot reach into the game, so the game looks: every
-## visible Control in dot-ui's [code]dot_hud_cover[/code] group is something on top of this HUD
-## ([method covered_rect]). While one overlaps the board's corner, the board keeps the corner
-## and shrinks to the rows that fit above it, without its header, the leader first and this
-## player's own row last when they are not in the top few — the strip a shooter's HUD shows
-## while a menu has the right of the screen. [b]Not moved left[/b]: beside a 360 px column it
-## ran into the round clock at the top centre. [b]Not faded[/b]: who is winning is what a
-## player is deciding a vote with. The group is read by [method DotHudPiece.covered_rect].
+## The leaderboard makes room for a ballot: the shell draws ballots over the right-hand column, which the game cannot see, so it reads every visible Control in dot-ui's [code]dot_hud_cover[/code] group ([method covered_rect]).
+## While one overlaps the board's corner the board keeps the corner and shrinks to the rows that fit, leader first and this player's own row last; not moved or faded, since who is winning decides the vote.
 
 ## The leaderboard's corner, in this HUD's own coordinates from the top-right.
 ## Pixels of dark outline behind every line of HUD text: the labels (through
 ## [method hud_theme]) and the feed.
-##
-## [b]An outline rather than a dark colour[/b], because the arena is a pale sky but the
-## blind, the death screen and a cloud-free corner under a big monster are not, and an
-## outlined light glyph reads over all of them. White with no outline, which is what the
-## HUD drew before, vanishes into the sky (see docs/client.md, Rendering).
 const TEXT_OUTLINE := 5
 const TEXT_OUTLINE_COLOUR := Color(0.05, 0.07, 0.14, 0.9)
 
@@ -138,12 +92,6 @@ const VOTE_LAST_MSEC := 1000
 
 
 ## Everybody's position on one small rectangle.
-##
-## Drawn rather than composed: a dot per monster is a `_draw` call, and the alternative is
-## a node per monster created and freed as they split, burst and die.
-##
-## [b]Food is deliberately not on it.[/b] Eleven hundred crumbs on a 180-pixel square is a
-## grey smear that tells nobody anything, and it is eleven hundred draw calls a frame.
 class Minimap extends Control:
 	var world: HungryWorld = null
 	var player_id: int = 0
@@ -170,8 +118,6 @@ class Minimap extends Control:
 
 		# Fruit, and only fruit. There are ten of them in a world of eleven hundred pieces
 		# of food, they are worth going out of your way for, and ten dots is ten dots.
-		# Drawing the food as well is a grey smear that tells nobody anything and eleven
-		# hundred draw calls a frame.
 		for grid_id in world.field.alive_ids():
 			if HungryField.kind_of(grid_id) != HungryField.Kind.FRUIT:
 				continue
@@ -235,10 +181,8 @@ func build(p_world: HungryWorld, p_bridge: HungryNetBridge, p_player_id: int) ->
 	blind_overlay = ColorRect.new()
 	blind_overlay.name = "Blind"
 	blind_overlay.color = BLIND_COLOUR
-	# Not anchored to this HUD's rect: `DotHud` insets itself by the safe area, and a
-	# blind the size of the HUD leaves a frame of the arena showing round the edge — which
-	# game-arena's first rendered blind did. Sized to the whole viewport in
-	# [method present_blind] instead.
+	# Not anchored to this HUD's rect: `DotHud` insets itself by the safe area, which would leave a frame of the arena showing round a blind.
+	# Sized to the whole viewport in [method present_blind] instead.
 	blind_overlay.set_anchors_preset(Control.PRESET_TOP_LEFT)
 	blind_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	blind_overlay.modulate.a = 0.0
@@ -395,7 +339,6 @@ func _watched() -> HungryMonster:
 	return value as HungryMonster if value is HungryMonster else null
 
 
-# --- The feed --------------------------------------------------------------
 
 func say(text: String, colour: Color = Color(0.88, 0.90, 0.94)) -> void:
 	if feed != null:
@@ -403,10 +346,6 @@ func say(text: String, colour: Color = Color(0.88, 0.90, 0.94)) -> void:
 
 
 ## A chat line as dot-server delivered it.
-##
-## The payload is dot-server's and its shape is the server's business; everything read out
-## of it is defaulted, because a server that sends a field this does not expect should
-## produce a slightly plain line rather than an error.
 func chat(payload: Dictionary) -> void:
 	var who := String(payload.get("name", ""))
 	var text := String(payload.get("text", ""))
@@ -464,13 +403,8 @@ func vote_countdown(seconds_left: int, runoff: bool) -> void:
 	_vote_until_msec = Time.get_ticks_msec() + (VOTE_LAST_MSEC if seconds_left <= 1 else VOTE_LINGER_MSEC)
 
 
-# --- Refreshing ------------------------------------------------------------
 
 ## Rebuilds the leaderboard rows.
-##
-## Called on a timer rather than every frame: it rebuilds a table of [Label]s, and doing
-## that sixty times a second to show ten numbers that change slowly is most of a frame's
-## layout budget for no benefit.
 func refresh_leaderboard() -> void:
 	if leaderboard == null or world == null:
 		return
@@ -531,17 +465,9 @@ static func _top_and_me(rows: Array[Dictionary], room: int) -> Array[Dictionary]
 	return out
 
 
-# --- Making room -----------------------------------------------------------
 
 ## Everything drawn over this HUD by somebody else — the shell's ballot panels — as one
 ## rect in this HUD's own coordinates, or an empty rect when nothing is. See [member _board_room].
-##
-## [b]Through the canvas transforms, both ways.[/b] The panel is on the shell's canvas layer
-## and this HUD is inset by the safe area and scaled by the interface scale, so a rect read
-## as-is is in the wrong space on any phone and at any scale but one.
-##
-## dot-ui's reading of the group ([method DotHudPiece.covered_rect]), which this HUD used to
-## do by hand: the same transforms, and the same skip of this HUD's own children.
 func covered_rect() -> Rect2:
 	return DotHudPiece.covered_rect(self)
 
@@ -612,14 +538,6 @@ func _process(delta: float) -> void:
 
 
 ## Fades [member blind_overlay] toward whether this player is blinded.
-##
-## Read off the local monster rather than pushed by anybody, because the flag arrives in a
-## snapshot on a networked client and is set directly offline, and a HUD that had to be
-## told would need telling from two places. Public so a check can step it.
-##
-## [b]This player's, not the watched one's, and dead or alive.[/b] A blinded player who is
-## eaten spectates somebody else, and a blind that lifted for that would be a blind any
-## player could end by feeding themselves to the nearest monster.
 func present_blind(delta: float) -> void:
 	if blind_overlay == null:
 		return
@@ -677,10 +595,8 @@ func _refresh_mass() -> void:
 	mass_label.text = "%d mass" % int(monster.mass() if monster != null else 0.0)
 
 
-## This game's accent over whichever theme the player picked in the menu: the gold as the
-## pieces' highlight, a light edge on their plates. The plate, the words and their outline are
-## the theme's (dark by default), so a light or high-contrast theme can change them; until the
-## first play test (2026-10-11) this was a fixed navy plate. Static so a render tool can use it.
+## This game's accent over the theme the player picked: gold as the pieces' highlight, a light edge on their plates.
+## The plate, words and outline are the theme's, so a light or high-contrast theme can change them. Static for render tools.
 static func piece_theme() -> Theme:
 	var t := Theme.new()
 	var type := DotHudPiece.THEME_TYPE
@@ -689,10 +605,7 @@ static func piece_theme() -> Theme:
 	return t
 
 
-## The theme every [Label] in this HUD inherits: an outline, so text is readable over
-## the pale arena. The leaderboard's cells are Labels and inherit it too. The outline's
-## colour is the menu theme's ink once the menu follows this HUD (see [method accent_theme]);
-## this one is what a HUD with no menu draws.
+## The theme every [Label] in this HUD inherits: an outline so text reads over the pale arena, in the menu theme's ink once the menu follows this HUD (see [method accent_theme]).
 static func hud_theme() -> Theme:
 	var out := Theme.new()
 	out.set_constant(&"outline_size", &"Label", TEXT_OUTLINE)

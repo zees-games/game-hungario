@@ -15,18 +15,6 @@ const HungrySpectate := preload("hungry_spectate.gd")
 
 ## The game: an arena, four fields of food, a set of monsters, and the rules that
 ## connect them.
-##
-## [b]This is where dot-2d's deliberate gaps get filled.[/b] That addon ships the motor,
-## the mass relationships, the spatial hash and the scatter field, and stops short of
-## splitting and merging — because split pieces are [i]several entities owned by one
-## player[/i], which needs an ownership model and a merge rule that are a game's design.
-## They are here, and so are the three things this game adds on top of them: food that
-## comes in sizes, fruit that does something, and throwables that take the decision to
-## split away from the player being split.
-##
-## [b]No autoload.[/b] It registers itself in [DotRegistry] under [constant SERVICE], so
-## [HungryModule] can find it without being handed it, and a process running a server and
-## a client at once gives each one a [member service_scope].
 
 const CHANNEL := "hungry"
 const SERVICE := &"hungry_world"
@@ -68,18 +56,11 @@ signal field_changed()
 @export_range(1, 240, 1) var tick_rate: int = HungryContent.TICK_RATE
 
 ## Whether this instance decides who eats whom.
-##
-## A client runs the same world with this off: it simulates the pieces it owns so its own
-## monster is smooth, and never resolves an absorption. A client that resolved its own
-## eating would be a client that decides what it weighs.
 @export var is_authority: bool = true
 
 @export_group("World")
 
 ## Which mode this is. Null means [method HungryPreset.classic].
-##
-## Read once, in [method setup]. Changing it afterwards does nothing, which is deliberate:
-## a mode that could change mid-round would have to resize the arena under everybody.
 @export var preset: HungryPreset = null
 
 @export var world_size: Vector2 = HungryContent.WORLD_SIZE
@@ -98,12 +79,6 @@ signal field_changed()
 var arena: Dot2DArena = null
 
 ## What is solid in this world: the level's own geometry.
-##
-## [b]Derived on both ends and never replicated.[/b] The authority builds it from the
-## preset and a client builds the same discs from the layout id in the hello, exactly the
-## way both ends build the food field from a seed. See [HungryLayout], and see
-## [HungryHazards] for the other kind of obstacle — the one that IS replicated, because a
-## hazard is placed at runtime and a layout is the map.
 var layout: HungryLayout = HungryLayout.none()
 
 ## What a monster wedged in a refuge it has outgrown does (`[refuge-outgrown-1]`). Taken from
@@ -134,18 +109,9 @@ var motor: Dot2DMotor = null
 var items: DotItemCatalogue = null
 
 ## What decides whether a thrown item does anything, and how much.
-##
-## `func(thrower_id, victim_id, item, distance) -> {"allowed": bool, "pieces": int}`.
-##
-## [b]Unset means the constants this file has always used.[/b] [HungryCombat] is what
-## fills it, and a world that named that class would be a world that could not run without
-## dot-combat installed — which every one of this project's own headless suites does.
 var damage_gate: Callable = Callable()
 
 ## Whether a player's client is still behind its loading cover: `func(player_id: int) -> bool`.
-## The server module fills it from its [DotGameRoster]; unset (offline, a suite, a bot) nobody
-## is loading. A player still loading has been frozen by their own client and cannot see, so
-## nothing eats, bursts, throws at or hunts them: see [method can_be_harmed].
 var loading_fn: Callable = Callable()
 
 ## Where a dead monster's owner looks. Built by [method setup] on the authority and on a
@@ -153,10 +119,6 @@ var loading_fn: Callable = Callable()
 var spectate: HungrySpectate = null
 
 ## Who is in the session, which side, which trait, where they appear, and the physics.
-##
-## [b]Built last and binds to everything else.[/b] It adds no authority: the monster is
-## still dot-2d's and the round is still dot-match's. What it does is keep one set of
-## records in step with them. See [HungryPlayerStack].
 var player_stack: HungryPlayerStack = null
 
 ## player id -> [HungryMonster].
@@ -281,9 +243,6 @@ func setup() -> DotResult:
 
 
 ## Stands up the player-facing addons and binds them to this world.
-##
-## Last, because it reads the match and the field, and a stack built before either binds
-## to nothing and reports success.
 func _build_player_stack() -> void:
 	player_stack = HungryPlayerStack.new()
 	player_stack.name = "PlayerStack"
@@ -338,11 +297,8 @@ func _build_match() -> DotResult:
 	match_node.respawn_due.connect(_on_respawn_due)
 	match_node.state_changed.connect(
 		func(from: DotMatch.State, to: DotMatch.State) -> void:
-			# Reset first, announce afterwards. A listener told the round had started
-			# while the old field was still in place — which is what announcing first
-			# does — sends every client the field that is about to be thrown away, and
-			# the new one then arrives as a delta on top of it. The symptom is a client
-			# holding exactly twice as much food as exists, half of it phantoms.
+			# Reset first, announce afterwards: a listener told the round started while the old field is still there sends clients a field about to be thrown away,
+			# and the new one then arrives as a delta on top of it (clients hold double the food).
 			if to == DotMatch.State.LIVE:
 				reset_world()
 
@@ -353,18 +309,6 @@ func _build_match() -> DotResult:
 
 
 ## Gives dot-match one spawn point, which this game then ignores.
-##
-## [b]It is never read.[/b] Where a monster appears is decided by [method _safe_spawn],
-## which asks the arena for a deterministic position and rejects the ones with something
-## big enough to eat you standing on them — a 2D question that [DotSpawnSelector] cannot
-## answer, because a spawn point is a [Node3D] and danger here is a mass ratio rather than
-## a sight line.
-##
-## But dot-match's respawn path asks its selector for a point every time somebody comes
-## back, and warns once per respawn when there is none. On a busy server that is a warning
-## a second, all of them about a decision this game is deliberately making itself, and a
-## log full of those is a log nobody reads. One point at the origin costs nothing and
-## keeps the warnings about real problems.
 func _add_spawn_point() -> void:
 	var point := DotSpawnPoint.new()
 	point.name = "Nominal"
@@ -381,12 +325,8 @@ func start(tick: int = 0) -> void:
 
 ## Puts the world back to its starting state. What a new round does.
 func reset_world() -> void:
-	# Through `_destroy_piece`, not by clearing the dictionary. Clearing it forgets the
-	# pieces without ever emitting [signal piece_destroyed], and the netcode bridge is
-	# listening to exactly that signal: the entities would stay registered, every client
-	# would keep the old round's pieces on screen for ever, and the piece count would
-	# double every round. Nothing errors, because from the world's own point of view the
-	# pieces really are gone.
+	# Through `_destroy_piece`, not by clearing the dictionary: clearing never emits [signal piece_destroyed],
+	# which the netcode bridge listens to, so entities stay registered and clients keep the old round's pieces.
 	for piece_id in _sorted_piece_ids():
 		var piece: HungryPiece = _pieces.get(piece_id)
 
@@ -402,12 +342,6 @@ func reset_world() -> void:
 		monster.effects.clear()
 
 	# The old field leaves the grid before the new one enters it.
-	#
-	# Slot indices are never reused, so the new field's grid ids sit *beside* the old
-	# field's rather than overwriting them. Without this the grid ends a round holding
-	# twice as much food as exists, half of it phantoms at stale positions that `take()`
-	# then refuses — and eating quietly stops working. This is the bug game-blob found
-	# the hard way and it is the same one here, three fields wide.
 	for grid_id in field.alive_ids():
 		arena.grid.remove(grid_id)
 
@@ -420,10 +354,6 @@ func reset_world() -> void:
 
 
 ## Adopts the authority's world size. Client side, from the hello.
-##
-## Called before the seed, and it has to be: the field's positions are hashed into the
-## arena rectangle, so adopting a seed against the wrong rectangle lays the whole field
-## out somewhere else. See [method HungryField.set_bounds].
 func adopt_world_size(size: Vector2) -> void:
 	if size.x <= 1.0 or size.y <= 1.0 or size.is_equal_approx(world_size):
 		return
@@ -439,11 +369,8 @@ func adopt_world_size(size: Vector2) -> void:
 	DotLog.debug(CHANNEL, "adopted the authority's world size", {"size": size})
 
 
-## Which variant of the preset's layout to build: this world's own, then the operator's
-## cvar, then the preset's. The cvar is read off the server's console through the registry
-## (duck-typed, so a world with no dot-server — offline, a suite — simply has none). It is
-## registered by the module, which loads after the first mode's world, so it reaches the
-## next mode change rather than the first.
+## Which variant of the layout to build: this world's own, then the operator's cvar, then the preset's.
+## The cvar is read through the registry (none offline) and registered after the first world, so it takes effect from the next mode change.
 func _chosen_layout_variant() -> String:
 	if layout_variant != "":
 		return layout_variant
@@ -456,11 +383,6 @@ func _chosen_layout_variant() -> String:
 
 
 ## Adopts the authority's layout. Client side, from the hello.
-##
-## [b]After the world size and it has to be[/b], for the same reason the field seed does:
-## the discs are laid out proportionally inside the arena rectangle, so a layout built
-## against the wrong rectangle is the right level at the wrong scale — and a client would
-## then be predicting itself around rocks the server does not have.
 func adopt_layout(layout_id: StringName) -> void:
 	layout = HungryLayout.for_id(layout_id, arena.bounds)
 
@@ -470,11 +392,6 @@ func adopt_layout(layout_id: StringName) -> void:
 
 
 ## Adopts the authority's field seed and empties the field. Client side.
-##
-## The client is told what is alive rather than laying a field out itself, even though it
-## could: a client that filled from the seed would be right at the start of a round and
-## wrong for ever afterwards, because which slots have been eaten is not derivable from
-## anything. The seed is what saves the [i]positions[/i]; the membership still travels.
 func adopt_field_seed(new_seed: int) -> void:
 	for grid_id in field.alive_ids():
 		arena.grid.remove(grid_id)
@@ -504,7 +421,6 @@ func apply_field_delta(
 	field_changed.emit()
 
 
-# --- Players ---------------------------------------------------------------
 
 func add_player(id: int, display_name: String) -> DotResult:
 	if _monsters.has(id):
@@ -626,22 +542,8 @@ func spawn(id: int, at: Vector2 = Vector2.INF) -> void:
 
 
 ## A spawn position with nobody big enough to eat you standing on it.
-##
-## Deterministic candidates from the arena, filtered by what is actually there. A random
-## spawn that happened to land inside the leader is a player who dies before they have
-## moved, and on a busy server it happens often enough to be the first thing anyone
-## complains about.
 func _safe_spawn(id: int) -> Vector2:
 	# [b]The director first, and it is the same rule rather than a different one.[/b]
-	# `HungryPlayerStack` lays a grid of sites over the field, scores them by distance
-	# from every other monster and vetoes any with something big enough to eat you on it
-	# — which is what the loop below does by hand, plus a protection window that
-	# `DotSpawnProtection` only ever grants from inside `choose`. Until this call the
-	# grid was built, the scoring was configured and nothing ever asked.
-	#
-	# The loop stays as the fallback. It is deterministic in the id where the director is
-	# deterministic in its own stream, and on a field with no safe cell at all the
-	# director correctly refuses while a player still has to go somewhere.
 	if player_stack != null:
 		var chosen := player_stack.choose_spawn(id)
 
@@ -675,14 +577,6 @@ func _safe_spawn(id: int) -> Vector2:
 
 
 ## Moves a spawn out of the level's geometry, if it landed in it.
-##
-## [b]Moved rather than rejected, and that is deliberate.[/b] Every producer of a spawn
-## point here — the director's site grid, the arena's deterministic candidates, the
-## fallback — knows about monsters and nothing about rocks, and a rock covers an eighth of
-## a warren. Rejecting would mean an eighth of the candidates silently failing and a player
-## eventually spawning at the fallback, which is the one position the whole function exists
-## to avoid. Pushing out lands them exactly where a piece pushed out of the same rock would
-## be, which is somewhere a player can play from.
 func _clear_of_layout(at: Vector2) -> Vector2:
 	if layout == null or layout.is_empty():
 		return at
@@ -691,13 +585,8 @@ func _clear_of_layout(at: Vector2) -> Vector2:
 	return layout.nearest_clear(at, start_radius, arena.bounds)
 
 
-# --- Pieces ----------------------------------------------------------------
 
 ## Creates a piece and registers it with the arena.
-##
-## [param forced_id] is how a client mirrors a piece the authority has announced: the
-## piece id goes on the wire and the two sides have to agree on it, because it is what
-## the eaten and burst events name.
 func attach_piece(
 	monster: HungryMonster,
 	at: Vector2,
@@ -743,12 +632,6 @@ func _destroy_piece(piece: HungryPiece) -> void:
 
 
 ## Changes a piece's mass and puts it back inside the world.
-##
-## [b]Growing is a move.[/b] A piece hugging a wall that eats a crumb gets wider, and its
-## edge is then outside the arena — the motor only clamps a piece that is moving, and one
-## sitting still against a wall stays out. game-blob found this by running eight bots for
-## two minutes and measuring the furthest edge, which came out 2.8 units past it. Nothing
-## errored then either.
 func _grow(piece: HungryPiece, mass: float) -> void:
 	if outgrown == Outgrown.CAP and mass > piece.mass():
 		mass = _mass_that_fits(piece, mass)
@@ -817,17 +700,6 @@ func _shed_outgrown() -> void:
 
 
 ## Takes a piece out of the world because something that is not a player ate it.
-##
-## [b]The world acts and the caller decides, which is [DotTimer]'s division exactly.[/b]
-## [HungryHunters] resolves a hunter meeting a piece — hunters are a handful and are not in
-## the spatial hash every food lookup pays for — and then says so here, so the destruction,
-## the signal, the monster's own book-keeping and the netcode's despawn all go through the
-## one path a player's eat already goes through. A caller that freed the piece itself would
-## be the `reset_world` bug again: from the world's point of view it really would be gone,
-## and every client would keep it for ever.
-##
-## Returns false when there is no such piece, which is a real sequence rather than an
-## error: two hunters can reach one piece on the same tick.
 func devour_piece(piece_id: int, from: Vector2 = Vector2(NAN, NAN)) -> bool:
 	var piece: HungryPiece = _pieces.get(piece_id)
 
@@ -856,11 +728,6 @@ func devour_piece(piece_id: int, from: Vector2 = Vector2(NAN, NAN)) -> bool:
 
 
 ## Adds mass to somebody's biggest piece, because they ate something the world owns.
-##
-## [b]Through [method _grow], which is what keeps a growing piece inside the arena.[/b]
-## Growing is a move: a piece against a wall that gains mass gets wider and its edge ends
-## up outside, because the motor only clamps a piece that is *moving*. game-blob measured
-## 2.8 units past the wall before anybody noticed.
 func feed_player(player_id: int, mass: float) -> bool:
 	var monster := monster_for(player_id)
 
@@ -877,23 +744,8 @@ func feed_player(player_id: int, mass: float) -> bool:
 	return true
 
 
-# --- Simulation ------------------------------------------------------------
 
 ## Advances the whole world one tick. The authority's entry point.
-##
-## [b]The order is the design.[/b] Effects expire, then everything moves, then the grid
-## is synced, then eating, then merging, then the projectiles, then the refill, then the
-## scores, then the match. Each edge matters:
-##
-## - Eating before the grid sync would test last tick's positions.
-## - Merging before eating would let two of your own pieces merge [i]through[/i] an
-##   opponent that was about to eat one of them.
-## - Projectiles after eating, so a pepper cannot burst somebody who has already been
-##   swallowed this tick and no longer exists.
-## - The match last, so a mass target reached this tick ends the round this tick.
-##
-## [param commands] is `{player id: Dot2DCommand}`. A player with no entry repeats their
-## last command, because a dropped input packet means "still holding the mouse there".
 func tick(commands: Dictionary = {}) -> void:
 	_tick += 1
 
@@ -928,13 +780,6 @@ func tick(commands: Dictionary = {}) -> void:
 
 
 ## Advances the parts of the world a client owns. Called once a tick on a client.
-##
-## [b]Everything a client is allowed to do on its own, and nothing else.[/b] Effects run
-## out so the HUD stops showing one that has ended; the grid is re-synced so the minimap
-## and the local range hints are not a tick stale; projectiles whose impact never arrived
-## are dropped. What it deliberately does not do is tick the match, resolve eating, or
-## move anybody — the match arrives replicated, eating is the authority's, and remote
-## pieces are moved by the interpolator.
 func client_tick(tick_value: int) -> void:
 	_tick = tick_value
 
@@ -945,24 +790,12 @@ func client_tick(tick_value: int) -> void:
 		spectate.tick(1.0 / float(tick_rate))
 
 	for shot in projectiles():
-		# A defensive prune only. Every projectile the authority resolves produces an
-		# impact event on a reliable channel, so this should never fire — but a client
-		# that lost one would otherwise draw a pepper flying to the edge of the world for
-		# ever, and the margin is the difference between "late" and "never".
+		# A defensive prune only: every resolved projectile sends a reliable impact event, but a client that lost one would draw the shot flying for ever.
 		if shot.distance_at(tick_value, tick_rate) > HungryContent.THROW_RANGE * 1.3:
 			_shots.erase(shot.id)
 
 
 ## Advances one piece by one tick. The unit of client-side prediction.
-##
-## [b]One piece, and deliberately not the set.[/b] [DotNetPredictor] reconciles one
-## entity at a time — it rewinds that entity to the server's answer and replays its
-## unacknowledged inputs — so anything a replay does that couples two entities is
-## computed against whatever the other one happened to be holding at the time. Keeping
-## the predicted step to the motor makes it a pure function of (state, command, delta),
-## which is the only shape a replay converges for.
-##
-## What that costs is [method _separate]: see [method separate_local].
 func simulate_piece(
 	piece: HungryPiece,
 	monster: HungryMonster,
@@ -993,20 +826,6 @@ func simulate_piece(
 
 
 ## Pushes one piece out of the level's geometry. Immediately after the motor, both ends.
-##
-## [b]Immediately after the motor and not at the end of the tick, because this is on the
-## prediction path.[/b] A client predicts one piece by calling [method simulate_piece] and
-## a reconciliation replays the same call, so whatever the authority does to a piece
-## between its motor step and the state it sends back has to happen inside that call too —
-## otherwise every tick spent against a rock is a misprediction, the correction eases the
-## player back into the rock, and the mode reads as packet loss.
-##
-## It is a pure function of (state, static geometry), which is the shape a replay
-## converges for. [method _separate] is the one thing here that is not, and it is applied
-## live and not replayed for exactly that reason — see [method separate_local]. The
-## consequence is bounded and worth writing down: for the second or so after a split,
-## separation can push a piece a fraction of an overlap back into a rock, and the next
-## tick's block pushes it out again.
 func block_piece(piece: HungryPiece) -> bool:
 	if piece == null or layout == null or layout.is_empty():
 		return false
@@ -1020,29 +839,13 @@ func block_piece(piece: HungryPiece) -> bool:
 	if not layout.resolve_circle(piece.state, piece.radius()):
 		return false
 
-	# [b]And back inside the arena, because the push-out does not know the wall is there
-	# (`[refuge-outgrown-1]`).[/b] The motor clamps a moving piece BEFORE this call, so a
-	# piece wider than the gap between a rock and a wall — anything that has outgrown a
-	# harbour, a rock pool, the cove or the shallows' deepest band, or a grown monster in a
-	# slalom gate — was pushed out of the rock and through the wall, and stood there: up
-	# to 290 units past the edge, cut off by it on screen, still or steering. The arena
-	# invariant [method _grow] keeps for growing is kept here for pushing. Such a piece
-	# now overlaps the rock instead, as one that outgrew the den always has; whether an
-	# outgrown monster should be squeezed, capped or split is a design question this
-	# does not answer. Pure, so a client's replay agrees.
+	# Back inside the arena, because the push-out does not know the wall is there: a piece wider than the gap between a rock and a wall was pushed out through the wall.
+	# The motor clamps before this call; the same arena invariant [method _grow] keeps is kept here. Pure, so a client's replay agrees.
 	piece.state.position = arena.clamp_position(piece.state.position, piece.radius())
 	return true
 
 
 ## Pushes one monster's own pieces apart. Client side, once per tick after predicting.
-##
-## [b]Applied live and not replayed.[/b] The authority separates every tick, and so does
-## a client — but a reconciliation replay does not, because it runs per entity and
-## separation is a property of the set. The consequence is bounded and worth writing
-## down: for the second or so after a split, while the pieces are still overlapping, the
-## client's shown positions and the replayed ones differ by a fraction of the overlap and
-## the correction is eased out. Once the pieces are apart, separation does nothing at all
-## and the two agree exactly — which is every other moment of the game.
 func separate_local(monster: HungryMonster, delta: float) -> void:
 	if monster != null:
 		_separate(monster, delta)
@@ -1054,14 +857,6 @@ func _expire_effects() -> void:
 
 
 ## Tunables with this monster's current speed multiplier folded in.
-##
-## One reused instance rather than one per monster: it is read inside the same call it is
-## written in, nothing holds a reference to it afterwards, and allocating a [Resource]
-## per player per tick at 60 Hz is a lot of garbage for a number.
-##
-## The multiplier is applied to [member Dot2DTunables.max_speed] rather than to the mass
-## curve, because the mass curve is what every other machine derives a radius from and
-## a rushing monster is not a bigger one.
 func _tunables_for(monster: HungryMonster, tick_value: int) -> Dot2DTunables:
 	var multiplier := monster.speed_multiplier(tick_value)
 
@@ -1073,22 +868,6 @@ func _tunables_for(monster: HungryMonster, tick_value: int) -> Dot2DTunables:
 
 
 ## Where the player is pointing, in world units.
-##
-## [Dot2DCommand] carries a direction and a distance rather than a position, because a
-## [i]screen[/i] position depends on a window size and a camera zoom the server does not
-## have. A [i]world[/i] position is perfectly meaningful, and it is recoverable: the
-## sampler measures the pointer from the monster's centroid, so adding the same offset to
-## the same centroid gets it back without another byte on the wire.
-##
-## [b]This matters far more than it sounds.[/b] Steering every piece along one shared
-## direction makes a split monster travel as a rigid formation: the pieces move in
-## parallel, at the same speed, for ever, and they never come back within merging
-## distance of each other. Splitting would be permanent and merging unreachable — and
-## nothing would error, because each piece individually did exactly what it was told.
-##
-## In the genre every cell steers toward the cursor's [i]point[/i], which is what makes a
-## split converge, what makes "let go to regroup" work, and what makes the trailing half
-## of a split catch up.
 static func pointer_of(monster: HungryMonster, command: Dot2DCommand) -> Vector2:
 	if monster == null or command == null:
 		return Vector2.ZERO
@@ -1097,10 +876,6 @@ static func pointer_of(monster: HungryMonster, command: Dot2DCommand) -> Vector2
 
 
 ## One piece's command: the monster's, re-aimed at the pointer from where this piece is.
-##
-## The returned object is reused between calls and is not retained by anything —
-## [method Dot2DMotor.simulate] reads it and keeps nothing — because allocating a command
-## per piece per tick at 60 Hz is a lot of garbage for four fields.
 func command_for_piece(
 	command: Dot2DCommand,
 	piece: HungryPiece,
@@ -1161,9 +936,6 @@ func _simulate_monsters(commands: Dictionary, delta: float) -> void:
 
 		for piece in monster.pieces:
 			# The monster's admin bits into every piece, every tick, on the authority only.
-			# A split made this tick has to be frozen or noclipped with the rest; a client
-			# has no monster-level value to write and takes each piece's off the wire, which
-			# is what its prediction replays.
 			if is_authority:
 				Dot2DAdminModifiers.adopt(piece.state, monster.admin)
 
@@ -1184,11 +956,6 @@ func _simulate_monsters(commands: Dictionary, delta: float) -> void:
 
 
 ## Keeps a monster's own pieces from sitting inside each other before they may merge.
-##
-## Without this a split immediately collapses back into a pile: the pieces all chase the
-## same pointer at the same speed, so they arrive at the same place and stay there, and
-## splitting stops meaning anything. Pushing them apart is what makes the pieces cover
-## ground — and it is what makes a burst frightening rather than cosmetic.
 func _separate(monster: HungryMonster, delta: float) -> void:
 	if monster.pieces.size() < 2:
 		return
@@ -1228,7 +995,6 @@ func _separate(monster: HungryMonster, delta: float) -> void:
 			)
 
 
-# --- Eating ----------------------------------------------------------------
 
 ## Food, fruit and item drops. One query per piece over one grid.
 func _resolve_field() -> void:
@@ -1318,9 +1084,6 @@ func _eat_fruit(monster: HungryMonster, piece: HungryPiece, grid_id: int) -> boo
 
 
 ## Picks a throwable up. Refused, and left where it is, when the monster is full.
-##
-## Leaving it rather than consuming it is the difference between "you are carrying three
-## already" and "that pepper vanished". The second one reads as a bug every time.
 func _take_item(monster: HungryMonster, grid_id: int) -> bool:
 	if monster.carried.size() >= HungryContent.MAX_CARRIED:
 		return false
@@ -1351,10 +1114,8 @@ func _resolve_pieces() -> void:
 	var rules := tunables.mass_rules
 	var eaten := {}
 
-	# Sorted, so two machines resolve the same collisions in the same order. Dictionary
-	# iteration order is not a guarantee, and with three pieces in a pile the order
-	# decides which two of the three survive. The `eaten` set because one piece can be
-	# in range of two eaters on the same tick.
+	# Sorted, so two machines resolve the same collisions in the same order (dictionary order is no guarantee).
+	# The `eaten` set because one piece can be in range of two eaters on the same tick.
 	for piece_id in _sorted_piece_ids():
 		if eaten.has(piece_id):
 			continue
@@ -1446,7 +1207,6 @@ func _absorb(eater: HungryPiece, victim: HungryPiece, rules: Dot2DMassRules) -> 
 		player_died.emit(victim.owner_id, eater.owner_id)
 
 
-# --- How an eaten monster goes down ------------------------------------------
 
 ## Eaten by something at least this many times your mass: swallowed whole, which is this
 ## game's headshot (dot-player-char's `needs_headshot`: the headshot launch).
@@ -1463,11 +1223,8 @@ static func power_of(ratio: float) -> float:
 	return clampf((ratio - POWER_FROM_RATIO) / (POWER_FULL_RATIO - POWER_FROM_RATIO), 0.0, 1.0)
 
 
-## The fall an eaten monster gets: dot-player-char's reaction rule over the server's
-## `sv_ragdoll_reactions`, seeded from the player and the tick so every client draws the same
-## one. [param mass] is what they lost (the damage), [param away] which way they were pushed
-## (on the plane; it travels as x and z, a 2D world being dot-npc's XZ plane). Authority only:
-## a client draws the one that came on DIED and never picks.
+## The fall an eaten monster gets: dot-player-char's reaction rule over `sv_ragdoll_reactions`, seeded from the player and tick so every client draws the same one.
+## [param mass] is the damage, [param away] the push on the plane. Authority only; a client draws the one that came on DIED.
 func decide_death(player_id: int, swallowed: bool, power: float, mass: float, away: Vector2) -> DotPlayerDeath:
 	return DotPlayerDeath.decide(
 		ragdoll_rules.reactions() if ragdoll_rules != null else DotPlayerDeathReactions.stock(),
@@ -1494,13 +1251,8 @@ func _sorted_piece_ids() -> Array[int]:
 	return out
 
 
-# --- Splitting, bursting and merging ---------------------------------------
 
 ## Halves every eligible piece and throws one half along the aim.
-##
-## Bounded by [member Dot2DMassRules.max_pieces] and by a cooldown. Without the cooldown
-## a held key splits every tick and the piece limit is reached in a fifth of a second,
-## which is not a decision — it is a stutter.
 func _split(monster: HungryMonster, command: Dot2DCommand) -> int:
 	var rules := tunables.mass_rules
 
@@ -1510,10 +1262,6 @@ func _split(monster: HungryMonster, command: Dot2DCommand) -> int:
 	var made := 0
 	# A copy: the loop adds pieces, and iterating the live array would split the pieces
 	# it has just created — which halves everything twice in one press.
-	#
-	# Typed, because `Array.duplicate()` returns an *untyped* array, so the loop variable
-	# would be a Variant and every `:=` derived from it a parse error. The family's
-	# docs/gdscript-hazards.md calls this out and it is still the easiest one to walk into.
 	var existing: Array[HungryPiece] = monster.pieces.duplicate()
 
 	for piece in existing:
@@ -1545,10 +1293,6 @@ func _split(monster: HungryMonster, command: Dot2DCommand) -> int:
 
 
 ## Blows a monster apart. What a pepper does.
-##
-## [b]Not the same operation as a split, and it must not be.[/b] A split is a decision
-## made along an aim; a burst is done to you, so it is radial, it ignores the cooldown,
-## and it applies to every eligible piece at once. Returns how many new pieces it made.
 func burst(monster: HungryMonster, by_player: int, into: int = 0) -> int:
 	if monster == null or not monster.alive:
 		return 0
@@ -1572,11 +1316,8 @@ func burst(monster: HungryMonster, by_player: int, into: int = 0) -> int:
 			continue
 
 		var room := rules.max_pieces - monster.piece_count() + 1
-		# [b]How many pieces is a parameter now, and zero means "the usual".[/b] It is
-		# what [HungryCombat] turns a resolved damage amount into: a pepper thrown from
-		# across the arena scatters somebody less than one thrown at point blank, which is
-		# falloff — and falloff is dot-combat's, not this file's. Zero rather than a
-		# default in the signature so a caller that has no opinion says so.
+		# How many pieces; zero means "the usual". [HungryCombat] turns a resolved damage amount into it, so falloff stays dot-combat's.
+		# Zero rather than a default so a caller with no opinion says so.
 		var wanted := into if into >= 2 else HungryContent.PEPPER_PIECES
 		var pieces := mini(wanted, room)
 
@@ -1612,10 +1353,6 @@ func burst(monster: HungryMonster, by_player: int, into: int = 0) -> int:
 
 
 ## Both halves get the merge delay, not just the new one.
-##
-## A parent that could re-absorb its child immediately makes splitting free, and
-## splitting is supposed to be a risk. It is also what stops a burst from healing itself
-## in the same second it happened.
 func _delay_merge(parent: HungryPiece, child: HungryPiece) -> void:
 	var delay := int(tunables.mass_rules.merge_delay_sec * float(tick_rate))
 	parent.merge_tick = _tick + delay
@@ -1663,12 +1400,8 @@ func _resolve_merges() -> void:
 					break
 
 
-# --- Throwing --------------------------------------------------------------
 
 ## Throws the oldest carried item along the aim.
-##
-## Thrown from the rider's piece rather than from the centroid: the centroid of a burst
-## monster is empty space, and a projectile that came out of nowhere is unreadable.
 func _throw(monster: HungryMonster, command: Dot2DCommand) -> HungryProjectile:
 	if _tick < monster.throw_ready_tick or command.aim == Vector2.ZERO:
 		return null
@@ -1704,16 +1437,6 @@ func _throw(monster: HungryMonster, command: Dot2DCommand) -> HungryProjectile:
 
 
 ## Spits a blob of mass out along the aim.
-##
-## [b]From the rider's piece only, and that is a design choice rather than a
-## simplification.[/b] The genre ejects from every cell at once, which is how you feed a
-## virus in a second — and which, at sixteen pieces, is a spray of blobs nobody can read.
-## One blob per press comes out of the piece the player is looking at, and a player who
-## wants to shed a lot of mass presses it a lot.
-##
-## What it leaves is ordinary planted food: anybody can eat it, it goes on the wire the
-## way a lure's ring does, and it is in the same grid as everything else. There is no
-## ejected-blob entity because there does not need to be one.
 func _eject(monster: HungryMonster, command: Dot2DCommand) -> int:
 	if _tick < monster.eject_ready_tick or command.aim == Vector2.ZERO:
 		return 0
@@ -1808,12 +1531,6 @@ func _land(shot: HungryProjectile, at: Vector2, hit_player: int) -> void:
 	_shots.erase(shot.id)
 
 	# What a throwable does to a person, asked of whatever the host installed.
-	#
-	# [b]Unset is the whole game, and that is deliberate.[/b] A deployment with no
-	# dot-combat gets the constants this file has always used; one with [HungryCombat]
-	# gets falloff, a self-hit rule and a floor, and the *only* thing that changes here is
-	# how many pieces a burst makes. A world that named the combat layer would be a world
-	# that could not run without it, and this game's own suite runs it both ways.
 	var pieces := 0
 
 	if hit_player != 0 and not can_be_harmed(hit_player):
@@ -1865,22 +1582,8 @@ func _land(shot: HungryProjectile, at: Vector2, hit_player: int) -> void:
 	projectile_impact.emit(shot, at, hit_player)
 
 
-# --- Housekeeping ----------------------------------------------------------
 
 ## Takes back every slot that landed inside the level's own geometry.
-##
-## [b]The field is scattered over the rectangle and the rectangle is not all floor.[/b]
-## A crumb inside a rock cannot be eaten — a piece is pushed out to its own radius plus the
-## rock's, so it never reaches the middle — and an uneatable crumb is worse than a missing
-## one: it holds its slot against the field's budget for ever, so a mode with a layout
-## would quietly run at seven eighths of the food it says it has, with nothing anywhere
-## saying so.
-##
-## [b]It costs nothing on the wire.[/b] [method HungryField.take] notes a removal, and
-## [HungryField]'s delta already cancels an id added and taken between two snapshots, so a
-## slot culled on the tick it was placed is never mentioned to anybody.
-##
-## Authority only: a client is told what is alive and derives no membership of its own.
 func _cull_blocked(ids: Array[int]) -> Array[int]:
 	if layout == null or layout.is_empty() or not is_authority:
 		return ids
@@ -1907,18 +1610,6 @@ func _refill_field() -> void:
 
 
 ## Copies each monster's effect bits onto its pieces, and marks the rider.
-##
-## The flags are what a client draws from — a rushing monster, a frosted one, who is
-## carrying the avatar — and they are replicated, so they have to be written on the
-## authority every tick rather than derived on receipt from state a client does not have.
-##
-## [b]It is also where a monster's own [member HungryMonster.flags] is written[/b], and
-## that is what makes prediction work. Speed depends on whether you are rushing or
-## frosted; the effects themselves live only on the authority, with expiry ticks nobody
-## else is sent. Reading the speed off the replicated bits instead means a client and a
-## server compute it from the same number, one tick apart, rather than one of them
-## computing it from state the other does not have — which would be a permanent
-## mispredict for the whole eight seconds of a fruit.
 func _sync_flags() -> void:
 	for monster in monsters():
 		monster.flags = monster.effect_flags(_tick)
@@ -1950,10 +1641,6 @@ func _apply_flags(
 
 
 ## Keeps the scoreboard's score in step with mass.
-##
-## The scoreboard is dot-match's and it counts whatever it is told to. This game's score
-## [i]is[/i] mass, so it is written here rather than accumulated from events — a running
-## total would drift from the real mass every time decay ran.
 func _sync_scores() -> void:
 	for monster in monsters():
 		var record := match_node.scoreboard.find(str(monster.id))
@@ -1966,18 +1653,8 @@ func _on_respawn_due(key: String, _spawn: DotSpawnPoint, _tick_value: int) -> vo
 	spawn(int(key))
 
 
-# --- Queries ---------------------------------------------------------------
 
 ## Everything a player should be told about: pieces and food in their view.
-##
-## Bounded, because a player in the middle of a crowded world is otherwise in interest
-## range of everything at once — and on a browser client that is the difference between
-## playable and not.
-##
-## Over the cap, [b]pieces come before food[/b]: losing sight of a crumb is a crumb you
-## do not eat, and losing sight of a piece is being eaten by something invisible. Pieces
-## are trimmed too rather than exempted — eight players at the piece limit is a hundred
-## and twenty-eight pieces, and a cap that only bounded food would not bound anything.
 func interest_for(player_id: int, limit: int = 420) -> Array[int]:
 	var monster := monster_for(player_id)
 

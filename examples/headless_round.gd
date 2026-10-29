@@ -1,18 +1,6 @@
 extends "headless_round_levels.gd"
 
 ## Plays whole rounds of the game with nobody watching, and checks that they work.
-##
-## [codeblock]
-## godot --headless --path . res://examples/headless_round.tscn
-## [/codeblock]
-##
-## Exits non-zero on any failure, so it works as a smoke test as-is.
-##
-## [b]This is the file that finds the bugs.[/b] Everything here parses cleanly whether it
-## is right or wrong: a monster that grows outside the wall, a field that hands out the
-## same slot twice, a burst that quietly does nothing because the piece cap was already
-## reached. None of those produce an error, and none of them are visible by reading the
-## code. They are visible by running eight monsters for two minutes and measuring.
 
 const CHECKS := 477
 
@@ -194,7 +182,6 @@ func _test_food_tiers() -> void:
 	_drop(world)
 
 
-# --- Growing ---------------------------------------------------------------
 	_done()
 
 func _test_growing() -> void:
@@ -284,7 +271,6 @@ func _nearest_food(world: HungryWorld, from: Vector2) -> Vector2:
 	return best
 
 
-# --- Fruit -----------------------------------------------------------------
 
 func _test_fruit() -> void:
 	_section("fruit")
@@ -366,7 +352,6 @@ func _first_of(world: HungryWorld, kind: HungryField.Kind) -> int:
 	return 0
 
 
-# --- Items -----------------------------------------------------------------
 
 func _test_items_and_throwing() -> void:
 	_section("throwables")
@@ -596,7 +581,6 @@ func _test_lure() -> void:
 	_drop(world)
 
 
-# --- Splitting and merging -------------------------------------------------
 	_done()
 
 func _test_splitting() -> void:
@@ -718,10 +702,8 @@ func _test_merging() -> void:
 	var split := _aim_at(Vector2.ZERO, Vector2.RIGHT * 500.0, Dot2DCommand.BUTTON_SPLIT)
 	var release := _aim_at(Vector2.ZERO, Vector2.RIGHT * 500.0)
 
-	# Twice, with the cooldown in between, so there are three or four pieces rather than
-	# two. Three in a pile is what the repeated pass in `_resolve_merges` exists for: a
-	# single pass a tick merges two of them and leaves the third, which reads as a merge
-	# that stutters.
+	# Twice, with the cooldown in between, so there are three or four pieces rather than two.
+	# Three in a pile is what the repeated pass in `_resolve_merges` exists for.
 	world.tick({1: split})
 
 	for _i in range(HungryContent.SPLIT_COOLDOWN_TICKS + 2):
@@ -760,7 +742,6 @@ func _test_merging() -> void:
 	_drop(world)
 
 
-# --- Eating each other -----------------------------------------------------
 	_done()
 
 func _test_devouring() -> void:
@@ -789,11 +770,8 @@ func _test_devouring() -> void:
 	world.tick({})
 	_check(eaten[0] == 0, "spawn protection stops an instant kill")
 
-	# Cleared rather than waited out. Four seconds of ticks with a 500-mass monster forty
-	# units from a 22-mass one is four seconds in which the kill happens on its own — and
-	# then the chase below starts by asking a dead monster where it is, which is a runtime
-	# error that aborts the rest of this function while every check that already ran still
-	# says ok. That is how eight checks stopped running without the count going down.
+	# Cleared rather than waited out: four seconds of ticks lets the kill happen on its own, and the chase below would then ask a dead monster where it is,
+	# a runtime error that aborts the rest of this function while earlier checks still say ok.
 	big.clear_effect(HungryContent.FLAG_PROTECTED)
 	small.clear_effect(HungryContent.FLAG_PROTECTED)
 
@@ -893,7 +871,6 @@ func _test_devouring() -> void:
 	_drop(world)
 
 
-# --- Interest --------------------------------------------------------------
 	_done()
 
 ## Where a dead monster's owner looks.
@@ -965,11 +942,8 @@ func _test_spectating() -> void:
 		"and respawning puts them back in their own view"
 	)
 
-	# A client's world is a MIRROR, and it emits `player_died` too. The chain is the
-	# server's: dot-spectate refuses `on_death` on a mirror with a `push_error`, which goes
-	# to stderr and changes no exit code — so it is counted here rather than left to be
-	# read. Armed: with the authority guard in `HungrySpectate._on_died` removed, the second
-	# check fails with dot-spectate's "on a mirror" error.
+	# A client's world is a mirror and emits `player_died` too; dot-spectate refuses `on_death` there with a `push_error` that changes no exit code, so it is counted here.
+	# Armed: without the authority guard in `HungrySpectate._on_died` the second check fails.
 	var mirror := _make_world(null, SEED, false)
 	mirror.add_player(1, "Eaten")
 	mirror.add_player(2, "Eater")
@@ -1076,7 +1050,6 @@ func _test_interest() -> void:
 	_drop(world)
 
 
-# --- Rounds ----------------------------------------------------------------
 	_done()
 
 func _test_round_reset() -> void:
@@ -1091,10 +1064,7 @@ func _test_round_reset() -> void:
 	world.reset_world()
 	var after_ids := world.field.alive_ids()
 
-	# Slot indices are never reused, so the new field's grid ids sit *beside* the old
-	# field's. If the old ones are not removed, the grid ends up holding twice as much
-	# food as exists — half of it phantoms at stale positions that `take()` refuses —
-	# and eating quietly stops working. This is game-blob's bug, three fields wide.
+	# Slot indices are never reused, so the new field's grid ids sit beside the old field's; if the old ones are not removed the grid holds twice the food, half phantoms, and eating stops working.
 	var overlap := 0
 	var after_set := {}
 
@@ -1132,14 +1102,6 @@ func _test_round_reset() -> void:
 
 
 ## [warren-nav-1]: a hunter whose target stands behind a rock goes round it.
-##
-## [b]Until 2026-09-25 it did not.[/b] dot-npc steers straight at a goal, every world here
-## was an empty box when the hunters were written, and `_keep_out_of_the_level` only
-## pushed a hunter OUT of a rock — so one with its target on the far side of a ring rock
-## walked at the middle of the rock and stayed against its face for as long as the target
-## did. `HungryHunters.nav_for` builds dot-npc navigation from the layout and the chase
-## steers along it. The arrangement is the worst case for the old behaviour: hunter, rock
-## centre and target on one line, so the push-out has no tangent to slide on.
 func _test_hunter_round_a_rock() -> void:
 	_section("a hunter goes round a rock")
 
@@ -1204,13 +1166,8 @@ func _test_hunter_round_a_rock() -> void:
 	var deepest := INF
 	var ticks := 0
 
-	# [b]Six seconds, and the budget is the check.[/b] Measured 2026-09-25 with the prey
-	# standing still: along the path the stalker eats it in 252 ticks (4.2 s, about 1000
-	# units at 240 a second). With the navigation taken away it still gets there — a
-	# disc is convex, and pressed dead-centre on one the push-out eventually slips to a
-	# side — but in 624 ticks, six of those seconds spent against the rock's face, which
-	# is [warren-nav-1] exactly and what a player standing behind a rock sees. A budget
-	# of twenty seconds passed both.
+	# Six seconds, and the budget is the check: along the path the stalker eats a still prey in about 4.2 s;
+	# without navigation it still gets there in about 6 s pushing against the rock's face ([warren-nav-1]). A budget of twenty seconds passed both.
 	for _i in range(TICK_RATE * 6):
 		if not prey.alive:
 			break
@@ -1239,17 +1196,6 @@ func _test_hunter_round_a_rock() -> void:
 
 
 ## [hunter-nav-1]: where the director may put a hunter.
-##
-## [b]Until 2026-09-27 the spawn points knew nothing about the level but its rocks[/b], and
-## were seeded once from the world the server booted in: after a game change a director
-## placed hunters on the last map's rings, and nothing refused a point behind a gauntlet
-## harbour's fence — the refuge the corridor promises the players furthest behind. Now
-## every point is out of the rocks at the biggest hunter's size, not in a harbour, and on
-## the biggest floor that size can move about in, and the points follow the layout.
-##
-## The pocket half is checked independently of [method HungryLayout.main_region], which
-## chose the points: one [method HungryLayout.reach] flood from the first point, which has
-## to reach most of the floor, and no other point among what it stranded.
 func _test_where_a_hunter_appears() -> void:
 	_section("where a hunter may appear")
 
@@ -1365,14 +1311,6 @@ func _test_where_a_hunter_appears() -> void:
 
 ## [hunter-nav-1]'s size question, measured: one navigation graph serves every hunter kind,
 ## laid at the smallest's clearance (40). Does it hold a lurker at a gate?
-##
-## [b]Not on any map there is, because a lurker fits every gate.[/b] The item was written
-## for a lurker 480 across — that is a MONSTER of 900 mass on this game's curve (radius
-## 8 √mass) — and a hunter is drawn and pushed out at `4 √(mass / π)`, 67.7 for a lurker,
-## 135 across, against a narrowest gate of 201 (a harbour door) and 202 (the den). So the
-## shared graph only ever leads it along a face a little closer than it can stand, and the
-## push-out slides it. Driven through both of the narrowest gates on the maps, it gets
-## there; the stalker's time over the same arrangement is printed beside it.
 func _test_a_lurker_on_the_shared_graph() -> void:
 	_section("a lurker on the shared graph")
 
@@ -1401,11 +1339,8 @@ func _test_a_lurker_on_the_shared_graph() -> void:
 	_done()
 
 
-## One hunt through the narrowest gate of [param arrangement]: `den` is the warrens' den,
-## the hunter in the moat on a diagonal behind a den rock and the prey in the middle;
-## `harbour` is the gauntlet's west fence, the hunter in front of the middle post and the
-## prey behind it. Returns ticks, whether it ate, and how many ticks it moved less than a
-## fifth of its speed while chasing ("held").
+## One hunt through the narrowest gate of [param arrangement]: `den` is the warrens' den (hunter in the moat, prey in the middle), `harbour` the gauntlet's west fence.
+## Returns ticks, whether it ate, and how many ticks it moved under a fifth of its speed ("held").
 func _hunt_through(arrangement: StringName, kind: StringName, budget: int) -> Dictionary:
 	var preset := HungryPreset.warrens() if arrangement == &"den" else HungryPreset.gauntlet()
 	var world := _make_world(preset, SEED + 341)
@@ -1485,24 +1420,6 @@ func _drop_hunters(hunters: Node) -> void:
 
 ## [reach-1]: every level, swept. Every gap passes what it is meant to pass, and nothing on
 ## the floor is out of a starting monster's reach.
-##
-## [b]Two questions every level check before this one answered for its own level by
-## hand[/b] — the warrens' gate, the slalom's lanes, the reef's channels — and none of
-## them could see a pocket: floor a spawn can land on and never leave, or food the scatter
-## puts where nobody can eat it. So this asks every mode the same two things, off the
-## geometry alone:
-##
-## - [b]Every gate passes a monster just under its width and refuses one just over.[/b]
-##   [method HungryLayout.gates] finds every gap on the map — rock to rock and rock to
-##   wall, anything with no third rock standing in its mouth — and
-##   [method HungryLayout.gate_passes] floods each one inside its own box, so the only way
-##   through is through. A gap a neighbouring rock has narrowed fails the first half; one
-##   that is not actually the limit its width says fails the second.
-## - [b]A starting monster can reach every sampled point of the floor from the wall.[/b]
-##   And a monster at the winning mass is kept out only where the level means it to be:
-##   the warrens' ring, and nowhere at all on the corridor or the reef, whose designs
-##   promise the leader a way everywhere (the corridor's harbours are too shallow for a
-##   leader to stand in, so they are not part of its floor; see the harbours section).
 func _test_the_reach() -> void:
 	_section("the reach of every level")
 
@@ -1537,11 +1454,8 @@ func _test_the_reach() -> void:
 		if preset.layout == HungryLayout.SHALLOWS:
 			wall = _shallows_open_water(layout, bounds)
 
-		# [b]Off the wall until a leader can stand there.[/b] The gauntlet's west end is a
-		# harbour now, and this point is behind its middle post — inside the post for a
-		# starting monster and shut to a leader — so a fill from it would measure one
-		# pocket rather than the floor. Walked east until the winning radius is clear,
-		# which is the wall point itself for every mode without a harbour.
+		# Off the wall until a leader can stand there: the point behind the gauntlet's middle post is shut to a leader, so a fill from it would measure one pocket.
+		# Walked east until the winning radius is clear.
 		while layout.blocked(wall, won) and wall.x < bounds.end.x - won:
 			wall.x += 24.0
 
@@ -1564,10 +1478,7 @@ func _test_the_reach() -> void:
 		print("        %s: %s" % [mode, big_note])
 
 		if preset.layout == HungryLayout.WARRENS:
-			# [b]The design since 2026-10-07 (Christian's call): a leader is not quartered.[/b]
-			# The corner rocks stood on the diagonal 481 off each wall, which shut anything
-			# over about 903 mass into one quarter of the perimeter lane. They stand against
-			# the walls now, a pinwheel, with the lane going round their inner side.
+			# The design: a leader is not quartered. The corner rocks stand against the walls, a pinwheel, with the lane going round their inner side.
 			var ring_block: Vector3 = layout.blocks[layout.rings[0].x]
 			var ring_reach := Vector2(ring_block.x, ring_block.y).distance_to(bounds.get_center())
 			var outside_big := 0
@@ -1637,10 +1548,7 @@ func _test_the_reach() -> void:
 				"%s; %d stranded in front of the line" % [big_note, in_front]
 			)
 		else:
-			# The gauntlet's harbours do not show here, and that is measured rather than
-			# missed: 296 deep behind the posts, they have no point a leader 480 across can
-			# stand on, so they are not in its floor at all. What a door shuts out is asked
-			# in the harbours section, at the size just over a door.
+			# The gauntlet's harbours do not show here, by measurement: 296 deep behind the posts, no point a leader can stand on. What a door shuts out is asked in the harbours section.
 			_check(
 				big["reached"] == big["free"],
 				"%s: a leader can reach all of the floor too" % mode,
@@ -1682,19 +1590,6 @@ func _test_the_reach() -> void:
 	_done()
 
 ## Food per unit of the floor that is left, MEASURED, for every mode with a level in it.
-##
-## [b]The arithmetic this replaces was backwards and a check agreed with it.[/b] The
-## gauntlet's density check multiplied the target by the walkable fraction — the model of
-## a cull that is a permanent loss — and the gauntlet's target had been raised to 790 by
-## the same model. But [method HungryWorld._cull_blocked] takes a slot OUT of the field
-## and the scatter tops the field back up to its target on the next ticks, so the target
-## is what stands on the floor: 790 over the corridor's floor was 27% more food per unit
-## than Frenzy, and the reef's 880 was 4.5% more than Classic. Warrens alone had it right,
-## and the check and the preset agreeing with each other is exactly why nobody saw it.
-##
-## So this section counts the food that is alive in a settled world and divides it by the
-## floor, which is the only version of the number a player eats. Each mode is compared
-## with the empty square it was built to match.
 func _test_food_on_the_floor() -> void:
 	_section("food on the floor that is left")
 
@@ -1839,29 +1734,12 @@ func _test_determinism() -> void:
 	_drop(third)
 
 
-# --- The whole thing -------------------------------------------------------
 	_done()
 
 ## [bot-drive-1]: what a bot actually travels at, against the speed the game gives it.
-##
-## [b]In the 3D games a bot held forward and jump and crawled at the air cap.[/b] This is a
-## 2D game and has no jump; its motor is the cell-eating genre's, and the speed a monster is GIVEN is
-## `max_speed` × `speed_scale(mass)` × its trait and effects — the ground speed below,
-## worked per piece per tick. What it GETS is that times how hard the pointer is pushed:
-## the wish ramps from nothing at `dead_reach` (7) to full at `full_speed_reach` (105), so
-## pointing at a crumb 50 units away asks for half speed. [HungryBot] points at what it
-## wants — the pointer on the crumb — so a bot slows as it arrives at every crumb, which is
-## what a person steering with a mouse does too.
-##
-## So two numbers, both printed beside their assertion: a monster held at full reach
-## travels at its ground speed (the level sections drive with [method _full_reach] for
-## exactly this reason, and print what they covered), and eight bots playing a round
-## travel at 0.94 of it (2026-09-27): unlike the 3D games', hungario's bots do cover
-## ground at the speed the game gives them.
 func _test_what_a_bot_travels_at() -> void:
 	_section("what a bot actually travels at")
 
-	# --- The control: full reach, one direction, an empty box ------------------
 	var world := _make_world(HungryPreset.frenzy(), SEED + 401)
 	world.add_player(1, "Ada")
 	_settle(world)
@@ -1881,7 +1759,6 @@ func _test_what_a_bot_travels_at() -> void:
 	)
 	_drop(world)
 
-	# --- Eight bots, a real round ----------------------------------------------
 	world = _make_world(HungryPreset.classic(), SEED + 402)
 
 	for id in range(1, 9):
@@ -1899,11 +1776,8 @@ func _test_what_a_bot_travels_at() -> void:
 	print(("        eight bots over 28 s of classic: %.1f u/s against a ground speed of %.1f (%.3f); "
 		+ "%.0f%% of piece-ticks at 95%% or more of it, %.0f%% under half")
 		% [bots["actual"], bots["ground"], bots["ratio"], bots["full"] * 100.0, bots["crawl"] * 100.0])
-	# [b]Measured 2026-09-27: 0.937, 65% of piece-ticks at ground speed, 3% under half.[/b]
-	# The shortfall is the pointer landing on a crumb, by design; most of a bot's travel
-	# is toward something further than 105 away. The floor is 0.85 and half the ticks at
-	# ground speed: the 3D family's shape — a bot whose command asks for almost nothing
-	# whatever it wants — fails both. Armed with the bot's reach capped at 40: 0.42, 1%.
+	# Measured: 0.937, 65% of piece-ticks at ground speed, 3% under half; the shortfall is the pointer landing on a crumb.
+	# The floor is 0.85 and half the ticks at ground speed; a bot asking for almost nothing fails both (armed: reach capped at 40 reads 0.42).
 	_check(
 		bots["samples"] > 0 and float(bots["ratio"]) > 0.85 and float(bots["full"]) > 0.5,
 		"eight bots travel at %.2f of their ground speed, %.0f%% of the time at all of it"
@@ -1914,13 +1788,8 @@ func _test_what_a_bot_travels_at() -> void:
 	_done()
 
 
-## Ticks [param world] for [param ticks], each monster in [param ids] steered by
-## [param steer], and from [param warmup] on compares how far every piece moved in a tick
-## with how far its ground speed would take it. Returns the mean actual and ground speeds,
-## their ratio, and the fraction of piece-ticks at 95% or more and under 50%.
-##
-## A piece that appeared, vanished or jumped more than twice its ground step — a split, a
-## merge, being eaten, a respawn — is not a sample: that is not travel.
+## Ticks [param world] for [param ticks] with each monster in [param ids] steered by [param steer], and from [param warmup] on compares how far every piece moved per tick with its ground speed.
+## Returns mean actual and ground speeds, their ratio, and the fraction of piece-ticks at 95% or more and under 50%. Splits, merges, deaths and jumps are not samples.
 func _travel_ratio(world: HungryWorld, ids: Dictionary, ticks: int, warmup: int, steer: Callable) -> Dictionary:
 	var step := 1.0 / float(TICK_RATE)
 	var rules := world.tunables.mass_rules
@@ -2070,7 +1939,6 @@ func _test_full_round() -> void:
 	_drop(world)
 
 
-# --- The rider -------------------------------------------------------------
 	_done()
 
 func _test_rider() -> void:
@@ -2202,7 +2070,6 @@ func _test_rider() -> void:
 	rider.free()
 
 
-# --- The interface ---------------------------------------------------------
 	_done()
 
 func _test_interface() -> void:
@@ -2234,9 +2101,8 @@ func _test_interface() -> void:
 	_check(hud.mass_bar != null, "the HUD builds its widgets")
 	_check(hud.minimap != null, "including a minimap")
 
-	# HUD text over the pale sky is outlined, or it is a smudge ("20 mass" was, from the
-	# look pass until 2026-10-11). The mass number is a Label for that reason: DotStatBar
-	# draws its own text with no outline.
+	# HUD text over the pale sky is outlined or it is a smudge, so the mass number is a
+	# Label: DotStatBar draws its own text with no outline.
 	_check(
 		hud.mass_label != null and not hud.mass_bar.show_text,
 		"the mass number is an outlined Label, not the bar's own text"
@@ -2284,10 +2150,7 @@ func _test_interface() -> void:
 	_check(not board.is_open(), "and goes when it is closed")
 	board.queue_free()
 
-	# The Loadout page offers what the schema and this player's entitlements allow, and
-	# nothing else. A page that filtered on its own would drift from the server the first
-	# time an unlock changed; one the server trusted would be a client choosing its own
-	# stats.
+	# The Loadout page offers what the schema and this player's entitlements allow, and nothing else; a page that filtered on its own would drift from the server.
 	var lp := HungryMenus.loadout_page(null)
 	var lp_schema := HungryContent.loadout_schema()
 	var lp_offered := true
@@ -2305,10 +2168,8 @@ func _test_interface() -> void:
 		"and a choice is sent as it is made", str(lp_sent))
 	_check(lp.summary().contains("speed"), "with what the trait does, in numbers", lp.summary())
 
-	# The one readability affordance this genre cannot do without. Eating needs a ratio —
-	# a quarter bigger — and a quarter of a difference in *area* is about 12% of a
-	# difference in *width*, which nobody judges by eye under pressure. What the renderer
-	# must not do is call something food that is merely smaller.
+	# The one readability affordance this genre cannot do without: eating needs a ratio, and a quarter of a difference in area is about 12% in width, which nobody judges by eye.
+	# The renderer must not call something food that is merely smaller.
 	var renderer := HungryRenderer.new()
 	renderer.name = "Renderer"
 	add_child(renderer)
@@ -2396,8 +2257,6 @@ func _test_interface() -> void:
 	# [b]Chat is no longer a screen on this stack.[/b] It was a modal `DotScreen` on Enter
 	# with one line edit in it — the only chat box of its kind in the family, with no log,
 	# no channels and no way to know whether anything else was carrying the conversation.
-	# It is `DotChatWindow` now, tested in `headless_presentation` where the rest of the
-	# client's interface is.
 	_check(
 		stack.screen(&"chat") == null,
 		"chat is not a screen on the stack any more",
@@ -2474,13 +2333,8 @@ func _test_interface() -> void:
 	_drop(world)
 
 
-# --- Sound -----------------------------------------------------------------
 
 ## Every noise this game makes is arithmetic, so all of it is checkable without a speaker.
-##
-## [b]That is the point of baking rather than streaming.[/b] A generator filling buffers on
-## the main thread can only be judged by listening to it; a bank of streams built by a pure
-## function is bytes, and bytes are something a headless run can assert about.
 	_done()
 func _test_sound() -> void:
 	_section("sound")
@@ -2563,14 +2417,8 @@ func _test_sound() -> void:
 	bank.free()
 
 
-# --- Ejecting --------------------------------------------------------------
 
 ## Spitting mass out, which is how a monster gets deliberately smaller.
-##
-## What it leaves is ordinary planted food, so it replicates, indexes and is eaten through
-## the paths everything else already uses. What has to be true is that it costs something,
-## that a small monster cannot do it, and that the ejector does not immediately swallow
-## its own blob — which would make the whole thing a very expensive way to do nothing.
 	_done()
 func _test_ejecting() -> void:
 	_section("ejecting")
@@ -2658,14 +2506,8 @@ func _test_ejecting() -> void:
 	_drop(world)
 
 
-# --- The loadout -----------------------------------------------------------
 
 ## What a player brings in, and the checks the server makes on it.
-##
-## [b]Every one of these is something a hostile or buggy client does.[/b] dot-loadout's
-## whole reason to exist is that a dedicated server has no content and still has to
-## decide whether the thing a client just sent is legal — so all of this is answered from
-## ids, and if any of it ever needs a `load()`, that is the thing to push back on.
 	_done()
 func _test_loadout() -> void:
 	_section("what a player brings in")
@@ -2730,10 +2572,7 @@ func _test_loadout() -> void:
 		"until they unlock it"
 	)
 
-	# Conform on the way out of a store, validate on the way in from a client. Retiring an
-	# item or revoking an unlock makes a saved loadout invalid, and refusing it is a player
-	# who has not logged in for a month loading into an error rather than into a slightly
-	# different monster.
+	# Conform on the way out of a store, validate on the way in from a client, so retiring an item loads a player into a slightly different monster, not an error.
 	var stale := unowned.duplicate_loadout()
 	# conform never fails — it returns what it changed, not whether it worked. That is the
 	# whole distinction: refusing here would be a player who cannot spawn.

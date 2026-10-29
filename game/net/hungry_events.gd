@@ -5,16 +5,6 @@ const HungryField := preload("../hungry_field.gd")
 const HungryProjectile := preload("../hungry_projectile.gd")
 
 ## The wire format for everything that is not a snapshot or an input.
-##
-## Encoders and decoders in one place, in pairs, because they have to be exact inverses
-## and nothing can check that for you — the self-test round-trips every one of them for
-## that reason.
-##
-## [b]Most of this is indices, not positions.[/b] Food, fruit and item drops are placed
-## by a hash of (seed, index), so a client that knows the seed can lay eleven hundred of
-## them out from a list of integers. The exception is planted food, which a player put
-## where they chose; those carry a position and are the reason [method write_field] has
-## two shapes in it.
 
 ## What the authority sends.
 enum Kind {
@@ -47,10 +37,6 @@ enum Kind {
 	## What you are carrying. Sent only to the player it is about.
 	CARRY,
 	## One chat line, already routed, sanitised and addressed by [DotChatRouter].
-	##
-	## The server decides who gets one; a client that receives it draws it. There is no
-	## audience field on the wire for that reason — a client told who *else* could hear a
-	## whisper would be a client that could report it.
 	CHAT,
 	## A hunter came into existence, or moved, or is gone. See [HungryHunters].
 	HUNTER,
@@ -72,19 +58,12 @@ enum Ask {
 	## Here is what I want to bring in.
 	LOADOUT,
 	## I typed a line. The server decides what channel it lands on and who hears it.
-	##
-	## [b]The channel is a request, not an instruction.[/b] It is what the player had
-	## selected; [DotChatRouter] validates it against the channel's own permission rules,
-	## so asking for the admin channel is refused rather than obeyed.
 	SAY,
 	## Rock the vote, nominate, or cast one. The body is a token the vote source resolves.
 	VOTE,
 }
 
-## Position range for everything in this file, matching [Dot2DNetSync] so that a
-## position sent as an event and the same position sent in a snapshot quantise
-## identically. Two grids for one coordinate is a piece of food that is a pixel away
-## from where the server thinks it is.
+## Position range for everything in this file, matching [Dot2DNetSync] so an event's position and a snapshot's quantise identically.
 const POSITION_BITS := Dot2DNetSync.POSITION_BITS
 const WORLD_EXTENT := Dot2DNetSync.WORLD_EXTENT
 
@@ -113,13 +92,8 @@ static func _read_position(reader: DotNetReader) -> Vector2:
 	return reader.read_vector2_range(-WORLD_EXTENT, WORLD_EXTENT, POSITION_BITS)
 
 
-# --- HELLO -----------------------------------------------------------------
 
 ## Largest cosmetics manifest URL a server may name.
-##
-## Bounded because it is a string a server chooses and a client hands to an HTTP
-## client — and because a length prefix is the cheapest thing in this protocol to lie
-## about.
 const PACK_URL_BYTES := 256
 
 ## Largest layout id a server may name. A layout id is a short name, and an id this build
@@ -144,10 +118,7 @@ static func write_hello(
 	writer.write_uint(server_tick, 32)
 	writer.write_float32(world_size.x)
 	writer.write_float32(world_size.y)
-	# Where this server's cosmetics live, or "" for "whatever you shipped with". Sent
-	# rather than configured on the client because a community server may ship its own
-	# parts, and because a client that had to be told out of band is a client that will
-	# not be.
+	# Where this server's cosmetics live, or "" for what you shipped with; sent because a community server may ship its own parts.
 	writer.write_string(pack_url, PACK_URL_BYTES)
 	# Which level's geometry is standing in the world. A NAME, not the geometry: both ends
 	# build the same discs from it, the way both ends build the same food field from the
@@ -171,7 +142,6 @@ static func read_hello(reader: DotNetReader) -> Dictionary:
 	return out
 
 
-# --- JOIN / LEAVE ----------------------------------------------------------
 
 static func write_join(
 	player_id: int,
@@ -252,7 +222,6 @@ static func read_player(reader: DotNetReader) -> int:
 	return reader.read_varint()
 
 
-# --- SPAWN / DESPAWN -------------------------------------------------------
 
 static func write_spawn(
 	net_id: int,
@@ -294,13 +263,8 @@ static func write_despawn(net_id: int) -> PackedByteArray:
 	return writer.to_bytes()
 
 
-# --- FIELD -----------------------------------------------------------------
 
 ## One chunk of field change: ids that appeared, ids that went.
-##
-## A planted id carries its position; the other three carry nothing but the id, because
-## the position follows from the seed. That asymmetry is the whole reason planted food is
-## a separate field rather than a flag on the ordinary one.
 static func write_field(
 	added: Array,
 	removed: Array,
@@ -374,7 +338,6 @@ static func write_field_reset(world_seed: int) -> PackedByteArray:
 	return writer.to_bytes()
 
 
-# --- Projectiles -----------------------------------------------------------
 
 static func write_throw(shot: HungryProjectile) -> PackedByteArray:
 	var writer := _writer()
@@ -425,7 +388,6 @@ static func read_impact(reader: DotNetReader) -> Dictionary:
 	return out
 
 
-# --- Cues ------------------------------------------------------------------
 
 static func write_pair(first: int, second: int, extra: int = 0) -> PackedByteArray:
 	var writer := _writer()
@@ -472,7 +434,6 @@ static func read_died(reader: DotNetReader) -> Dictionary:
 	return out
 
 
-# --- Leaderboard -----------------------------------------------------------
 
 static func write_board(rows: Array) -> PackedByteArray:
 	var writer := _writer()
@@ -505,7 +466,6 @@ static func read_board(reader: DotNetReader) -> Array:
 	return out
 
 
-# --- Carrying --------------------------------------------------------------
 
 static func write_carry(items: Array) -> PackedByteArray:
 	var writer := _writer()
@@ -533,7 +493,6 @@ static func read_carry(reader: DotNetReader) -> Array:
 	return out
 
 
-# --- Requests --------------------------------------------------------------
 
 static func write_avatar(
 	avatar: DotAvatar,
@@ -551,7 +510,6 @@ static func read_avatar(
 	return DotAvatarSync.read(schema, reader)
 
 
-# --- CHAT ------------------------------------------------------------------
 
 const CHAT_BYTES := 160
 const CHAT_CHANNEL_BYTES := 24
@@ -566,20 +524,6 @@ static func chat_kinds_fit() -> bool:
 
 
 ## One chat line, from [method DotChatMessage.to_dictionary], plus who said it.
-##
-## [b]Encoded field by field rather than as JSON.[/b] A JSON body is a variable-length blob
-## a reader cannot bound and a hostile server could make enormous, and it costs about three
-## times the bytes for a message whose whole point is that it is small and frequent.
-##
-## The `x` (meta) field is not carried as a dictionary. What this game needs out of it is
-## one number — the player the line belongs to — so that is a field, bounded like every
-## other, and the reader puts it back under `x` where
-## [method DotChatMessage.from_dictionary] finds it. An arbitrary dictionary on the wire is
-## an arbitrary dictionary a server can put anything in.
-##
-## The kind travels as an **index into [constant DotChatMessage.KIND_NAMES]**, not as the
-## name — one table used in both directions, which is the lesson dot-moderation paid for
-## when a stored voice mute loaded back as a warning.
 static func write_chat(wire: Dictionary) -> PackedByteArray:
 	var writer := _writer()
 	writer.write_varint(int(wire.get("n", 0)))
@@ -604,10 +548,6 @@ static func write_chat(wire: Dictionary) -> PackedByteArray:
 
 
 ## The inverse. Returns the dictionary [method DotChatClient.receive] takes.
-##
-## An unknown kind index comes back as `"say"` rather than as an empty string, because
-## [method DotChatMessage.from_dictionary] refuses a name it does not know — and refusing a
-## whole line for a field nobody can see loses the text as well.
 static func read_chat(reader: DotNetReader) -> Dictionary:
 	var out := {
 		"n": reader.read_varint(),
@@ -649,7 +589,6 @@ static func read_say(reader: DotNetReader) -> Dictionary:
 	return out
 
 
-# --- HUNTERS ---------------------------------------------------------------
 
 ## Bits for a hunter's id and its kind index. See [HungryHunters].
 const HUNTER_ID_BITS := 16
@@ -661,13 +600,6 @@ const HUNTER_RADIUS_MAX := 400.0
 
 
 ## A hunter's whole state, in one message.
-##
-## [b]Hunters are not dot-net entities and that is deliberate.[/b] A monster's piece is:
-## it is predicted, reconciled and interest-managed, all of which a player's own input
-## needs. A hunter is server-authoritative, unpredicted, and there are at most a handful —
-## the same division dot-props makes for a rigid body, reached from the other side. One
-## reliable event a few times a second is cheaper than an entity's declarations and does
-## not put a new id space beside the piece ids.
 static func write_hunter(
 	hunter_id: int, kind_index: int, at: Vector2, radius: float, alive: bool
 ) -> PackedByteArray:
@@ -692,7 +624,6 @@ static func read_hunter(reader: DotNetReader) -> Dictionary:
 	return out
 
 
-# --- HAZARDS ---------------------------------------------------------------
 
 const HAZARD_ID_BITS := 16
 const HAZARD_KIND_BITS := 6
@@ -720,17 +651,12 @@ static func read_hazard(reader: DotNetReader) -> Dictionary:
 	return out
 
 
-# --- PROGRESS --------------------------------------------------------------
 
 const PROGRESS_ID_BYTES := 40
 const PROGRESS_TEXT_BYTES := 96
 
 
 ## Something a player earned: an achievement, a rank, a personal best.
-##
-## [b]Text, not a rule.[/b] The rules are [DotAchievementCatalogue]'s and stay on the
-## server: a client that held them could tell a player they had earned something the
-## server disagreed about, and the server is the one filing it.
 static func write_progress(
 	player_id: int, id: StringName, title: String, value: int
 ) -> PackedByteArray:
@@ -753,16 +679,11 @@ static func read_progress(reader: DotNetReader) -> Dictionary:
 	return out
 
 
-# --- VOTES -----------------------------------------------------------------
 
 const VOTE_TOKEN_BYTES := 40
 
 
 ## What a client asks the vote for: `rtv`, `nominate <id>`, `vote <n>`, `extend`.
-##
-## [b]A token rather than an enum, because the thing voted for is an id and what an id
-## means is a [DotVoteSource]'s business.[/b] That is what lets one engine drive
-## dot-server's games and dot-map's maps without this file naming either.
 static func write_vote(token: String) -> PackedByteArray:
 	var writer := _writer()
 	writer.write_string(token, VOTE_TOKEN_BYTES)
@@ -773,13 +694,9 @@ static func read_vote(reader: DotNetReader) -> String:
 	return reader.read_string(VOTE_TOKEN_BYTES)
 
 
-# --- The vote's cues -------------------------------------------------------
 
-## The mode vote's sound cues, as ids. [b]One copy[/b]: [HungryMaps] names them in the
-## vote's rules, the presentation's catalogue defines them, and [HungrySoundSink] maps them
-## to a baked voice — all three from here, because a cue the server sends and the client
-## spells differently is silence nobody hears as a bug. Here rather than in either end
-## because the wire is the one file both of them already load.
+## The mode vote's sound cues, as ids, defined once here because the wire is the one file [HungryMaps], the presentation catalogue and [HungrySoundSink] all load;
+## a cue the server sends and the client spells differently is silence nobody hears as a bug.
 const CUE_VOTE_START := "vote_start"
 const CUE_VOTE_END := "vote_end"
 const CUE_VOTE_WARNING := "vote_warning"

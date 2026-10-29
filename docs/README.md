@@ -13,3 +13,4 @@ The detail behind [CLAUDE.md](../CLAUDE.md). One subject per file; open the one 
 | [testing.md](testing.md) | adding or changing a check, or believing a green run |
 | [history.md](history.md) | debugging something that "cannot be happening"; the bugs this game found, and the shapes they had |
 | [soak.md](soak.md) | running the bot soak (`./game.sh soak [mode] [min]`) or reading its stuck findings |
+| [comment-notes.md](comment-notes.md) | reading the longer reasoning behind a design decision in `game/`, cut from the code comments to their summary |

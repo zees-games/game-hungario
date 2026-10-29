@@ -11,30 +11,10 @@ const HungrySettings := preload("hungry_settings.gd")
 
 ## Settings, audio, effects and a console — every one of them wired to something this game
 ## already had, rather than beside it.
-##
-## [b]This is the game where the integration is mostly about NOT duplicating.[/b] hungario
-## already generates its whole sound bank arithmetically, already has a `HungryConfig` that
-## dot-ui builds a settings panel from, and already draws its own world. So:
-##
-## - **dot-audio does not replace `HungrySound`.** [HungrySoundSink] is dot-audio's sink and
-##   the generation stays. What the addon adds is the half this game never had: a
-##   catalogue, per-id caps, cooldowns, a distance cull, priorities, a proper volume curve,
-##   and a manager that says *why* a sound was refused.
-## - **dot-settings does not replace `HungryConfig`.**
-##   [method DotSettingsSchema.from_config] reads it, so there is still one list — ranges
-##   come from the `@export_range` hints, and the only thing added is the part a config
-##   genuinely cannot say, which is the scope. The document, its stock keys and the Escape
-##   menu over it are dot-menu's ([HungrySettings]).
-##
-## Both are the same decision twice: **two copies of one list is this family's most
-## repeated bug**, and an addon that makes you write a second one is an addon that has
-## cost you something.
 
 const CHANNEL := "hungry.presentation"
 
-## Where the two effect scenes are, wherever this copy of the game is mounted. A `const`
-## until 2026-09-27, which a delivered pack would have resolved against the host's root;
-## it named two scenes that did not exist either, so nothing had ever looked.
+## Where the two effect scenes are, wherever this copy of the game is mounted; a `const` would resolve against the host's root in a delivered pack.
 static var FX_DIR := HungryPaths.rebase("res://scenes/fx")
 
 ## The ping an administrator's beacon makes. See [method sound_catalogue].
@@ -122,27 +102,18 @@ func setup() -> DotResult:
 	menu_settings.bind_fx(fx)
 
 	# [b]And then every value is pushed once, which is the half that was missing.[/b]
-	# Everything below reacts to `changed`, and a value loaded from disk has not changed --
-	# so a player who set the volume to -30, quit and came back got -8, because only the
-	# change handler ever pushed it. That is this family's most repeated bug exactly: a
-	# value produced correctly and consumed by nothing, with the symptom pointing at the
-	# thing that consumes rather than at the thing that never told it.
 	apply_all()
 	return DotResult.success(null)
 
 
 ## Pushes every current setting at whatever reads it: this game's keys here, the stock ones
 ## through dot-menu's applier.
-##
-## Called once after building, and callable again after a document is replaced -- a load,
-## a reset, or a server releasing its clamps.
 func apply_all() -> void:
 	for key in settings.schema.keys():
 		_on_setting_changed(key, settings.get_value(key), &"applied")
 	menu_settings.apply_all()
 
 
-# --- Settings ---------------------------------------------------------------
 
 ## A platform of this presentation's own, for a caller that has none: a suite, or a shot. No
 ## cover and no pointer capture, because there is no game behind it.
@@ -189,14 +160,8 @@ func _on_setting_changed(key: StringName, value: Variant, _why: StringName) -> v
 		_apply_chat_visibility()
 
 
-# --- Audio ------------------------------------------------------------------
 
 ## What hungario makes a noise about, with the limits it never had.
-##
-## Every entry is `generated`: there is no file behind any of them, because `HungrySound`
-## bakes the whole bank arithmetically at boot. dot-audio refused a def with no path on the
-## first run of this integration, which is how `DotAudioDef.generated` came to exist -- and
-## it is the setting that makes the sink seam mean what it says.
 static func sound_catalogue() -> DotAudioCatalogue:
 	var c := DotAudioCatalogue.new()
 
@@ -255,10 +220,8 @@ static func sound_catalogue() -> DotAudioCatalogue:
 	click.priority = 30
 	c.add(click)
 
-	# The mode vote's cues. Flat and on the interface bus: a ballot is about the server,
-	# not about a place in the arena, and one that got quieter the further a monster was
-	# from the origin would be one some players never heard. Under the three that change
-	# everything, so a ballot opening never costs somebody the sound of being eaten.
+	# The mode vote's cues: flat and on the interface bus, since a ballot is about the server, not a place in the arena.
+	# Under the three that change everything, so a ballot opening never costs the sound of being eaten.
 	for vote_id in HungryEvents.VOTE_CUES:
 		var cue := DotAudioDef.new()
 		cue.id = StringName(vote_id)
@@ -268,12 +231,8 @@ static func sound_catalogue() -> DotAudioCatalogue:
 		cue.priority = 70
 		c.add(cue)
 
-	# An administrator's beacon: a ping once a second from the beaconed monster, heard by
-	# everybody near enough. Positional, so dot-audio's distance cull decides who hears it:
-	# a beacon two screens away is found by the pointer at the edge of the screen, and a
-	# ping from every beacon in the arena at once would be a metronome nobody could place.
-	# Further than a fruit, because the beacon's job is to be found. Under the three that
-	# change everything and under the vote, so it never costs anybody either.
+	# An administrator's beacon: a ping once a second from the beaconed monster, positional so dot-audio's distance cull decides who hears it.
+	# Further than a fruit, because its job is to be found; under the three that change everything and under the vote.
 	var ping := DotAudioDef.new()
 	ping.id = BEACON_SOUND
 	ping.generated = true
@@ -312,12 +271,8 @@ func _build_audio() -> DotResult:
 	audio.mixer = DotAudioMixer.new()
 	audio.voices = HungrySound.VOICES
 	audio.apply_mixer_to_buses = false
-	# Measured toward the family's -17 LUFS (dot-audio docs/loudness.md) with the local monster
-	# driven by tools/loudness_pilot.gd (steering at food, away from bigger monsters, throwing,
-	# splitting with mass to spare), at this game's own master default (0.4, Master -8 dB):
-	# with these two trims three 40 s runs read -17.6, -17.1 and -17.6 LUFS. Large because the
-	# bank is baked at -8 dB under that -8 dB master, and because until 2026-10-12 the sink
-	# dropped every request's volume, so no trim reached a cue (the bed alone read -26).
+	# Measured toward the family's -17 LUFS (dot-audio docs/loudness.md) with tools/loudness_pilot.gd at this game's master default (0.4, Master -8 dB): three 40 s runs read -17.6, -17.1 and -17.6.
+	# Large because the bank is baked at -8 dB under that master.
 	audio.loudness_trim_db = 19.0
 	# The seam. Everything above it is dot-audio's; the last four lines are this game's.
 	audio.sink = HungrySoundSink.new(sound)
@@ -375,7 +330,6 @@ func use_sound(p_sound: HungrySound) -> void:
 		(audio.sink as HungrySoundSink).sound = p_sound
 
 
-# --- Effects ----------------------------------------------------------------
 
 static func fx_catalogue() -> DotFxCatalogue:
 	var c := DotFxCatalogue.new()
@@ -431,10 +385,8 @@ func _build_fx() -> DotResult:
 	if not res.ok:
 		return res.wrap("hungario's effects")
 
-	# [b]Said out loud, because a missing scene is otherwise a DEBUG line.[/b] Until
-	# 2026-09-27 both scenes this catalogue names were missing, and every pop and burst
-	# was refused for it with no suite noticing. `headless_presentation` asserts the list
-	# is empty; this is for a build that lost one anyway.
+	# Said out loud, because a missing scene is otherwise a DEBUG line and every pop and burst is refused silently;
+	# `headless_presentation` asserts the list is empty, this is for a build that lost one anyway.
 	var missing := fx.catalogue.missing_scenes()
 	if not missing.is_empty():
 		DotLog.warn(CHANNEL, "effect scenes missing; those effects will not draw", {
@@ -443,21 +395,9 @@ func _build_fx() -> DotResult:
 	return DotResult.success(null)
 
 
-# --- Console ----------------------------------------------------------------
 
-# --- Chat -------------------------------------------------------------------
 
 ## The box a player types in, and the three settings that decide it.
-##
-## [b]This replaces a chat box that already existed, and the replacement is the point.[/b]
-## `HungryMenus.ChatScreen` was a modal [DotScreen] on Enter with one line edit in it: it
-## worked, and it was the only one of its kind in the family, with no log, no channels and
-## no way to tell whether anything else was carrying the conversation. Five games with five
-## chat boxes is this tree's most expensive shape. The behaviour a player loses is the
-## Enter key, and it is a setting away.
-##
-## Bottom left, at the default inset: this game's HUD keeps its score and its feed along
-## the top and the right, so the corner is free.
 func _build_chat() -> void:
 	_chat_layer = CanvasLayer.new()
 	_chat_layer.name = "ChatLayer"
@@ -501,11 +441,6 @@ func set_chat_relayed(relayed: bool) -> void:
 
 
 ## Resolves the three-way setting against what the server said.
-##
-## `on` is both halves at once — a relayed server AND a box in front of the game. `off` is
-## a player who chats somewhere else. `auto` draws it unless this server is already putting
-## these lines somewhere this player can see them. In every case the log keeps drawing what
-## other people said.
 func _apply_chat_visibility() -> void:
 	if chat_window == null or settings == null:
 		return
@@ -519,13 +454,8 @@ func _apply_chat_visibility() -> void:
 			chat_window.enabled = not _chat_relayed
 
 
-## dot-console's kit, built by the platform: `help`, `clear`, `settings`, every setting by its own name, the
-## in-process server's console, and the panel on layer 128. This game adds `quit` and
-## `audio`, ahead of the server's console so a listen server's own `quit` is not the one
-## that answers.
-##
-## The panel is one of the Escape menu's overlays, so Escape closes it and the menu knows it
-## is open; the platform blocks the input while it is.
+## dot-console's kit, built by the platform, plus this game's `quit` and `audio`, ahead of the server's console so a listen server's own `quit` is not the one that answers.
+## The panel is one of the Escape menu's overlays; the platform blocks the input while it is open.
 func _build_console() -> DotResult:
 	console = platform.console as DotConsoleController
 	if console == null:
@@ -556,7 +486,6 @@ func _local_commands() -> DotConsoleLocal:
 	return local
 
 
-# --- What the game asks for -------------------------------------------------
 
 func present(delta: float, listener: Vector2) -> void:
 	audio.listener_position = Vector3(listener.x, 0.0, listener.y)
@@ -565,14 +494,6 @@ func present(delta: float, listener: Vector2) -> void:
 
 
 ## Whether something on screen owns the keyboard right now.
-##
-## [b]The chat box belongs here for the reason the console does.[/b] This game is steered
-## with the mouse, so a typed key does not walk anybody into a wall — but split, throw,
-## boost and eject are all keys, and a player typing "gg boost" who splits twice and
-## ejects their mass has lost the round to a chat box.
-##
-## [b]Open, not focused.[/b] A click inside an open console can take focus off its line,
-## and the console is still in front of the game; [HungryClient] suspends its sampler on this.
 func swallows_input() -> bool:
 	if console != null and console.is_open():
 		return true
@@ -586,14 +507,9 @@ func camera_shake() -> Vector2:
 	return fx.shake.offset_2d()
 
 
-# --- The events this game has -----------------------------------------------
 
 func on_food_eaten(at: Vector2, tier: int) -> void:
-	# The pitch comes from the food's size, which is `HungrySound`'s own mapping and the
-	# one thing nobody has to be taught: bigger is lower. It goes through dot-audio as a
-	# caller's pitch rather than being played beside it, because a sound played twice --
-	# once through the manager's caps and once around them -- is two sounds and one of
-	# them is not limited by anything.
+	# The pitch comes from the food's size (bigger is lower), passed to dot-audio as the caller's pitch so the manager's caps still apply.
 	audio.play_at_2d(&"eat", at, 1.0, HungrySound.food_pitch(tier))
 	fx.spawn_2d(&"eat_pop", at)
 

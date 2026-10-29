@@ -1,28 +1,6 @@
 extends "res://game/client/hungry_client_state.gd"
 
 ## The playable client: a world, a camera, a renderer, a HUD and a socket.
-##
-## [b]This is the scene a [DotClientLink] loads.[/b] dot-server's signon gets a player
-## from "typed an address" to "in the world" and then hands over by instantiating the
-## descriptor's client scene under the client's game root; everything from that point is
-## this file's.
-##
-## [codeblock]
-## HungryClient
-##   World      HungryWorld, not authoritative
-##   Net        DotNetManager, a client
-##   Bridge     HungryNetBridge — creates the link under the DotClientLink
-##   Renderer   HungryRenderer
-##   Camera     HungryCamera
-##   Input      HungryInput
-##   UI         CanvasLayer
-##     Screens  DotScreenStack — the held Tab scoreboard
-##     Hud      HungryHud
-## [/codeblock]
-##
-## [b]It also runs standalone.[/b] With no [DotClientLink] to be found it builds an
-## authoritative world with bots in it and plays that, which is what
-## [code]--offline[/code] is for and what makes the controls testable without a server.
 
 const CHANNEL := "hungry.client"
 
@@ -34,10 +12,8 @@ signal replaced(fresh: Node)
 func _ready() -> void:
 	DotLog.info(CHANNEL, "client starting")
 
-	# First, so the cover is up before anything below draws. A 2D game: no camera node to
-	# wait for, and the player is a monster in the world, not a node, so nothing is frozen;
-	# the sampler is held and the offline tick waits instead. The cursor is the control, so
-	# the platform never captures it.
+	# First, so the cover is up before anything below draws. A 2D game has no camera to wait for and nothing is frozen;
+	# the sampler is held and the offline tick waits instead. The cursor is the control, so the platform never captures it.
 	platform = DotGameClient.new()
 	platform.name = "Platform"
 	platform.map_config_keys = HungryMapConfig.KEYS
@@ -55,12 +31,8 @@ func _ready() -> void:
 	link = platform.link
 	_offline = platform.offline
 
-	# A client that outlives a server-side mode change (the standalone play scene) covers
-	# again, as the offline change does by building a fresh client. The shell frees the whole
-	# client on a change, whose new gate is closed from the start, so this only ever acts on
-	# a client that stays. The server's world is rebuilt and its hello sent again; that and
-	# the link's `spawned` lift the hold. Nothing is frozen: a monster is not a node and the sampler already
-	# waits on the platform.
+	# A client that outlives a server-side mode change (the standalone play scene) covers again, as the offline change does by building a fresh client.
+	# The server's hello and the link's `spawned` lift the hold; the shell frees the whole client otherwise.
 	if not _offline and link != null and link.has_signal("game_changed"):
 		link.connect("game_changed", _on_game_changed_online)
 		if link.has_signal("spawned"):
@@ -77,10 +49,7 @@ func _ready() -> void:
 	elif link.has_method("is_playing") and bool(link.call("is_playing")):
 		_ask_world()
 	elif link.has_signal("spawned"):
-		# The scene can legitimately exist before the signon finishes — a host that
-		# instantiates it up front, an editor run — and asking a server that has not
-		# admitted this peer yet is a request it will drop. Waiting for `spawned` is the
-		# same wait [DotClientLink] already does.
+		# The scene can exist before the signon finishes, and asking a server that has not admitted this peer is a request it drops, so wait for `spawned` as [DotClientLink] does.
 		link.connect("spawned", _ask_world, CONNECT_ONE_SHOT)
 	else:
 		_ask_world()
@@ -202,11 +171,8 @@ func _build_netcode() -> DotResult:
 	bridge.cue.connect(_on_cue)
 	bridge.roster_changed.connect(_on_roster_changed)
 
-	# [b]dot-server's own `chat_received` is deliberately NOT connected.[/b] The server
-	# cancels that path — see [method HungryModule._on_player_chat] — and routes every
-	# line through [DotChatRouter] onto this game's own wire instead. Connecting both
-	# would draw a line twice on a server running the old path and once on one running the
-	# new, which is the sort of difference that survives every test.
+	# dot-server's own `chat_received` is deliberately not connected: the server cancels that path and routes every line through [DotChatRouter] onto this game's wire (see [method HungryModule._on_player_chat]),
+	# so connecting both would draw a line twice on a server on the old path.
 	bridge.chat_received.connect(_on_chat_wire)
 	bridge.hunter_received.connect(_on_hunter)
 	bridge.hazard_received.connect(_on_hazard)
@@ -303,15 +269,10 @@ func _build_view() -> void:
 	add_child(sound)
 
 	# The presentation layer, after the bank exists so the sink has something behind it.
-	# `HungrySound` is still what makes the noise; dot-audio is what decides whether it
-	# should, how many at once, how far away it stops mattering and how loud -- none of
-	# which this game had, and all of which a bank called directly has no way to acquire.
 	_build_presentation()
 
-	# The world's own signals fire only where this process is the authority, which for a
-	# netted client is nowhere. Eating is therefore *watched* rather than listened for —
-	# see [method _watch_mass] — and these three are the ones an offline game needs and a
-	# netted one gets as cues instead.
+	# The world's own signals fire only where this process is the authority, which for a netted client is nowhere,
+	# so eating is watched ([method _watch_mass]) and these three serve an offline game, with a netted one getting cues instead.
 	world.projectile_thrown.connect(_on_projectile_thrown)
 	world.player_died.connect(_on_player_died)
 	world.monster_burst.connect(_on_monster_burst)
@@ -319,10 +280,8 @@ func _build_view() -> void:
 	_wire_falls()
 
 
-## How an eaten monster goes down here: the renderer's [HungryFalls] under the server's
-## `sv_ragdoll*` rules (followed through the link; offline the world's own), its sounds through
-## the presentation layer. The deaths come from [method _on_player_died] offline and from the
-## DIED cue connected; either way the reaction is the authority's pick.
+## How an eaten monster goes down: the renderer's [HungryFalls] under the server's `sv_ragdoll*` rules and the presentation layer's sounds.
+## Deaths come from [method _on_player_died] offline and from the DIED cue online; the reaction is the authority's pick either way.
 func _wire_falls() -> void:
 	if renderer == null or renderer.falls == null:
 		return
@@ -576,16 +535,6 @@ func _build_ui() -> void:
 
 
 ## What the camera frames and the pointer is measured from.
-##
-## [b]Not always your own monster.[/b] Being eaten in this game means having nothing at
-## all — no pieces, no position, nowhere for a camera to be — and a camera left where you
-## died is a black rectangle for three seconds while the fight that killed you carries on
-## somewhere else. So a dead player watches whoever ate them, and if that player has since
-## been eaten too, the leader.
-##
-## The [i]input[/i] reads the same source, which is deliberate: a dead player's pointer is
-## measured from the monster they are watching, so the mouse is not silently pointing at
-## nothing when they respawn.
 func _me_source() -> Callable:
 	return func() -> Variant:
 		return _watched()
@@ -646,7 +595,6 @@ func _local_player() -> int:
 	return bridge.local_player_id if bridge != null else 1
 
 
-# --- The loop --------------------------------------------------------------
 
 func _physics_process(delta: float) -> void:
 	if world == null:
@@ -659,19 +607,12 @@ func _physics_process(delta: float) -> void:
 	if net == null or not net.is_running():
 		return
 
-	# The clock is what puts the input ahead of the server. A command for tick N has to be
-	# in the server's hands *before* it simulates N, so a client running level with the
-	# server has every input arrive one tick late — for ever, with no error, and the only
-	# symptom a player who feels heavy.
+	# The clock is what puts the input ahead of the server: a command for tick N must arrive before the server simulates N,
+	# or every input is one tick late for ever with no error and the player feels heavy.
 	var ticks := net.clock.advance(delta)
 
-	# [b]Each pass is its own tick.[/b] `advance` has already moved the clock by all of
-	# them, so `input_tick()` is the LAST one on every pass: a frame worth two ticks sent
-	# the second twice and the first never, the server repeated a stale command for the
-	# one it never got, and the predictor's replay stopped at the hole and drew the player
-	# short of where they were -- after every hitch, and on every frame the display and
-	# the tick rate do not line up. Arithmetic here rather than a new dot-net call,
-	# because a pack has to run on whatever client shell the player already has.
+	# Each pass is its own tick: `advance` has already moved the clock by all of them, so `input_tick()` is the last on every pass,
+	# and a frame worth two ticks would send the second twice and the first never. Plain arithmetic, not a new dot-net call, so a pack runs on any client shell.
 	for i in range(ticks):
 		if not net.clock.is_synced():
 			continue
@@ -685,11 +626,8 @@ func _process(delta: float) -> void:
 		# quantise every remote monster's motion to 60 Hz and undo the point of it.
 		net.interpolate_frame()
 
-	# Your own monster is drawn between its ticks at the clock's render alpha, not the
-	# engine's fraction: the clock stretches and shrinks its ticks while it settles on the
-	# server, so a physics frame now and then runs no tick or two, and drawn at the engine's
-	# fraction it stood still on one frame and moved double on the next. Offline every
-	# physics frame is one tick and every monster, the bots too, is simulated here.
+	# Your own monster is drawn between ticks at the clock's render alpha, not the engine's fraction, since the clock stretches its ticks while settling on the server.
+	# Offline every physics frame is one tick and every monster is simulated here.
 	var clock: Object = net.clock if not _offline and net != null and net.is_running() else null
 	if renderer != null:
 		renderer.render_clock = clock
@@ -700,10 +638,7 @@ func _process(delta: float) -> void:
 	_watch_mass()
 
 	if presentation != null:
-		# Once a frame, with where the camera is. dot-audio culls by distance from the
-		# listener and dot-fx ages what it spawned, and neither ticks itself: `_process`
-		# does not run while a tree is paused, and a pause menu is exactly when nothing
-		# finishes.
+		# Once a frame, with where the camera is: dot-audio culls by listener distance and dot-fx ages what it spawned, and neither ticks while the tree is paused.
 		presentation.present(delta, _watched_centre())
 
 	_board_accum += delta
@@ -721,23 +656,13 @@ func _process(delta: float) -> void:
 
 
 ## Where the camera is looking, which is where the listener is.
-##
-## The **watched** monster rather than the local one: a dead player is watching whoever ate
-## them, and a listener left at the corpse would hear a patch of arena nobody is in — which
-## is the same bug `HungrySpectate` exists to fix for the camera, one sense over.
 func _watched_centre() -> Vector2:
 	var monster := _watched()
 	return monster.centre() if monster != null else Vector2.ZERO
 
 
-# --- Offline ---------------------------------------------------------------
 
 ## Builds a world with bots in it, for playing without a server.
-##
-## Not a demo mode bolted on: it is the same world, the same motor and the same
-## [HungryBot] the dedicated server runs, with the netcode taken out. That it plays
-## identically is the useful property — a control that feels wrong offline is wrong, and
-## debugging it does not need two processes.
 func _start_offline() -> void:
 	world.add_player(1, "You")
 
@@ -765,12 +690,6 @@ func _start_offline() -> void:
 
 
 ## The sampler's command, remembering which of the two mass actions it asked for.
-##
-## Both are heard by watching the monster rather than the key, because pressing split
-## while too small or on cooldown does nothing and a sound for it would be a lie. But a
-## monster's piece count also rises when a pepper bursts it, and its mass also falls when
-## a split's first half lands a snapshot before the second — so the change is only
-## attributed to a key the player actually pressed a moment ago.
 func _sample(delta: float = 0.0) -> Dot2DCommand:
 	# Nothing is steered or split behind the cover: the sampler is suspended while the platform
 	# blocks input, and hands back a neutral command, which the tick still needs to send.
@@ -808,7 +727,6 @@ func _tick_offline(_delta: float) -> void:
 	world.tick(commands)
 
 
-# --- Events ----------------------------------------------------------------
 
 ## Reason the gate is held under while the server rebuilds the world.
 const REASON_MAP := &"map"
@@ -859,21 +777,11 @@ func _on_hello(player_id: int) -> void:
 
 	_fetch_cosmetics(bridge.avatar_pack_url)
 
-	# The rider goes up as soon as there is somebody to put one on. A stored avatar would
-	# come from dot-user-avatar's manager; without one the deterministic guest is what
-	# every other client already draws for this id, so publishing it costs nothing and
-	# keeps one code path.
+	# The rider goes up as soon as there is somebody to put one on; without a stored avatar the deterministic guest is what every other client draws for this id.
 	bridge.publish_avatar(HungryContent.default_avatar(player_id))
 
 
 ## Downloads this server's rider content, if it has any and this build can.
-##
-## [b]Nothing waits for it.[/b] A rider whose parts have not arrived is drawn instead, so
-## a player is in the world immediately and their cosmetics improve when they land. That
-## ordering is the whole reason [HungryRider] draws a fallback: a cosmetic somebody else
-## is wearing is not something you can be made to wait for.
-##
-## dot-cloud is duck-typed, so a build without it simply never has anything to ask.
 func _fetch_cosmetics(manifest_url: String) -> void:
 	if manifest_url == "":
 		return
@@ -933,26 +841,13 @@ func _on_cue(kind: int, data: Dictionary) -> void:
 				)
 
 		HungryEvents.Kind.THROW:
-			# Your own, as offline hears it through `_on_projectile_thrown`. The cue goes to
-			# every client for every throw on the map, and the sound is flat rather than
-			# placed, so without this a netted player heard somebody's pepper on the far
-			# side of the arena as though they had thrown it themselves.
+			# Your own throw, as offline hears it through `_on_projectile_thrown`: the cue goes to every client and the sound is flat, so a netted player would hear any throw as their own.
 			var shot: Variant = data.get("shot")
 			if shot is HungryProjectile and (shot as HungryProjectile).thrower_id == me:
 				presentation.on_throw()
 
 
 ## Turns "I got bigger" into a noise.
-##
-## [b]Watched rather than listened for, and that is not a shortcut.[/b]
-## [signal HungryWorld.food_eaten] fires on the authority, which on a netted client is
-## somewhere else — so a client that hooked it would be silent for the entire game and
-## perfectly noisy offline, which is exactly the kind of difference nothing catches. What
-## a player actually perceives is their own mass going up, and that arrives either way.
-##
-## Several crumbs swallowed between two snapshots become one blip. That is the right
-## trade: nine blips in the same frame is a click, and the pitch already says how much it
-## was worth.
 func _watch_mass() -> void:
 	if sound == null:
 		return
@@ -990,11 +885,8 @@ func _watch_mass() -> void:
 			and _asked_recently(Dot2DCommand.BUTTON_EJECT):
 		presentation.on_eject()
 
-	# Through the presentation layer rather than straight at the bank. `HungrySound` still
-	# makes the noise -- it is dot-audio's sink here -- but the cap, the cooldown and the
-	# distance cull are the addon's, and a bank called directly is a bank with none of
-	# them: a monster in a dense field eats several times a second and nine blips in one
-	# frame is a click.
+	# Through the presentation layer, not straight at the bank: `HungrySound` makes the noise but the cap, cooldown and distance cull are the addon's,
+	# and several eats a second would otherwise be a click.
 	var at := monster.centre()
 
 	# Not while a piece is appearing. A split or a burst conserves mass only once both
@@ -1060,10 +952,6 @@ func _on_roster_changed(player_id: int) -> void:
 
 
 ## Pushes the player's settings at everything that reads one.
-##
-## [b]Pushed rather than read.[/b] The camera, the sound and the HUD each hold the value
-## they were given; making them ask a config every frame would put a dictionary lookup in
-## the draw path for something that changes when somebody opens a menu.
 func _apply_settings() -> void:
 	if settings == null:
 		return
@@ -1084,10 +972,6 @@ func _apply_settings() -> void:
 
 
 ## Sends a chosen loadout, and says what happens next.
-##
-## The server validates it and it takes effect on the next spawn — a player who could
-## change their trait mid-fight would change it the moment they were losing — so the feed
-## says so rather than leaving them wondering whether the button did anything.
 func _on_loadout_chosen(loadout: DotLoadout) -> void:
 	if bridge != null:
 		bridge.publish_loadout(loadout)
@@ -1117,11 +1001,6 @@ func _on_chat_message(message: DotChatMessage, channel_id: StringName) -> void:
 	# [b]The channel decides how a line is drawn, and the channel is a document.[/b] Its
 	# prefix and colour come off the [DotChatChannel] both ends share, so adding a channel
 	# is adding a definition rather than a branch somebody has to remember to extend.
-	#
-	# [b]In the chat box, and in the feed only when there is no box.[/b] Both drew every
-	# line: a vote's ballot was printed twice, once in each corner, and the feed's copy ran
-	# under the vote countdown at the top of the screen. The feed keeps what is the game's
-	# (who ate whom).
 	var window := _chat_window()
 
 	# A join or leave notice is a name and no text (dot-chat's `_presence`): drawn by its
@@ -1155,7 +1034,6 @@ func _on_chat_message(message: DotChatMessage, channel_id: StringName) -> void:
 		})
 
 
-# --- Chat ------------------------------------------------------------------
 
 ## The chat box, or null before the presentation layer exists.
 func _chat_window() -> DotChatWindow:
@@ -1163,16 +1041,6 @@ func _chat_window() -> DotChatWindow:
 
 
 ## Joins the chat box to the three things it needs.
-##
-## [b]The microphone closes with the keyboard, and that line moved rather than went.[/b]
-## The old Enter handler released the talk gate before opening the box, because otherwise
-## the key-up for the talk key lands in the chat box, the gate is never closed, and the
-## player broadcasts whatever they say while typing. It belongs on `opened` now, where it
-## fires however the box was opened rather than only from the one key that used to open it.
-##
-## [b]The sampler is suspended too.[/b] Steering here is the mouse, so typing does not walk
-## anybody anywhere — but split, throw, boost and eject are keys, and "gg boost" splits you
-## twice and ejects your mass.
 func _wire_chat_window() -> void:
 	var window := _chat_window()
 
@@ -1201,12 +1069,6 @@ func _suspend_input(blocked: bool) -> void:
 
 
 ## dot-server's chat payload: what is carrying the conversation, and the server's own lines.
-##
-## A PLAYER's line is never drawn from here: this game routes those over its own wire, so
-## drawing them here as well would be the same line twice. The server's own lines (`system`:
-## a vote between games, "Ada joined the game."; `admin`: an admin's `say`) come only this
-## way, and dropping them with the players' lines is how this game never showed one. The same
-## drawing as dot-game's `DotGameChatClient.draw_server_line`, which this game does not link.
 func _on_server_chat_state(payload: Dictionary) -> void:
 	var kind := str(payload.get("kind", ""))
 
@@ -1244,7 +1106,6 @@ func _on_say(text: String, channel: StringName = HungryServices.CHANNEL_ALL) -> 
 		hud.say("(offline) %s" % text, Color(0.6, 0.62, 0.66))
 
 
-# --- What is in the arena besides the players ------------------------------
 
 func _on_hunter(state: Dictionary) -> void:
 	if hunters == null:
@@ -1303,7 +1164,6 @@ func _on_progress(state: Dictionary) -> void:
 	)
 
 
-# --- Input -----------------------------------------------------------------
 
 ## The talk key. The held Tab board is the platform's. Escape, H and the menu's keys are dot-menu's
 ## ([HungrySettings]), which takes every key while anything of its is open.

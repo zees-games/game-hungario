@@ -4,18 +4,7 @@ const HungryRules := preload("hungry_rules.gd")
 const HungryTuning := preload("hungry_tuning.gd")
 
 ## Every number the game is balanced on, in one file.
-##
-## The tuning here is a handful of relationships and about thirty numbers, and all of
-## them interact — making monsters faster also makes the map feel smaller, and making
-## food worth more shortens every stage of the game at once. Keeping them in one place
-## rather than scattered across the classes that read them is what makes it possible to
-## change one and see what it did.
-##
-## [b]It is deliberately a grind.[/b] [constant WIN_MASS] is roughly seven hundred
-## average pieces of food, which nobody reaches by grazing: getting there means eating
-## other players, and eating other players means splitting, and splitting is a risk.
 
-# --- The world -------------------------------------------------------------
 
 ## Big enough that a full server is not one continuous fight, small enough that a lone
 ## player finds someone.
@@ -27,7 +16,6 @@ const CELL_SIZE := 240.0
 
 const TICK_RATE := 60
 
-# --- Growing ---------------------------------------------------------------
 
 ## What a monster starts with. About twenty crumbs, which is fifteen seconds of
 ## uninterrupted eating: long enough to learn the controls, short enough that dying
@@ -35,30 +23,17 @@ const TICK_RATE := 60
 const START_MASS := 22.0
 
 ## Mass that ends a round.
-##
-## Roughly seven hundred average pieces of food. The expected value of one piece is
-## about 3.4 (see [method food_mass]), so grazing alone is well over an hour — which is
-## the intent. Players get there by eating players.
 const WIN_MASS := 2400.0
 
 ## Mass below which a monster cannot be burst by a thrown pepper.
-##
-## Bursting something the size of a crumb is not a play, it is a way to grief the
-## smallest player on the server.
 const MIN_BURST_MASS := 60.0
 
-# --- The food field --------------------------------------------------------
 
 ## Food in the world at once, and how fast it comes back.
 const FOOD_TARGET := 1100
 const FOOD_REFILL_PER_TICK := 7
 
 ## The four sizes, and how often each one appears.
-##
-## [b]Size is derived from the slot index, not sent.[/b] [method Dot2DScatter.variant_of]
-## is a pure function of the seed and the index, so a client that knows the seed knows
-## how big every piece of food is without a byte on the wire — which is the same reason
-## the positions are not sent either.
 const FOOD_TIER_MASS: Array[float] = [1.0, 3.0, 9.0, 24.0]
 
 ## Cumulative weights over [constant FOOD_TIER_MASS]. 58% / 26% / 12% / 4%.
@@ -67,12 +42,8 @@ const FOOD_TIER_CUTOFF: Array[float] = [0.58, 0.84, 0.96, 1.0]
 const FOOD_TIER_NAMES: Array[String] = ["crumb", "morsel", "chunk", "haunch"]
 
 ## Radius a piece of food is drawn and eaten at, per tier.
-##
-## Not [method Dot2DMassRules.radius_for]: food is not a monster and a haunch derived
-## from the mass curve would be 39 units wide, which is bigger than a starting player.
 const FOOD_TIER_RADIUS: Array[float] = [5.0, 8.0, 12.0, 17.0]
 
-# --- Fruit -----------------------------------------------------------------
 
 ## Rare, worth a lot, and each one does something for a while.
 const FRUIT_TARGET := 10
@@ -105,7 +76,6 @@ const RUSH_SPEED_MULTIPLIER := 1.45
 ## What [constant Fruit.MAW] multiplies the eat ratio by. Below 1, so it is easier.
 const MAW_RATIO_MULTIPLIER := 0.80
 
-# --- Item drops ------------------------------------------------------------
 
 ## Throwables lying in the world, and how fast they come back.
 const ITEM_TARGET := 14
@@ -145,11 +115,6 @@ const FROST_SEC := 5.0
 const FROST_SPEED_MULTIPLIER := 0.55
 
 ## The lure is the one throwable that is not aimed at a person.
-##
-## It plants a ring of food where it lands. Bait: worth a lot to whoever gets there
-## first, and a very visible advertisement of where the player who threw it is standing.
-## Planted food is the only food whose position is [i]sent[/i] rather than derived from
-## the world seed, and [HungryField] is where that distinction lives.
 const LURE_FOOD_COUNT := 26
 const LURE_RADIUS := 190.0
 
@@ -157,13 +122,8 @@ const LURE_RADIUS := 190.0
 ## make the lure better than finding a fight.
 const LURE_FOOD_TIER := 1
 
-# --- What a player brings in -----------------------------------------------
 
 ## The three traits, as ids into [method item_catalogue].
-##
-## One choice, made before you spawn, that trades one thing against another. Every one of
-## them is a straight trade rather than an upgrade: a loadout where one option is simply
-## better is a loadout with no decision in it.
 const TRAIT_NIMBLE := &"nimble"
 const TRAIT_STURDY := &"sturdy"
 const TRAIT_GREEDY := &"greedy"
@@ -171,11 +131,6 @@ const TRAIT_GREEDY := &"greedy"
 const TRAIT_IDS: Array[StringName] = [TRAIT_NIMBLE, TRAIT_STURDY, TRAIT_GREEDY]
 
 ## The unlock [constant TRAIT_GREEDY] needs.
-##
-## The one thing here that is not free, so that an unwired server has a working example of
-## an item nobody may take. Entitlements default to nothing on purpose — a server that
-## granted everything by default would work perfectly in every test and quietly be a game
-## where every unlock is free, and nobody files that bug.
 const TRAIT_GREEDY_UNLOCK := &"hungry.trait.greedy"
 
 ## Slot ids in [method loadout_schema].
@@ -205,17 +160,11 @@ static func trait_food(id: StringName) -> float:
 	return TRAIT_FOOD[trait_index(id)]
 
 
-# --- Splitting and ejecting ------------------------------------------------
 
 ## Ticks between two voluntary splits.
 const SPLIT_COOLDOWN_TICKS := 21
 
 ## What one press of eject costs, and what it leaves behind.
-##
-## [b]The loss is the point.[/b] Ejecting is how a monster gets deliberately smaller —
-## faster, harder to corner, able to fit through a gap between two things that could eat
-## it — and how it hands mass to somebody else. Getting all of it back would make it free,
-## and free is a thing players do constantly and never think about.
 const EJECT_MASS := 32.0
 
 ## Mass a monster must have before it may eject at all. Below this a press would be most
@@ -229,13 +178,8 @@ const EJECT_COOLDOWN_TICKS := 10
 const EJECT_TIER := 3
 
 ## How far ahead of the piece it lands.
-##
-## Beyond the ejector's own eat radius — which is `radius * eat_overlap` — or the blob is
-## swallowed again on the same tick and the whole thing is a very expensive way to do
-## nothing.
 const EJECT_REACH := 42.0
 
-# --- Effects ---------------------------------------------------------------
 
 ## [member Dot2DState.flags] bits. Sixteen of them are replicated; these are the ones
 ## that mean something, and they are what a client draws from.
@@ -249,11 +193,6 @@ const FLAG_PROTECTED := 1 << 6      ## Spawn protection.
 const FLAG_BURST := 1 << 7          ## Made by a burst rather than by a split.
 
 ## The bits that describe a monster rather than a piece.
-##
-## A receiving peer copies these off any of a monster's pieces onto the monster, because
-## every piece of one monster carries the same set and the monster is what speed is
-## computed from. The rest — the rider, the merge state, whether a piece came from a
-## burst — are per piece and stay there.
 const EFFECT_MASK := FLAG_RUSH | FLAG_MAW | FLAG_RIND | FLAG_FROSTED | FLAG_PROTECTED
 
 
@@ -261,10 +200,7 @@ const EFFECT_MASK := FLAG_RUSH | FLAG_MAW | FLAG_RIND | FLAG_FROSTED | FLAG_PROT
 static func tunables() -> Dot2DTunables:
 	var out := Dot2DTunables.blob()
 	out.max_speed = 415.0
-	# The distance over which the cursor goes from "stopped" to "full speed". The genre
-	# ramps over roughly a body length; this is the number that makes fine positioning
-	# next to a bigger monster possible at all, and making it large makes the whole
-	# game feel like steering a barge.
+	# The distance over which the cursor goes from "stopped" to "full speed", roughly a body length; much larger and steering feels like a barge.
 	out.full_speed_reach = 105.0
 	out.dead_reach = 7.0
 	out.bounce_off_walls = false
@@ -336,12 +272,6 @@ static func rules(tick_rate: int = TICK_RATE) -> HungryRules:
 
 
 ## What a monster may throw, as data a server can check without loading anything.
-##
-## [b]This is dot-loadout's [DotItemCatalogue], not a dictionary.[/b] A throwable is an
-## id, a kind and an entitlement — the server decides whether a player may have one from
-## those three fields and never touches a mesh, which is the whole reason that addon
-## exists. [member DotItem.content_id] is what a client hands to dot-cloud when it wants
-## to draw the thing.
 static func item_catalogue() -> DotItemCatalogue:
 	var pepper := DotItem.make(ITEM_PEPPER, DotItem.KIND_CONSUMABLE, true)
 	pepper.display_name = "Pepper"
@@ -383,11 +313,6 @@ static func item_catalogue() -> DotItemCatalogue:
 
 ## What a player brings in, as a document of ids a server can check without loading
 ## anything.
-##
-## Two slots and one decision each. [b]Everything here is an id[/b] — the server decides
-## whether a loadout is legal from the schema and an entitlement set, and never touches an
-## asset, which is dot-loadout's one idea and the reason a dedicated server holding no
-## content can still say no.
 static func loadout_schema() -> DotLoadoutSchema:
 	var starter := DotLoadoutSlot.make(SLOT_STARTER, true, ITEM_PEPPER)
 	starter.display_name = "Starting throwable"
@@ -412,10 +337,6 @@ static func loadout_schema() -> DotLoadoutSchema:
 
 
 ## The store key for a player.
-##
-## Padded, not `str(id)`: [method DotLoadoutKey.is_usable] has a minimum length, so a bare
-## "7" is refused before any store sees it — and that check exists so a malformed key can
-## never reach a filesystem path. Padding is right; loosening the check is not.
 static func loadout_key(player_id: int) -> String:
 	return "hungry-%08d" % player_id
 
@@ -457,19 +378,11 @@ static func item_colour(id: StringName) -> Color:
 
 
 ## A colour for a player, from their id. Deterministic, so every client agrees.
-##
-## The golden-angle hue step is what stops adjacent ids looking the same, which a plain
-## `id * 40 degrees` does not: with a small number of players it produces a handful of
-## repeating colours and two people in the same fight are the same shade.
 static func colour_for(id: int) -> Color:
 	return Color.from_hsv(fposmod(float(id) * 0.618033988749895, 1.0), 0.66, 0.96)
 
 
 ## The avatar schema a monster's rider is dressed from.
-##
-## Three slots, all optional except the body, which is required so that nobody is
-## invisible. Everything here is an **id**: the server validates a player's avatar
-## against this without loading a single asset, which is dot-user-avatar's one idea.
 static func avatar_schema() -> DotAvatarSchema:
 	var schema := DotAvatarSchema.new()
 	schema.id = &"hungry_rider"
@@ -504,10 +417,7 @@ static func avatar_schema() -> DotAvatarSchema:
 		var part := DotAvatarPart.make(row[0], row[1], bool(row[2]))
 		part.colour_channels = int(row[3])
 		part.content_id = String(row[4])
-		# Everything in the body slot falls back to the free rider, so a player wearing
-		# something whose content has not downloaded is drawn as a plain one rather than
-		# as nothing. The free rider itself has no fallback: a part that fell back to
-		# itself is a resolution loop that cannot terminate, which the schema refuses.
+		# Everything in the body slot falls back to the free rider, so undownloaded content draws a plain rider; the free rider itself has no fallback, since the schema refuses a resolution loop.
 		part.fallback_id = (
 			&"rider_pip" if row[1] == &"body" and row[0] != &"rider_pip" else &""
 		)
@@ -519,9 +429,6 @@ static func avatar_schema() -> DotAvatarSchema:
 
 
 ## A deterministic avatar for a player who has none. The look of a guest.
-##
-## Deterministic on the id, so a client that has not been sent somebody's avatar draws
-## the same guest as everybody else rather than a different one per machine.
 static func default_avatar(id: int) -> DotAvatar:
 	var avatar := DotAvatar.make(&"hungry_rider")
 	avatar.set_part(&"body", &"rider_pip" if (id % 2) == 0 else &"rider_blob")

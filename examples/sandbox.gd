@@ -9,27 +9,6 @@ const HungryServices := preload("../game/hungry_services.gd")
 const HungrySoundSink := preload("../game/client/hungry_sound_sink.gd")
 
 ## A real server and a real client, one process, over a real socket, playing the game.
-##
-## [codeblock]
-## godot --headless --path . res://examples/sandbox.tscn
-## [/codeblock]
-##
-## Exits non-zero on any failure.
-##
-## [b]What this proves that the other two cannot.[/b] `headless_round` plays the game with
-## no network at all and `headless_net` plays it over a loopback that stands in for one.
-## This one opens a socket, runs dot-server's whole signon — transport, challenge,
-## credentials, authentication, content, load, spawn — with dot-platform resolving a
-## profile and an avatar along the way, then plays over Godot's actual RPCs, sends a chat
-## line through dot-server's chat manager, and changes the game underneath a connected
-## player.
-##
-## [b]Two MultiplayerAPI instances in one process.[/b] A server and a client both want
-## [member SceneTree.multiplayer] and there is one of those.
-## [method SceneTree.set_multiplayer] scopes an API to a subtree, so each half gets its
-## own and [code]multiplayer[/code] inside each resolves to the right one. dot-platform's
-## sandbox is where that was worked out; this is the second place it is used, and the
-## first place a game's own RPCs ride it.
 
 const PORT := 27083
 const PROFILE_DIR := "user://hungry_sandbox_profiles"
@@ -55,20 +34,9 @@ var _command := Dot2DCommand.new()
 var _heard: Array[DotChatMessage] = []
 
 ## Anything that came back through dot-server's own chat signal.
-##
-## [b]Expected to stay empty, and that is the check.[/b] This game moved its chat rules
-## onto [DotChatRouter] and cancels dot-server's broadcast; a line arriving here as well
-## would be two paths delivering one message, which is the failure the cancel exists to
-## prevent and the one nobody would notice because the message still arrives.
 var _legacy_heard: Array[Dictionary] = []
 
 ## The one thing dot-server's chat signal legitimately carries here.
-##
-## [b]Not a line, which is why it is kept apart from [member _legacy_heard].[/b]
-## [code]DotChatManager.greet[/code] sends `{kind: "state", relay: bool}` to a joining
-## client to say whether anything else is carrying the conversation. It has no text and
-## draws nothing; counting it as a delivered message would have made the check above read
-## as two paths for one line, which is the failure that check exists for.
 var _chat_state: Array[Dictionary] = []
 
 ## The second player. Built later, in its own subtree with its own MultiplayerAPI.
@@ -126,12 +94,6 @@ func _run() -> void:
 
 
 ## Sections entered, and sections that ran to their last line.
-##
-## [b]A check count is not coverage.[/b] A runtime error inside a section aborts that
-## function and nothing says so: the checks that already ran still print ok, the ones
-## after it never happen, and the total at the bottom cannot reveal a check that never
-## ran. dot-net's demo carries the same pair, reached from the other direction — there it
-## was a suspending section called without `await`.
 var _entered := 0
 var _completed := 0
 
@@ -162,10 +124,6 @@ func _frames(count: int) -> void:
 
 
 ## Waits for a condition, or gives up. Returns whether it happened.
-##
-## A deadline rather than a fixed number of frames: the point is to fail with a message
-## rather than to hang, and a signon over loopback is several round trips plus a profile
-## and an avatar read.
 func _until(condition: Callable, seconds: float = 10.0) -> bool:
 	var deadline := Time.get_ticks_msec() + int(seconds * 1000.0)
 
@@ -178,7 +136,6 @@ func _until(condition: Callable, seconds: float = 10.0) -> bool:
 	return false
 
 
-# --- Building both halves --------------------------------------------------
 
 func _build() -> bool:
 	print("bringing the sandbox up")
@@ -210,11 +167,8 @@ func _build() -> bool:
 	if not await _build_server(server_side):
 		return false
 
-	# Named "Server", which looks wrong and is not. Godot addresses an RPC by the
-	# receiver's node path relative to its MultiplayerAPI root, so a call from the
-	# server's node at ServerSide/Server arrives addressed to "Server" and is looked up
-	# under the client's root. Give the client's node any other name and every RPC fails
-	# with "Node not found: Server".
+	# Named "Server" on purpose: an RPC is addressed by the receiver's node path relative to its MultiplayerAPI root,
+	# so any other name on the client fails with "Node not found: Server".
 	_link = DotClientLink.new()
 	_link.name = "Server"
 	_link.player_name = "Sandbox Visitor"
@@ -339,10 +293,7 @@ func _build_server(server_side: Node) -> bool:
 	if not _check(hungry.ok, "and so does the game", str(hungry.error)):
 		return false
 
-	# No bots. This suite is one person and their own client, and it asserts things a
-	# server full of bots would disturb: a monster driven straight through a rock (and eaten
-	# on the way), and a world that is empty once that person leaves. The shared default
-	# (DotBotQuota, six in fill mode) is the dedicated suite's to check.
+	# No bots: this suite is one person and their own client and asserts things a server full of bots would disturb; the shared default (six in fill mode) is the dedicated suite's.
 	var _no_bots := _server.console.execute("bot_quota 0")
 
 	var services := _module().services
@@ -363,10 +314,7 @@ func _teardown() -> void:
 		_server.shutdown("sandbox finished")
 
 
-## Saves the window to `$SANDBOX_SHOTS/<name>.png` when that variable names a directory: run
-## the suite under `xvfb-run` (not `--headless`, whose renderer draws nothing) to look at the
-## cover, the first frame after it lifts and the cover over an online mode change. Unset it
-## does nothing, so the suite is unchanged.
+## Saves the window to `$SANDBOX_SHOTS/<name>.png` when that variable names a directory (run under `xvfb-run`, not `--headless`); unset it does nothing.
 func _shot(shot_name: String) -> void:
 	var dir := OS.get_environment("SANDBOX_SHOTS")
 	if dir == "" or DisplayServer.get_name() == "headless":
@@ -381,7 +329,6 @@ func _module() -> HungryModule:
 	return _server.modules.get_module("hungry") as HungryModule
 
 
-# --- Joining ---------------------------------------------------------------
 
 ## How many of the game's link nodes sit under the server.
 func _links() -> int:
@@ -393,10 +340,6 @@ func _links() -> int:
 
 
 ## A module reload must leave ONE link under the server, still named for the client's route.
-## Two used to be left, the live one renamed `@Node@n`, and every RPC to a real client was
-## lost without an error. The client joining next (signon is server RPCs over the socket)
-## is the proof the route works; it is done before any client, because a reload mid-session
-## leaves the new bridge not knowing who is seated, which is a different matter.
 func _test_a_module_reload() -> void:
 	_section("a module reload leaves one live link")
 
@@ -425,10 +368,7 @@ func _test_join() -> bool:
 
 	_link.spawned.connect(func() -> void: spawned[0] = true)
 	_link.disconnected.connect(func(reason: String) -> void: refused[0] = reason)
-	# [b]dot-server's own `chat_received` is deliberately NOT what this listens on.[/b] The
-	# module cancels that path and routes every line through [DotChatRouter] onto this
-	# game's own wire; a test that still listened there would pass on a server running the
-	# old path and fail on the one that ships.
+	# dot-server's own `chat_received` is deliberately not what this listens on: the module routes every line through [DotChatRouter] onto this game's wire.
 	_link.chat_received.connect(func(payload: Dictionary) -> void:
 		if str(payload.get("kind", "")) == "state":
 			_chat_state.append(payload)
@@ -497,10 +437,7 @@ func _test_join() -> bool:
 func _test_client_scene() -> void:
 	_section("the client scene")
 
-	# The server does not name this. [DotClientLink] refuses an absolute scene path
-	# outside dot-cloud's mount, because a server that could name one could ask a client
-	# to load any scene in their build. A game shipped inside the build owns its own
-	# client scene, and the signon takes the no-scene path.
+	# The server does not name this: [DotClientLink] refuses an absolute scene path outside dot-cloud's mount, so a game shipped in the build owns its client scene.
 	var packed: Variant = load("res://game/client/hungry_client.tscn")
 
 	if not _check(packed is PackedScene, "the client scene loads"):
@@ -673,13 +610,6 @@ func _test_playing() -> void:
 
 
 ## An admin's noclip and freeze, over a real socket, on the player's own predicted monster.
-##
-## `headless_net` is where this is PROVED — tick by tick, with a naive control that has to
-## diverge, over a loopback that behaves the same way twice. What only a socket reaches is
-## the rest of the path: the console's tools on a live module, the bit riding a real
-## snapshot to a real client, and a prediction that holds while RPC timing does whatever it
-## does. The tolerance is the one "playing" already uses for agreement; a server-only
-## noclip through this rock measures about 80 on the loopback.
 func _test_admin_over_the_socket() -> void:
 	_section("an admin's noclip and freeze, over the socket")
 
@@ -755,10 +685,6 @@ func _test_admin_over_the_socket() -> void:
 
 
 ## Split and eject make a noise, over the network, and only when they happened.
-##
-## Both voices were baked and catalogued from the first commit and nothing ever played
-## either. Heard by watching the mirrored monster, so this has to be a netted client: the
-## pieces a split makes arrive as entity spawns, and the halved mass as a snapshot.
 func _test_mass_actions_are_heard(module: HungryModule, mine: int) -> void:
 	var sink := _client.presentation.audio.sink as HungrySoundSink
 
@@ -877,10 +803,7 @@ func _test_chat() -> void:
 		dirty
 	)
 
-	# [b]The proximity channel, which is the one a lobby's argument does not cover.[/b] An
-	# arena is bigger than a screen, so "near" is a real audience — and the check that it
-	# works is that a line on it reaches the person who sent it, who is by definition
-	# within their own radius.
+	# The proximity channel is the one a lobby's argument does not cover: an arena is bigger than a screen, and a line on it must reach its sender, who is within their own radius.
 	var near_before := _heard.size()
 	_client.bridge.say(HungryServices.CHANNEL_NEAR, "anybody close?")
 
@@ -888,10 +811,6 @@ func _test_chat() -> void:
 	_check(nearby, "a line on the proximity channel reaches somebody standing there")
 
 	# [b]And the one payload that legitimately comes down dot-server's chat signal.[/b]
-	# A joining client is told what is carrying the conversation before it has any line to
-	# draw, so it can decide whether to draw a chat box at all rather than drawing one and
-	# taking it away a moment later. This is the only place in the family where that is
-	# checked over a real socket with a real server at the other end.
 	_check(
 		_chat_state.size() >= 1,
 		"the server told the client what is carrying chat, on joining (%d)" % _chat_state.size()
@@ -942,15 +861,6 @@ func _say_and_wait(text: String) -> String:
 
 
 ## A second player, over a second socket, in a second MultiplayerAPI.
-##
-## [b]The thing a multiplayer game must do, and the thing nothing in this family had ever
-## checked.[/b] Everything before this is one client: it proves the signon, the RPC paths
-## and the netcode, and proves nothing at all about whether two people can see each other.
-## Interest management, the roster, the join broadcast and the piece mirroring are all
-## per-observer, and every one of them is trivially correct with one observer.
-##
-## A third MultiplayerAPI, rooted at its own subtree, for the reason the first two need
-## one: there is a single `SceneTree.multiplayer` and three peers in this process want it.
 func _test_two_players() -> void:
 	_section("a second player")
 
@@ -1025,11 +935,8 @@ func _test_two_players() -> void:
 	_check(sees_them, "the first client sees the second")
 	_check(sees_us, "and the second sees the first")
 
-	# What a join owes: an announcement to everybody already here, and the backlog to the
-	# one who just arrived. Both used to be sent from `client_spawn`, which is before the
-	# client has built anything to receive them on — so neither ever went, and with
-	# dot-server's own join line turned off in favour of dot-chat's there was no join line
-	# at all. Every check above passed throughout.
+	# What a join owes: an announcement to everybody already here, and the backlog to the one who just arrived.
+	# Neither can be sent from `client_spawn`, before the client has built anything to receive them.
 	var announced := await _until(func() -> bool:
 		for message: DotChatMessage in _heard:
 			if message.kind == DotChatMessage.Kind.JOIN:
@@ -1136,10 +1043,8 @@ func _test_two_players() -> void:
 		module.world.monster_for(theirs) == null,
 		"and the server drops them too"
 	)
-	# And so does its netcode. A disconnect takes the peer off the ready set before it
-	# removes it, and the removal used to be gated on the ready set — so the manager kept
-	# the peer and sent it a snapshot every interval, each one an "unknown peer ID" error
-	# in the server's log, while every check above passed.
+	# A disconnect takes the peer off the ready set before removing it, and removal must not be gated on the ready set,
+	# or the manager keeps the peer and sends it a snapshot every interval (an "unknown peer ID" error in the server's log).
 	_check(
 		their_peer > 0 and not module.bridge.net.peers().has(their_peer),
 		"and so does its netcode (peers %s)" % str(module.bridge.net.peers())
@@ -1152,14 +1057,6 @@ func _test_two_players() -> void:
 
 ## An administrator's blind and beacon, with two real clients on real sockets: the one
 ## thing about both that one client cannot show is who ELSE is told.
-##
-## The second player is blinded and beaconed. Their own client has to black its screen out
-## and the first client must never learn it — an opponent who could read the blind would
-## know the moment somebody could not see them coming — while both clients draw the
-## beacon. Asserted on each client's own copy of the monster and on what its HUD and its
-## renderer actually did with it, which is what a player sees. `headless_net` proves the
-## same audience over a loopback; this is the path through the console's tools, a live
-## module and two `MultiplayerAPI`s.
 func _test_blind_and_beacon_audience(module: HungryModule, theirs: int) -> void:
 	var id := StringName(str(theirs))
 	var blinded: DotResult = await module.mod_tools.toggle(&"console", id, DotModTools.ACTION_BLIND, true, 100)
@@ -1197,12 +1094,8 @@ func _test_blind_and_beacon_audience(module: HungryModule, theirs: int) -> void:
 	_check(cleared, "and turning both off reaches both clients")
 
 
-## [b]The player's block list (`sm`) reaches this game's voice.[/b] dot-chat's DotChatSelfMute
-## binds whatever is published as `dot_voice_client`; until that was checked here, `sm` was
-## only ever shown muting voice in arena. Frames are handed to the real client's manager as
-## the bridge hands them, from a speaker the list maps to a key; the buffered sink (no audio
-## device here) says whether anything played. Armed: drop `HungryVoice`'s publish and the
-## first check fails; drop the list's binding and the second does.
+## The player's block list (`sm`) reaches this game's voice: dot-chat's DotChatSelfMute binds whatever is published as `dot_voice_client`.
+## Armed: drop `HungryVoice`'s publish and the first check fails; drop the list's binding and the second does.
 func _test_voice_mute() -> void:
 	_section("sm mutes a player's voice")
 
@@ -1267,13 +1160,8 @@ func _test_game_change() -> void:
 		(here as Vector2) + Vector2(40.0, 0.0) if here is Vector2 else Vector2.ZERO)
 	_check(module.mod_tools.can_return(who), "a moderator moves the player, so `return` has somewhere to put them")
 
-	# [b]To the reef, not to frenzy, since the lagoon.[/b] Frenzy is an empty square, so
-	# this change had only ever proved that a connected client follows a new SIZE and a
-	# new SEED; a mode with rocks in it adds the one thing a client derives rather than
-	# receives — the discs it predicts itself against — and nothing had carried that
-	# across a live change until now. The reef is the level with the most of them.
-	# What the server saw of the seat across the change, and what the client's gate did.
-	# [b]Recorded as it happens[/b]: the cover can lift again before a poll could look.
+	# To the reef, not frenzy: a mode with rocks adds the one thing a client derives rather than receives, the discs it predicts against.
+	# Recorded as it happens, since the cover can lift again before a poll could look.
 	var seen := {"loading": 0, "loaded": 0, "harmable_while_loading": true, "t0": 0, "ms": -1}
 	module.loading.loading_changed.connect(func(userid: int, is_loading: bool) -> void:
 		if userid != mine:
@@ -1326,10 +1214,7 @@ func _test_game_change() -> void:
 		"and the new field seed"
 	)
 
-	# The same eighteen rocks, both barriers, the atoll and the spits, built on the client
-	# from the name in the hello. Compared disc by disc rather than by count: a client that
-	# built the reef against the OLD arena's rectangle has eighteen rocks at the wrong
-	# scale, and eighteen is eighteen.
+	# The same eighteen rocks, both barriers, the atoll and the spits, built on the client from the name in the hello; compared disc by disc, since a wrong-scale reef still has eighteen rocks.
 	var same_rocks := _client.world.layout.count() == module.world.layout.count() \
 		and _client.world.layout.chains.size() == module.world.layout.chains.size()
 

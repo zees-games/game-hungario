@@ -4,54 +4,10 @@ const HungryModule := preload("hungry_module.gd")
 const HungryEvents := preload("net/hungry_events.gd")
 
 ## What plays next, and who decides.
-##
-## [b]The modes are the maps.[/b] `classic`, `frenzy`, `gauntlet` and `warrens` are already
-## `DotGameDescriptor`s that dot-server switches between with `changegame`; dot-map's
-## catalogue says what they *are* — a kind, a player range, a description a ballot can show
-## — and its rotation says which one comes round next with a cooldown so the same one does
-## not play twice in a row. dot-vote is what lets the players override it.
-##
-## [b]The swap itself stays dot-server's, and this file does not do it.[/b] That is the
-## same refusal every game here makes about chat, and for the same reason: dot-map
-## ships `DotMapSyncHost`, which announces a change, waits for every peer to have the
-## content and then swaps — and dot-server's `change_game` already announces, waits and
-## swaps, with a content sync this family spent nine bugs getting right. Running both would
-## be two protocols doing one job, and the one that was wrong would be the one nobody was
-## watching. `DotVoteGameSource` applies through the game manager, which is the path that
-## already works.
-##
-## [b]What is genuinely new here is the time limit and rock-the-vote.[/b] Neither existed
-## in this game: a round ended on a mass target or a clock inside `DotMatch`, and there was
-## no way at all for the players to say "we have had enough of this one".
 
 const CHANNEL := "hungry.maps"
 
 ## Where a server owner configures this game's vote. Empty skips the file.
-##
-## [b][method vote_rules] is this game's DEFAULTS, not its configuration.[/b] They layer
-## the way every [DotConfig] in the family does, so an owner changes a number without
-## touching code:
-##
-## [codeblock]
-## vote_rules()  <  game.yml metadata: map_vote:  <  this file  <  DOT_VOTE_*  <  --vote-*
-## [/codeblock]
-##
-## The file is JSON, keyed exactly as [DotVoteRules] is, enums by name, and sits beside
-## [code]user://cfg/hungry.json[/code]. The end-of-mode vote and its extend option,
-## which is what an owner usually wants to change:
-##
-## [codeblock]
-## {
-##     "end_vote": true,          "vote_lead_sec": 90,
-##     "include_extend": true,    "extend_seconds": 300,    "max_extends": 2
-## }
-## [/codeblock]
-##
-## [code]DOT_VOTE_EXTEND_SECONDS=300[/code] or [code]--vote-include-extend=false[/code]
-## do the same for one run. [code]timeleft[/code] and [method describe_lines] both read
-## the vote's own clock, so an owner's [code]duration_sec[/code] and every extend reach
-## them as well as the ballot. A result that does not validate is refused whole and the
-## defaults stand, with the reason in the log.
 const CONFIG_PATH := "user://cfg/hungry_vote.json"
 
 ## The key in the running game's descriptor metadata an operator's overrides are read
@@ -128,11 +84,6 @@ var config_path: String = CONFIG_PATH
 
 
 ## dot-server's games, kept to the ones [member keep_fn] says are this game's modes.
-##
-## An inner class rather than a file of its own with a [code]class_name[/code]: a mounted
-## pack cannot declare one. Filtered in [method choices] rather than through
-## [member DotVoteGameSource.excluded], because what else a server runs changes with its
-## content and a list written once goes stale.
 class ModeSource extends DotVoteGameSource:
 	## [code]func(id: StringName) -> bool[/code]: whether a game id is one of the modes.
 	var keep_fn: Callable = Callable()
@@ -147,37 +98,18 @@ class ModeSource extends DotVoteGameSource:
 		return out
 
 
-# --- The catalogue ---------------------------------------------------------
 
 ## The modes, as maps.
-##
-## [b]`min_players` is the field that matters and it is the one a ballot uses.[/b]
-## `gauntlet` is a corridor: two people in it is a chase and eight is a scrum, so it is off
-## the ballot below three — which is `available_for`, and is why a catalogue is worth
-## having over a hard-coded list.
 static func map_catalogue() -> DotMapCatalogue:
 	var out := DotMapCatalogue.new()
 
-	# [b]Built FROM the game descriptors rather than beside them.[/b] The scene path, the
-	# display name and the id are already declared once, in
-	# [method HungryModule.game_descriptors] — which is what dot-server instantiates. A map
-	# catalogue that restated them would be a second copy, and the copy that goes stale is
-	# always the one nothing reads: this tree's most repeated bug is two copies of one
-	# list, and it has now happened to `setup.sh`, `tools/check.sh`,
-	# `tools/package_check.sh` and `bootstrap`.
-	#
-	# What is genuinely new here is `min_players`, which nothing else records — a
-	# `DotGameDescriptor` has a maximum and not a minimum, and "this mode needs three
-	# people" is exactly what a ballot has to know.
+	# Built from the game descriptors rather than beside them: scene path, name and id are declared once in [method HungryModule.game_descriptors].
+	# What is new is `min_players`, which a `DotGameDescriptor` does not record and a ballot needs.
 	for descriptor in HungryModule.game_descriptors():
 		var added := out.add(_map(descriptor, int(MINIMUMS.get(descriptor.game_id, 1))))
 
 		if not added.ok:
-			# [b]Loud, because a catalogue that silently holds nothing is the exact shape
-			# this family keeps finding.[/b] `DotMapCatalogue.add` validates and refuses,
-			# and the first version of this function produced an empty catalogue with no
-			# error anywhere — every map refused for having no scene path, and a vote with
-			# nothing on the ballot that looked like a vote nobody wanted to use.
+			# Loud, because a catalogue that silently holds nothing is a shape this family keeps finding: `DotMapCatalogue.add` validates and refuses.
 			DotLog.error(CHANNEL, "a mode was refused by the map catalogue", {
 				"game": descriptor.game_id, "why": added.error.message,
 			})
@@ -186,10 +118,6 @@ static func map_catalogue() -> DotMapCatalogue:
 
 
 ## How many people a mode needs before it is worth offering.
-##
-## [b]`gauntlet` is a corridor and two people in it is a chase.[/b] It is off the ballot
-## below three, which is `available_for`, and is the one thing this catalogue knows that
-## dot-server's descriptors do not.
 const MINIMUMS := {
 	"hungry_gauntlet": 3,
 }
@@ -200,21 +128,12 @@ static func _map(descriptor: DotGameDescriptor, min_players: int) -> DotMapDef:
 	out.id = StringName(descriptor.game_id)
 	out.display_name = descriptor.display_name
 	# [b]A semantic version or a default, because `validate()` refuses anything else.[/b]
-	# A `DotGameDescriptor`'s version is a free string — dot-server never parses it — and
-	# handing an unparseable one straight through is a map refused for a field nobody
-	# meant to fill in.
 	out.version = descriptor.version if DotSemVer.parse(descriptor.version).valid \
 		else "1.0.0"
 	out.kind = DotMapDef.KIND_ARENA
 	out.min_players = min_players
 	out.max_players = descriptor.max_players
 	# The same scene dot-server loads, read from the same declaration.
-	#
-	# [b]Nothing here ever loads it, and it is set anyway.[/b] `DotMapDef.validate()`
-	# refuses a map with no scene — correctly, because a map nothing can load is not a map
-	# — and a catalogue whose entries are all refused is a catalogue that silently holds
-	# nothing. That is precisely the shape this family keeps finding: a list that is empty
-	# for a good reason, and nothing saying so.
 	out.scene_path = descriptor.scene
 	out.meta = {"vote": {"display": descriptor.display_name}}
 	return out
@@ -239,28 +158,17 @@ static func vote_rules() -> DotVoteRules:
 	rules.include_current = false
 	rules.method = DotVoteRules.Method.PLURALITY
 	rules.tie_break = DotVoteRules.TieBreak.BALLOT_ORDER
-	# [b]Off, and this is the setting dot-vote found a bug in.[/b] With it on, "extend" is
-	# erased from a tie and the tie goes to the new thing; with it off the ordinary
-	# tie-break runs — and every pseudo-option sorts last in ballot order, so
-	# `BALLOT_ORDER` hands the tie to the new thing as well. Two documented policies, one
-	# behaviour. It is set explicitly here so somebody changing it is changing something.
+	# Off, so the ordinary tie-break runs: with it on "extend" is erased from a tie, but every pseudo-option sorts last so `BALLOT_ORDER` hands the tie to the new thing anyway.
+	# Set explicitly so changing it is a visible change.
 	rules.extend_needs_majority = false
 	rules.rtv_enabled = true
 	rules.rtv_fraction = 0.6
 	rules.rtv_min_players = 1
 	# [b]Measured against elapsed time, which is the other bug dot-vote found.[/b]
-	# `DotVoteClock.running` used to mean "has a limit" rather than "has started", so a
-	# server with no time limit never accumulated elapsed time and rocking the vote was
-	# refused for ever — on exactly the deployment whose only way to change anything is
-	# the vote. Two minutes here is short enough that a mode nobody likes can be left.
 	rules.rtv_delay_sec = 120.0
 	rules.nominations_enabled = true
 	rules.nominations_per_player = 1
-	# [b]On, and it is the setting that makes `MOST_NOMINATED` mean anything.[/b] dot-vote
-	# refused a second player nominating what somebody had already nominated, so every
-	# count was exactly 1 and there was nothing to sort by. It is allowed now and is
-	# itself a setting; with four modes it is also the only way a ballot can show which
-	# one people actually want.
+	# On, which makes `MOST_NOMINATED` mean anything: dot-vote now allows a second nomination, so counts differ and a ballot can show which mode people want.
 	rules.nomination_seconding = true
 	rules.cooldown = 1
 	rules.cooldown_mode = DotVoteRules.Cooldown.PLAYS
@@ -283,7 +191,6 @@ static func vote_rules() -> DotVoteRules:
 	return rules
 
 
-# --- Lifecycle -------------------------------------------------------------
 
 func setup(p_games: Object) -> DotResult:
 	games = p_games
@@ -319,14 +226,8 @@ func setup(p_games: Object) -> DotResult:
 	director = DotVoteDirector.new()
 	director.name = "Vote"
 	director.rules = rules
-	# [b]The source is dot-server's games, not dot-map's catalogue.[/b] What a vote applies
-	# has to be the thing that actually changes the game, and `DotVoteGameSource.apply`
-	# calls `change_game`. The map catalogue is what says a mode needs three players; the
-	# game source is what makes a decision happen.
-	#
-	# [b]Narrowed to this game's modes.[/b] dot-server's games are every game the server
-	# runs, and on a server that runs several the mode ballot offered arena, prop hunt and
-	# g2gfast as "modes", and a win changed the whole server behind its own game vote.
+	# The source is dot-server's games, not dot-map's catalogue: `DotVoteGameSource.apply` calls `change_game`, which is what changes the game.
+	# Narrowed to this game's modes, since a server running several games would otherwise ballot the others.
 	var modes := ModeSource.new()
 	modes.manager = games
 	var known := catalogue
@@ -336,16 +237,10 @@ func setup(p_games: Object) -> DotResult:
 		return known != null and known.has(id) and in_rotation(id)
 	director.source = modes
 	director.auto_apply = true
-	# [b]Off, and this is dot-vote's fifth bug.[/b] With it on the director announces the
-	# change it just made *and* the host announces the same change through its own
-	# `game_loaded` — which fires for an operator typing `changegame` too, and is therefore
-	# the signal that has to be connected. Both firing is two entries in the play history
-	# for one play, and a "played in the last N" cooldown that is quietly half what it says.
+	# Off: the director and the host's `game_loaded` (which also fires for an operator's `changegame`) would both announce a change,
+	# double-counting the play history and halving the "played in the last N" cooldown.
 	director.begin_on_apply = false
-	# [b]Off: the module advances it, once per world tick.[/b] It was on, AND the module
-	# called `advance` every tick, so every clock in the vote counted twice — a fifteen-
-	# minute mode was over in seven and a half, and the descriptive map clock that stood
-	# beside it, advanced once, said otherwise the whole time.
+	# Off: the module advances it once per world tick; with it on every clock in the vote counted twice.
 	director.self_advance = false
 	director.register_service = false
 	director.player_count_fn = _player_count
@@ -354,10 +249,7 @@ func setup(p_games: Object) -> DotResult:
 	# Every round's end is reported (see _on_round_ended), so a time limit can wait for the
 	# round in progress under `time_up: finish_round`.
 	director.round_based = true
-	# [b]Set by name, and only where it exists.[/b] A delivered pack runs on the shell's
-	# dot-vote, and one older than API 3 has no `round_in_progress_fn`: naming it would fail
-	# the pack's parse. There, a finish_round limit in warmup waits out finish_round_max_sec,
-	# which is what it did before.
+	# Set by name and only where it exists: a delivered pack runs on the shell's dot-vote, and one older than API 3 has no `round_in_progress_fn`, whose name would fail the pack's parse.
 	if "round_in_progress_fn" in director:
 		director.set(&"round_in_progress_fn", round_in_progress)
 	add_child(director)
@@ -381,21 +273,12 @@ func setup(p_games: Object) -> DotResult:
 		cue_due.emit(&"", seconds_left, runoff)
 	)
 
-	# [b]No second clock.[/b] A `DotMapTimeLimit` stood here, built from the same rules
-	# and advanced beside the director, "for `timeleft`" — and nothing but `describe_lines`
-	# ever read it. It never heard an extend, a ballot that kept the mode, or a clock the
-	# vote stopped, so the one line an operator reads said fifteen minutes on a mode the
-	# players had just voted to extend. The vote's own clock answers all of that, and
-	# dot-vote's `timeleft` command already reads it.
+	# No second clock: the vote's own clock hears extends, kept-mode ballots and stops, and dot-vote's `timeleft` already reads it.
 
 	return DotResult.success(null)
 
 
 ## Somebody is playing something. Both the rotation and the vote are told.
-##
-## [b]One call, from the one signal that fires for every change however it happened.[/b]
-## An operator typing `changegame`, a vote applying and a rotation advancing all end here,
-## which is what stops the play history counting one play twice — dot-vote's own fifth bug.
 func note_playing(game_id: StringName) -> void:
 	if rotation != null:
 		rotation.note_played(game_id)
@@ -416,11 +299,6 @@ func advance(delta: float) -> void:
 
 
 ## The leading score, once a tick and only when it moved.
-##
-## [b]Mass, not kills[/b], because mass is what a round here is won on — HungryRules
-## replaces dot-match's kill limit with it — so a vote `score_limit` is a mass: the ballot
-## opens when the biggest monster is `vote_lead_score` short of it. It was reported by
-## nothing, so `trigger: score_limit` validated here and decided nothing.
 func _report_score() -> void:
 	if not score_fn.is_valid():
 		return
@@ -456,10 +334,8 @@ func _bind_match() -> void:
 		_match.round_ended.connect(_on_round_ended)
 
 
-## Whether a round is being played right now, for `time_up: finish_round`: warmup and the gap
-## between rounds have nothing to play out, so a limit that runs out there changes the mode at
-## once. Asked of [member match_fn] every time, because a mode change replaces the match; no
-## match is "cannot tell", which holds as before.
+## Whether a round is being played now, for `time_up: finish_round`: warmup and the gap between rounds have nothing to play out, so a limit there changes the mode at once.
+## Asked of [member match_fn] every time because a mode change replaces the match; no match is "cannot tell".
 func round_in_progress() -> bool:
 	var node: DotMatch = match_fn.call() if match_fn.is_valid() else null
 	return node == null or not is_instance_valid(node) or node.is_live()
@@ -474,12 +350,6 @@ func _on_round_ended(_round: int, _winner: int, _outcome: DotMatchRules.Outcome)
 
 
 ## dot-vote's commands, on [param host] — the module, so they go when it does.
-##
-## [b]None existed here.[/b] A chat `!rtv` is routed to the console in this game, and the
-## console had no `rtv`, so it was dropped as an unknown command; the only way to vote was
-## the client's own wire. Voters are the bare player id — `str(userid)` — which is what the
-## wire's votes use and what a disconnect forgets; dot-vote's default is `u<userid>`, and
-## two spellings of one voter is a player who rocks the vote twice.
 func install_commands(host: Object) -> DotResult:
 	if director == null:
 		return DotResult.fail(DotError.CODE_STATE, "There is no vote to command.")
@@ -508,9 +378,6 @@ func install_commands(host: Object) -> DotResult:
 
 
 ## Reads maps.yml and applies it; called at setup and again by `hungry_maps_reload`.
-##
-## A file that is present and unreadable is an ERROR and changes nothing: rotating every mode
-## is a better failure than rotating none.
 func load_rotation() -> DotResult:
 	var dir := DotMapRotationFile.config_dir_arg()
 	var found := DotMapRotationFile.find(rotation_stem, dir)
