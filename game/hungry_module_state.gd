@@ -130,6 +130,9 @@ var stats: DotStatsTracker = null
 ## userid -> the scoped key the tracker knows them by.
 var _stat_keys: Dictionary = {}
 
+## Only asked for keys: this module opens its own tracker sessions.
+var _stats_feed: DotGameStatsFeed = _new_stats_feed()
+
 ## userid -> true, for the humans this module put in the world.
 var _joined: Dictionary = {}
 
@@ -387,29 +390,29 @@ func _on_stat_burst(_player_id: int, by_player: int, _pieces: int) -> void:
 	if key != &"":
 		stats.record(key, &"bursts")
 
-## Starts counting for a session, under the scoped key dot-platform resolved.
-## Duck-typed like [method _avatar_for]: a LAN server has no platform module, and a session without a
-## key is counted under nothing, never under the account id the identity carries.
+## Starts counting for a session under dot-game's stable per-server key (guests too); a bot is counted under nothing.
 func _begin_stats(session: DotClientSession) -> void:
 	if stats == null:
 		return
-	var platform: Object = server.modules.get_module("platform")
-	if platform == null or not platform.has_method("player_for"):
+	if session.local:
 		return
-	var player: Object = platform.call("player_for", session)
-	if player == null or not player.has_method("key"):
-		return
-	var key := str(player.call("key"))
-	if key == "":
-		return
+	var key := String(_stats_feed.key_for(session))
 	_stat_keys[session.userid] = StringName(key)
 	stats.begin(StringName(key), session.display_name)
+
+
+static func _new_stats_feed() -> DotGameStatsFeed:
+	var feed := DotGameStatsFeed.new()
+	feed.open_sessions = false
+	return feed
+
 
 func _end_stats(session: DotClientSession) -> void:
 	if stats == null or not _stat_keys.has(session.userid):
 		return
 	stats.end(_stat_keys[session.userid])
 	_stat_keys.erase(session.userid)
+	_stats_feed.forget(session.userid)
 
 
 ## The avatar dot-platform resolved for this session, if there is a dot-platform.
