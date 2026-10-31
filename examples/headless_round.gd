@@ -818,6 +818,8 @@ func _test_devouring() -> void:
 		"the eaten monster's fall is the server's pick, with a push",
 		str(small.death.describe()) if small.death != null else "none"
 	)
+	# Launches are off unless sv_ragdoll_exaggerate is on (dot-player-char's default).
+	world.ragdoll_rules.exaggerate = true
 	world.ragdoll_rules.reaction_weights = "limp=0,face_plant=0,crumple=0,headshot_launch=0"
 	var thrown := world.decide_death(5, false, HungryWorld.power_of(12.0), 30.0, Vector2.RIGHT)
 	var nudged := world.decide_death(5, false, HungryWorld.power_of(3.0), 30.0, Vector2.RIGHT)
@@ -835,6 +837,7 @@ func _test_devouring() -> void:
 		"swallowed whole is this game's headshot",
 	)
 	world.ragdoll_rules.reaction_weights = ""
+	world.ragdoll_rules.exaggerate = false
 
 	# Respawning is dot-match's, driven from a tick count rather than a timer.
 	for _i in range(int(TICK_RATE * 5)):
