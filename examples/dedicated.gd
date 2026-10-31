@@ -4,7 +4,7 @@ extends "dedicated_vote.gd"
 ## [code]godot --headless --path . res://examples/dedicated.tscn[/code], plus `-- --serve` to run one.
 ## It connects no client ([code]sandbox[/code] does); the point is the WebSocket listener browsers need.
 
-const CHECKS := 263
+const CHECKS := 269
 
 
 func _ready() -> void:
@@ -61,6 +61,7 @@ func _run() -> void:
 		_test_hazards()
 		await _test_progress()
 		_test_query()
+		_test_stats_report()
 		_test_vote()
 		_test_rotation_file()
 		_test_finish_round_waits_for_a_live_round()
@@ -83,6 +84,37 @@ func _run() -> void:
 	)
 
 	_report(CHECKS - (EXIT_PROBE_CHECKS if _is_exit_probe() else 0))
+
+
+## The family cvar `stats_report` is registered, off, and turning it on makes the tracker report.
+func _test_stats_report() -> void:
+	_section("stats_report")
+
+	var cv: DotConVar = _server.console.find_cvar("stats_report")
+	var module := _module()
+	var stats: Object = module.get("stats") if module != null else null
+	_check(cv != null and cv.get_string() == "0", "stats_report is registered and off by default")
+	_check(stats != null and not stats.report_to_backbone, "and the tracker does not report at boot")
+	if cv == null or stats == null:
+		return
+	var _off := cv.set_value("1")
+	_check(not stats.report_to_backbone, "on with no backbone client stays off, not a crash")
+
+	var client := Node.new()
+	var script := GDScript.new()
+	script.source_code = "extends Node\nfunc post_integration(_a = null, _b = null, _c = null): return null\n"
+	var _reloaded := script.reload()
+	client.set_script(script)
+	DotRegistry.register(&"dot_backbone_client", client)
+	var _r0 := cv.set_value("0")
+	var _r1 := cv.set_value("1")
+	_check(stats.report_to_backbone, "on with a backbone client makes the tracker report")
+	_check(stats.get_node_or_null(DotGameStatsReport.TIMER_NAME) != null, "and adds the flush timer")
+	var _r2 := cv.set_value("0")
+	_check(not stats.report_to_backbone, "off stops it again")
+	DotRegistry.unregister_instance(&"dot_backbone_client", client)
+	client.free()
+	_done()
 
 
 ## The server half of this game's own server browser, asked by a real [DotServer] running it.

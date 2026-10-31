@@ -331,6 +331,9 @@ func _build_stats() -> void:
 	stats.report_to_backbone = backbone != null
 	stats.reporter.client = backbone
 	add_child(stats)
+	# The registered tracker is what DotGameStatsReport's default apply flips.
+	DotRegistry.register(DotGameStatsFeed.SERVICE, stats)
+	var _report := DotGameStatsReport.bind(self)
 
 	world.food_eaten.connect(_on_stat_food)
 	world.fruit_eaten.connect(_on_stat_fruit)

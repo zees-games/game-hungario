@@ -26,3 +26,7 @@ max_players: 32
 scene: game/modes/classic.tscn
 client_scene: game/client/hungry_client.tscn
 module: game/hungry_module.gd
+
+cvars:
+  # 1 files the players' stats with the backbone using the server's own ticket; 0 keeps them here.
+  stats_report: "0"

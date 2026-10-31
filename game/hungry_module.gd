@@ -126,6 +126,9 @@ func can_peer_be_harmed(peer_id: int) -> bool:
 	return not is_peer_loading(peer_id)
 
 func _module_unload() -> void:
+	if stats != null:
+		DotRegistry.unregister_instance(DotGameStatsFeed.SERVICE, stats)
+
 	if workbench != null:
 		workbench.queue_free()
 		workbench = null
