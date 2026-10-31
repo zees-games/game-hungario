@@ -5,6 +5,6 @@
 set -euo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 V=${1:?usage: tools/publish.sh VERSION [flags]}; shift
-exec "$HERE/../dot-cloud/tools/publish_pack.sh" publish --source "$HERE" --id gamemann/game-hungario --version "$V" \
+exec "$HERE/../dot-cloud/tools/publish_pack.sh" publish --source "$HERE" --id game-hungario --version "$V" \
     --host-addons "$HERE/../dot-server-deploy/addons.lock" --exclude-dir web --exclude-dir images --exclude-dir screenshots \
     --lock "$HERE/content.lock.json" "$@"
