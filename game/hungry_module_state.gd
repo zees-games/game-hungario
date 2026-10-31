@@ -134,6 +134,8 @@ var backbone: DotBackboneClient = null
 ## Always built (the session figures are the game's own); reported only with a backbone. Keyed by the
 ## scoped id dot-platform resolved, so a guest with no scoped key is counted under nothing.
 var stats: DotStatsTracker = null
+## Files kills for the head-to-head table (dot-stats), keyed like the counters.
+var _kill_feed: DotStatsEventFeed = null
 
 ## userid -> the scoped key the tracker knows them by.
 var _stat_keys: Dictionary = {}
@@ -322,6 +324,9 @@ func _build_stats() -> void:
 	stats.report_to_backbone = backbone != null
 	stats.reporter.client = backbone
 	add_child(stats)
+	_kill_feed = DotStatsEventFeed.new(stats)
+	_kill_feed.key_of = func(id: Variant) -> StringName: return _stat_key(int(id))
+	_kill_feed.extra = func() -> Dictionary: return {"mode": String(world.preset.id) if world != null and world.preset != null else ""}
 	# The registered tracker is what DotGameStatsReport's default apply flips.
 	DotRegistry.register(DotGameStatsFeed.SERVICE, stats)
 	var _report := bind_stats_report()
@@ -378,6 +383,7 @@ func _on_stat_death(player_id: int, killer_id: int) -> void:
 	var killer := _stat_key(killer_id)
 	if killer != &"" and killer_id != player_id:
 		stats.record(killer, &"kills")
+		var _filed := _kill_feed.report_kill(killer_id, player_id)
 
 func _on_stat_burst(_player_id: int, by_player: int, _pieces: int) -> void:
 	var key := _stat_key(by_player)

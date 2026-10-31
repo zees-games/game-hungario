@@ -62,3 +62,6 @@ Thumbs.db
 /addons/dot_bot
 /addons/dot_game
 /addons/dot_workbench
+
+# Written by dot-cloud publish_pack.sh; per-developer, like the other games.
+/content.lock.json
