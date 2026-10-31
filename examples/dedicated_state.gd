@@ -58,7 +58,7 @@ func _test_module() -> void:
 	# may ship its own parts, and it reaches joining clients through the hello — a client
 	# that had to be told out of band is a client that will not be.
 	_check(
-		module.bridge.avatar_pack_url == "",
+		module.hbridge.avatar_pack_url == "",
 		"with no rider content configured by default"
 	)
 	_check(
@@ -68,9 +68,9 @@ func _test_module() -> void:
 		"setting one is accepted"
 	)
 	_check(
-		module.bridge.avatar_pack_url == "https://cdn.example/hungry/manifest.json",
+		module.hbridge.avatar_pack_url == "https://cdn.example/hungry/manifest.json",
 		"and reaches the bridge, which is what tells a client (%s)"
-			% module.bridge.avatar_pack_url
+			% module.hbridge.avatar_pack_url
 	)
 	_server.console.execute("hungry_avatar_pack \"\"")
 
@@ -261,7 +261,7 @@ func _test_bots() -> void:
 
 func _test_bots_quota(module: HungryModule, world: HungryWorld, quota: DotConVar, quota_mode: DotConVar) -> void:
 	var bots_before := module.bot_count()
-	var joined := module.bridge.add_player(0, 777, "Person")
+	var joined := module.hbridge.add_player(0, 777, "Person")
 	module._drive_bots()
 	var bots_with := module.bot_count()
 	_check(
@@ -308,7 +308,7 @@ func _test_bots_play(module: HungryModule, world: HungryWorld) -> void:
 	# address, so a bot registered as a peer would make the server build a snapshot
 	# against the bot's interest rectangle and send it to every real client.
 	_check(
-		not module.bridge.net.peers().has(0),
+		not module.hbridge.net.peers().has(0),
 		"and none of them is registered as a peer"
 	)
 
@@ -474,7 +474,7 @@ func _test_netcode() -> void:
 
 	_check(module.net != null and module.net.is_running(), "a manager is running")
 	_check(module.net.is_server, "as the server")
-	_check(module.bridge != null, "with a bridge")
+	_check(module.hbridge != null, "with a bridge")
 
 	# The RPC node has to sit where a client's will look for it. Godot addresses an RPC by
 	# the receiver's path relative to its MultiplayerAPI root, so the name and the parent

@@ -1,4 +1,4 @@
-extends DotModule
+extends DotGameModule
 
 const HungryAmbience := preload("hungry_ambience.gd")
 
@@ -41,8 +41,6 @@ const AMBIENT_KIND := "ambience"
 ## descriptors. The only file naming dot-server. The manager outlives the world: rebuilding
 ## [DotNetManager] on a game change would reset ids, peers and the clock, so only the bridge is rebound.
 
-const CHANNEL := "hungry.module"
-
 ## The drawn mode ballot's notice topic. The client shell draws one menu per topic, and a
 ## server running several games sends its own `game_ballot` beside this one.
 const MAP_BALLOT_TOPIC := &"map_ballot"
@@ -69,21 +67,31 @@ const GAME_REEF := "hungry_reef"
 
 const GAME_SHALLOWS := "hungry_shallows"
 
-var world: HungryWorld = null
+## The world, which is dot-game's `game`; typed here because every call on it is the game's own.
+var world: HungryWorld:
+	get:
+		return game as HungryWorld if game != null and is_instance_valid(game) else null
+	set(value):
+		game = value
 
-var net: DotNetManager = null
+## The base holds these as plain nodes; the typed views are what this game's code calls.
+var hbridge: HungryNetBridge:
+	get:
+		return bridge as HungryNetBridge if bridge != null and is_instance_valid(bridge) else null
 
-var bridge: HungryNetBridge = null
+var hservices: HungryServices:
+	get:
+		return services as HungryServices if services != null and is_instance_valid(services) else null
+
+## userid -> true, for the humans seated in the world.
+var _joined: Dictionary:
+	get:
+		return roster.joined if roster != null else {}
 
 ## What players may bring in, and where their choices are kept.
 ## Memory-backed, right for a dedicated server (a persistent loadout is dot-user's profile); an operator
 ## points the config at the local backend or subclasses [DotLoadoutStore], which is the seam.
 var loadouts: DotLoadoutManager = null
-
-## Chat, moderation and voice. Built here rather than in the world, because they are about
-## the people connected rather than about the arena — a game change frees the world and
-## these have to survive it, exactly as the netcode manager does.
-var services: HungryServices = null
 
 ## Where the services write punishments: [constant HungryServices.PUNISHMENTS_PATH] unless a host says
 ## otherwise before this loads. Static because dot-server constructs the module in `load_module`,
@@ -130,19 +138,6 @@ var stats: DotStatsTracker = null
 ## userid -> the scoped key the tracker knows them by.
 var _stat_keys: Dictionary = {}
 
-## Only asked for keys: this module opens its own tracker sessions.
-var _stats_feed: DotGameStatsFeed = _new_stats_feed()
-
-## userid -> true, for the humans this module put in the world.
-var _joined: Dictionary = {}
-
-## Who is still behind their loading cover, from dot-game's roster used for that alone: this module
-## is not on DotGameModule, so it only borrows the bookkeeping. A player id is the userid, so
-## [method HungryWorld.can_be_harmed] asks it by that.
-var loading: DotGameRoster = null
-
-var _handles_cover: bool = false
-
 ## player id -> display name, for the bots.
 var _bots: Dictionary = {}
 
@@ -150,8 +145,6 @@ var _next_bot_id: int = BOT_ID_BASE
 
 ## Gets the bots from the number there are to the number [DotBotQuota] wants, named.
 var _roster := DotBotRoster.new()
-
-var _tick: int = 0
 
 ## `hungry_bots`, the old fixed count, kept only as an alias. See [method _register_console].
 var _cv_bots: DotConVar = null
@@ -164,8 +157,6 @@ var _cv_pack: DotConVar = null
 var _cv_auth_config: DotConVar = null
 
 var _cv_hunters: DotConVar = null
-
-var _map_config: DotGameMapConfig = null
 
 ## dot-workbench over the config and the modes; null until the load finishes.
 var workbench: DotGameWorkbench = null
@@ -244,7 +235,7 @@ func _apply_stored_loadout(player_id: int) -> void:
 		return
 
 	monster.wear_loadout(active.value)
-	bridge._announce(monster)
+	hbridge._announce(monster)
 
 
 ## Starts reporting this server to its listing, if an operator has configured one.
@@ -333,7 +324,7 @@ func _build_stats() -> void:
 	add_child(stats)
 	# The registered tracker is what DotGameStatsReport's default apply flips.
 	DotRegistry.register(DotGameStatsFeed.SERVICE, stats)
-	var _report := DotGameStatsReport.bind(self)
+	var _report := bind_stats_report()
 
 	world.food_eaten.connect(_on_stat_food)
 	world.fruit_eaten.connect(_on_stat_fruit)
@@ -399,15 +390,9 @@ func _begin_stats(session: DotClientSession) -> void:
 		return
 	if session.local:
 		return
-	var key := String(_stats_feed.key_for(session))
+	var key := String(stats_feed.key_for(session))
 	_stat_keys[session.userid] = StringName(key)
 	stats.begin(StringName(key), session.display_name)
-
-
-static func _new_stats_feed() -> DotGameStatsFeed:
-	var feed := DotGameStatsFeed.new()
-	feed.open_sessions = false
-	return feed
 
 
 func _end_stats(session: DotClientSession) -> void:
@@ -415,7 +400,7 @@ func _end_stats(session: DotClientSession) -> void:
 		return
 	stats.end(_stat_keys[session.userid])
 	_stat_keys.erase(session.userid)
-	_stats_feed.forget(session.userid)
+	stats_feed.forget(session.userid)
 
 
 ## The avatar dot-platform resolved for this session, if there is a dot-platform.
@@ -461,8 +446,8 @@ func _drive_bots() -> void:
 		if monster == null:
 			continue
 
-		bridge.note_command(
-			int(bot_id), HungryBot.command_for(world, monster, _tick)
+		hbridge.note_command(
+			int(bot_id), HungryBot.command_for(world, monster, tick)
 		)
 
 func _remove_bot(doomed: Variant) -> void:
@@ -475,7 +460,7 @@ func _add_bot(display_name: String) -> int:
 	_next_bot_id += 1
 
 	var index := bot_id - BOT_ID_BASE
-	var added := bridge.add_player(0, bot_id, display_name)
+	var added := hbridge.add_player(0, bot_id, display_name)
 
 	if not added.ok:
 		log_warn("could not add a bot", {"error": str(added.error)})
@@ -484,7 +469,7 @@ func _add_bot(display_name: String) -> int:
 		# Bots take turns through the traits and throwables so the loadout paths a human's choice takes are
 		# exercised on a server nobody has joined, and an operator sees them doing something.
 	var monster: HungryMonster = added.value
-	var loadout := DotLoadout.empty(bridge.loadout_schema.id)
+	var loadout := DotLoadout.empty(hbridge.loadout_schema.id)
 	loadout.set_item(
 		HungryContent.SLOT_STARTER,
 		HungryContent.ITEM_IDS[index % HungryContent.ITEM_IDS.size()]
@@ -497,7 +482,7 @@ func _add_bot(display_name: String) -> int:
 	)
 
 	var legal := DotLoadoutValidator.validate(
-		loadout, bridge.loadout_schema, DotLoadoutEntitlements.none()
+		loadout, hbridge.loadout_schema, DotLoadoutEntitlements.none()
 	)
 
 	if legal.ok:
@@ -515,8 +500,8 @@ func bot_count() -> int:
 ## Connected clients are not re-told (the hello is sent once, on admission); a change takes effect
 ## from the next join.
 func _sync_pack() -> void:
-	if bridge != null and _cv_pack != null:
-		bridge.avatar_pack_url = _cv_pack.get_string()
+	if hbridge != null and _cv_pack != null:
+		hbridge.avatar_pack_url = _cv_pack.get_string()
 
 
 ## What a server browser is told about this game.
@@ -589,17 +574,10 @@ func describe() -> Dictionary:
 	var out := super.describe()
 	out["players"] = _joined.size()
 	out["bots"] = _bots.size()
-	out["tick"] = _tick
+	out["tick"] = tick
 	out["world"] = String(world.preset.id) if world != null else "<none>"
 	out["loadouts"] = loadouts.describe() if loadouts != null else {}
 	return out
-
-## Disconnects a peer whose message schema this server cannot play with, with dot-net's
-## sentence as the reason. See `peer_schema_refused` above.
-func _refuse_peer(peer_id: int, error: DotError) -> void:
-	var session: DotClientSession = server.session_of(peer_id) if server != null else null
-	if session != null:
-		server.kick(session, error.message, error)
 
 ## Binds the server config's cvars and commands, and keeps the live round in step with an edit.
 func _bind_tuning() -> void:
@@ -632,7 +610,7 @@ func _on_tuning_changed(key: String, _value: Variant, _source: String) -> void:
 
 ## dot-workbench over the server config and the six modes: the HTTP page only with `workbench.enabled` in cfg/server.yml, the F9 panel never on a dedicated server.
 func _start_workbench() -> void:
-	var rt: DotProfileRuntime = bridge.ensure_runtime() if bridge != null else DotProfileRuntime.new()
+	var rt: DotProfileRuntime = hbridge.ensure_runtime() if hbridge != null else DotProfileRuntime.new()
 	var admin_permit := Callable()
 	if server != null and server.admins != null:
 		admin_permit = server.admins.uid_has_permission

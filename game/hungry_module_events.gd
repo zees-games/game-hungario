@@ -1,16 +1,14 @@
 extends "res://game/hungry_module_console.gd"
 
-func _physics_process(_delta: float) -> void:
-	if not loaded or bridge == null or world == null:
-		return
+## The module drives no clock of its own: the base ticks once, then this runs.
+func _can_tick() -> bool:
+	return hbridge != null and world != null
 
-	_tick += 1
-	loading.poll_loading()
+func _game_tick(_tick: int, _delta: float) -> void:
 	_drive_bots()
-	bridge.server_tick(_tick)
 
-		# After the world's own tick: hunters read where everybody is and hazards push pieces out of rocks,
-		# both on positions the movement just produced, or they see a one-tick lag.
+	# After the world's own tick: hunters read where everybody is and hazards push pieces out of rocks,
+	# both on positions the movement just produced, or they see a one-tick lag.
 	if hunters != null and hunters.is_enabled():
 		hunters.tick(1.0 / float(world.tick_rate))
 
@@ -20,46 +18,38 @@ func _physics_process(_delta: float) -> void:
 	if maps != null:
 		maps.advance(1.0 / float(world.tick_rate))
 
+## Our disconnect handler goes on the server before the roster's, so it still sees the player in the world.
+func _build_roster() -> void:
+	if server != null:
+		server.client_disconnected.connect(_on_client_disconnected)
 
-## A client finished joining.
-## The event carries `userid`, not `peer_id`: a lookup by a peer id absent from the payload returns
-## null silently, and nobody is ever added to the world.
-func _on_client_spawn(event: DotEvent) -> void:
-	var session := server.session_by_userid(event.get_int("userid"))
+	super()
+	# This module opens its own tracker sessions (see [method _begin_stats]).
+	stats_feed.open_sessions = false
+	roster.add_fn = _seat_player
+	roster.remove_fn = _unseat_player
+	roster.seated.connect(_on_seated)
 
-	if session == null or _joined.has(session.userid):
-		return
-
-	# The session id, not the peer id: a peer id is reassigned on reconnect and the next
-	# player to join would inherit this one's monster.
-	var added := bridge.add_player(
-		session.peer_id,
-		session.userid,
-		session.display_name,
-		_avatar_for(session)
+## The session id, not the peer id: a peer id is reassigned on reconnect and the next
+## player to join would inherit this one's monster.
+func _seat_player(session: DotClientSession) -> Variant:
+	return hbridge.add_player(
+		session.peer_id, session.userid, session.display_name, _avatar_for(session)
 	)
 
-	if not added.ok:
-		log_warn("could not add a player", {
-			"userid": session.userid, "error": str(added.error)
-		})
-		return
+func _unseat_player(session: DotClientSession) -> void:
+	hbridge.remove_peer(session.peer_id)
 
-	_joined[session.userid] = true
-	loading.add(session)
+## The roster has added them to the world and told the services (so chat and voice have somewhere to put a frame).
+func _on_seated(session: DotClientSession) -> void:
 	_apply_stored_loadout(session.userid)
 	_begin_stats(session)
-
-	# Voice and chat learn about them before anything is sent, so a frame or a line that
-	# lands in the same flush as the admission has somewhere to go.
-	if services != null:
-		services.add_peer(session.peer_id)
 
 	if progress != null:
 		progress.begin(str(_stat_keys.get(session.userid, "")))
 
-		# The welcome is not sent from here: `client_spawn` ends signon but the client builds its scene
-		# after it, so the peer is never ready yet. See [method _on_peer_admitted].
+	# The welcome is not sent from here: `client_spawn` ends signon but the client builds its scene
+	# after it, so the peer is never ready yet. See [method _on_peer_admitted].
 
 ## A peer said it can receive: now it can be welcomed.
 func _on_peer_admitted(peer_id: int, player_id: int) -> void:
@@ -74,30 +64,30 @@ func _on_peer_admitted(peer_id: int, player_id: int) -> void:
 ## After the admission, never before: sent before the client builds its scene it is lost, one
 ## "Node not found" per call.
 func _welcome(session: DotClientSession) -> void:
-	if not bridge.peer_is_ready(session.peer_id):
+	if not hbridge.peer_is_ready(session.peer_id):
 		return
 
-	if services != null:
+	if hservices != null:
 		# The backlog: what was said before they walked in. dot-chat computes it per peer,
 		# because a channel with `backlog = 0` — the proximity one — must not replay a
 		# line somebody said quietly in a corner to a stranger who was not there.
-		for line in services.chat.backlog_for(session.peer_id):
-			bridge.send_chat(session.peer_id, line)
+		for line in hservices.chat.backlog_for(session.peer_id):
+			hbridge.send_chat(session.peer_id, line)
 
-		services.chat.join_notice(session.peer_id, HungryServices.CHANNEL_ALL)
+		hservices.chat.join_notice(session.peer_id, HungryServices.CHANNEL_ALL)
 
 	# The hunters and the hazards already in the arena. A client that joined mid-wave
 	# would otherwise be told about a hunter only when it next moved, and would walk
 	# through a rock in the meantime — both ends resolve the same list.
 	if hunters != null:
 		for row in hunters.wire_rows():
-			bridge.send_hunter(
+			hbridge.send_hunter(
 				session.peer_id, row[0], row[1], row[2], row[3], row[4]
 			)
 
 	if hazards != null:
 		for row in hazards.wire_rows():
-			bridge.send_hazard(session.peer_id, row[0], row[1], row[2], true)
+			hbridge.send_hazard(session.peer_id, row[0], row[1], row[2], true)
 
 func _on_client_disconnected(session: DotClientSession, _reason: String) -> void:
 	if not _joined.has(session.userid):
@@ -105,31 +95,27 @@ func _on_client_disconnected(session: DotClientSession, _reason: String) -> void
 
 		# Off the broadcast set first: everything below announces this person to everybody else, and their
 		# socket is gone ("Attempt to call RPC with unknown peer ID" in every disconnect log).
-	bridge.mark_not_ready(session.peer_id)
+	hbridge.mark_not_ready(session.peer_id)
 
-	if services != null:
-		services.chat.leave_notice(session.peer_id, HungryServices.CHANNEL_ALL)
-		services.remove_peer(session.peer_id)
+	if hservices != null:
+		hservices.chat.leave_notice(session.peer_id, HungryServices.CHANNEL_ALL)
 
 	if mod_tools != null:
 		mod_tools.forget(StringName(str(session.userid)))
 
 	if maps != null and maps.director != null:
 		# The vote forgets them, or a rock-the-vote threshold counts a ballot from
-		# somebody who has left — which is how a server ends up unable to change at all.
+		# somebody who has left, which is how a server ends up unable to change at all.
 		maps.director.forget_voter(StringName(str(session.userid)))
 
 	if progress != null:
 		progress.end(str(_stat_keys.get(_player_of_session(session), "")))
 
-	bridge.remove_peer(session.peer_id)
-	loading.remove(session)
-	_joined.erase(session.userid)
 	_end_stats(session)
 
 ## The world player id a session is in the arena under, or zero.
 func _player_of_session(session: DotClientSession) -> int:
-	return bridge.player_for_peer(session.peer_id) if bridge != null else 0
+	return hbridge.player_for_peer(session.peer_id) if hbridge != null else 0
 
 
 ## Somebody said something through dot-server's own chat path.
@@ -140,7 +126,7 @@ func _on_player_chat(event: DotEvent) -> void:
 
 	var session := event.get_session()
 
-	if session == null or services == null or services.chat == null:
+	if session == null or hservices == null or hservices.chat == null:
 		return
 
 	# A browser shell's own chat box has no way to name a channel, so the legacy path
@@ -150,19 +136,19 @@ func _on_player_chat(event: DotEvent) -> void:
 	)
 
 func _on_say_requested(peer_id: int, channel_id: StringName, text: String) -> void:
-	var said := services.chat.submit(peer_id, channel_id, text)
+	var said := hservices.chat.submit(peer_id, channel_id, text)
 
 	if not said.ok and said.error != null:
 		# Back to the sender and nowhere else. dot-chat is deliberate that a rate-limited
 		# or gagged player must not be able to measure the difference from outside, and a
 		# refusal broadcast to the room is exactly that measurement.
-		services.chat.notice(peer_id, said.error.message, channel_id)
+		hservices.chat.notice(peer_id, said.error.message, channel_id)
 
 ## A voice frame. Relayed, never inspected — the router stamps the speaker from the
 ## transport's own sender id, and without that any client can put words in any other
 ## player's mouth.
 func _on_voice_requested(peer_id: int, payload: PackedByteArray) -> void:
-	services.voice.relay(peer_id, payload)
+	hservices.voice.relay(peer_id, payload)
 
 func _on_chat_accepted(message: DotChatMessage, _recipients: PackedInt32Array) -> void:
 	# Nothing to draw over a head here — a monster is not a nameplate — but the server's
@@ -191,7 +177,7 @@ func _on_chat_command(peer_id: int, command: String, args: PackedStringArray) ->
 		args,
 		DotCmdContext.Source.CHAT,
 		func(line: String) -> void:
-			services.chat.notice(peer_id, line, HungryServices.CHANNEL_ALL)
+			hservices.chat.notice(peer_id, line, HungryServices.CHANNEL_ALL)
 	)
 
 	var line := command
@@ -208,7 +194,7 @@ func _on_vote_requested(peer_id: int, token: String) -> void:
 	if maps == null or maps.director == null:
 		return
 
-	var player_id := bridge.player_for_peer(peer_id)
+	var player_id := hbridge.player_for_peer(peer_id)
 
 	# Nobody in the world yet. `player_for_peer` answers 0 for every such peer, so they
 	# would all rock, nominate and vote as the one voter "0" — each undoing the last.
@@ -243,14 +229,14 @@ func _on_vote_requested(peer_id: int, token: String) -> void:
 			else:
 				result = maps.director.extend()
 
-	if result != null and not result.ok and services != null:
-		services.chat.notice(
+	if result != null and not result.ok and hservices != null:
+		hservices.chat.notice(
 			peer_id, result.error.message, HungryServices.CHANNEL_ALL
 		)
 
 func _voter_is_admin(voter: StringName) -> bool:
 	var player_id := String(voter).to_int()
-	var peer_id := bridge.peer_for_player(player_id)
+	var peer_id := hbridge.peer_for_player(player_id)
 	var session := server.session_of(peer_id) if peer_id > 0 else null
 	# CHANGEMAP, not any flag: `is_admin()` is "holds a flag at all", which a reserved slot
 	# or admin chat satisfies, and this gates extending the map, an instant rtv and the
@@ -258,8 +244,8 @@ func _voter_is_admin(voter: StringName) -> bool:
 	return session != null and session.has_permission(DotAdminFlags.CHANGEMAP)
 
 func _on_vote_announced(line: String) -> void:
-	if services != null and services.chat != null:
-		services.chat.announce(line, HungryServices.CHANNEL_ALL)
+	if hservices != null and hservices.chat != null:
+		hservices.chat.announce(line, HungryServices.CHANNEL_ALL)
 
 ## The vote picked something. dot-server changes the game; nothing here does.
 func _on_change_due(game_id: StringName) -> void:
@@ -278,10 +264,10 @@ func _on_hunter_changed(hunter_id: int) -> void:
 	if state.is_empty():
 		# Gone. Announced as not-alive so a client drops it, rather than simply stopping
 		# being mentioned — which would leave it drawn for ever.
-		bridge.broadcast_hunter(hunter_id, 0, Vector2.ZERO, 0.0, false)
+		hbridge.broadcast_hunter(hunter_id, 0, Vector2.ZERO, 0.0, false)
 		return
 
-	bridge.broadcast_hunter(
+	hbridge.broadcast_hunter(
 		hunter_id,
 		HungryHunters.index_of(state["kind"]),
 		state["at"],
@@ -297,10 +283,10 @@ func _on_piece_hunted(player_id: int, _mass: float) -> void:
 		stats.record(key, &"hunted", 1.0)
 
 func _on_hazard_placed(place_id: int, def: DotPropDef, at: Vector2) -> void:
-	bridge.broadcast_hazard(place_id, HungryHazards.index_of(def.id), at, true)
+	hbridge.broadcast_hazard(place_id, HungryHazards.index_of(def.id), at, true)
 
 func _on_hazard_cleared(place_id: int) -> void:
-	bridge.broadcast_hazard(place_id, 0, Vector2.ZERO, false)
+	hbridge.broadcast_hazard(place_id, 0, Vector2.ZERO, false)
 
 ## A spike. What "burst" means is the world's; this is where it is asked for.
 func _on_hazard_struck(player_id: int, _piece_id: int, effect: StringName) -> void:
@@ -314,7 +300,7 @@ func _on_earned(player_key: String, id: StringName, title: String, points: int) 
 		if str(_stat_keys[player_id]) != player_key:
 			continue
 
-		bridge.broadcast_progress(int(player_id), id, title, points)
+		hbridge.broadcast_progress(int(player_id), id, title, points)
 		return
 
 

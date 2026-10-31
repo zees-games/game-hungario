@@ -8,10 +8,10 @@ extends "res://game/net/hungry_net_bridge_server.gd"
 func attach(
 	p_world: HungryWorld,
 	p_net: DotNetManager,
-	link_parent: Node
+	link_parent: Node = null
 ) -> DotResult:
-	if p_world == null or p_net == null or link_parent == null:
-		return DotResult.fail(DotError.CODE_INVALID, "A bridge needs all three.")
+	if p_world == null or p_net == null:
+		return DotResult.fail(DotError.CODE_INVALID, "A bridge needs a world and a manager.")
 
 	if p_world.is_authority != p_net.is_server:
 		# A world that thinks it is authoritative behind a client manager would resolve
@@ -64,6 +64,16 @@ func attach(
 	if net.is_server:
 		_connect_world()
 
+	if link_parent != null:
+		return open_link(link_parent)
+
+	return DotResult.success(self)
+
+## Puts the RPC link under the server and, on the server, builds the match entity.
+func open_link(link_parent: Node) -> DotResult:
+	if link_parent == null or net == null:
+		return DotResult.fail(DotError.CODE_STATE, "Attach the bridge before opening its link.")
+
 	link = HungryNetLink.attached_to(self, net.is_server)
 	# Not link_parent.add_child: the link sits under the server (RPCs route by path) but must
 	# die with this bridge. A bare add_child left a second link after a module reload and
@@ -78,6 +88,7 @@ func attach(
 			return built
 
 	return DotResult.success(self)
+
 
 ## Moves this bridge onto a new world, keeping every connection. Server side.
 ##

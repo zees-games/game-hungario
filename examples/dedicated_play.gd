@@ -117,7 +117,7 @@ func _test_services() -> void:
 	_section("chat and voice")
 
 	var module := _module()
-	var services := module.services
+	var services := module.hservices
 
 	_check(services != null, "the services are up")
 	_check(

@@ -474,7 +474,7 @@ func _test_client_scene() -> void:
 		lifted and Time.get_ticks_msec() - loaded_at < 5000,
 		"the client's cover lifts and the server hears it (the seat is harmable)"
 	)
-	_check(_module().loading.load_timeouts == 0, "by the client's word, not the timeout")
+	_check(_module().roster.load_timeouts == 0, "by the client's word, not the timeout")
 	_check(
 		_client.screens != null and _client.platform.board != null
 			and _client.menu != null and _client.menu.page(&"loadout") != null,
@@ -585,8 +585,8 @@ func _test_playing() -> void:
 		"with no decode failures"
 	)
 	_check(
-		module.bridge.link.inputs_received > 0,
-		"and inputs are reaching the server (%d)" % module.bridge.link.inputs_received
+		module.hbridge.link.inputs_received > 0,
+		"and inputs are reaching the server (%d)" % module.hbridge.link.inputs_received
 	)
 
 	# The avatar the client published is the one the server holds. This is the whole
@@ -1031,7 +1031,7 @@ func _test_two_players() -> void:
 
 	# Leaving has to be visible too: a monster left behind by a player who is gone is one
 	# everybody else can still be eaten by.
-	var their_peer := module.bridge.peer_for_player(theirs)
+	var their_peer := module.hbridge.peer_for_player(theirs)
 	_other_link.disconnect_from_server("done")
 
 	var forgotten := await _until(func() -> bool:
@@ -1046,8 +1046,8 @@ func _test_two_players() -> void:
 	# A disconnect takes the peer off the ready set before removing it, and removal must not be gated on the ready set,
 	# or the manager keeps the peer and sends it a snapshot every interval (an "unknown peer ID" error in the server's log).
 	_check(
-		their_peer > 0 and not module.bridge.net.peers().has(their_peer),
-		"and so does its netcode (peers %s)" % str(module.bridge.net.peers())
+		their_peer > 0 and not module.hbridge.net.peers().has(their_peer),
+		"and so does its netcode (peers %s)" % str(module.hbridge.net.peers())
 	)
 
 	_other = null
@@ -1163,7 +1163,7 @@ func _test_game_change() -> void:
 	# To the reef, not frenzy: a mode with rocks adds the one thing a client derives rather than receives, the discs it predicts against.
 	# Recorded as it happens, since the cover can lift again before a poll could look.
 	var seen := {"loading": 0, "loaded": 0, "harmable_while_loading": true, "t0": 0, "ms": -1}
-	module.loading.loading_changed.connect(func(userid: int, is_loading: bool) -> void:
+	module.roster.loading_changed.connect(func(userid: int, is_loading: bool) -> void:
 		if userid != mine:
 			return
 		if is_loading:

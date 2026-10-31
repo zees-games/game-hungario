@@ -145,7 +145,7 @@ func _register_tuning() -> void:
 
 func _cmd_status(ctx: DotCmdContext) -> void:
 	ctx.reply_lines(world.describe_lines())
-	ctx.reply_lines(bridge.describe_lines())
+	ctx.reply_lines(hbridge.describe_lines())
 
 	if _last_spoke != "":
 		ctx.reply("last spoke   %s" % _last_spoke)
@@ -160,7 +160,7 @@ func _cmd_status(ctx: DotCmdContext) -> void:
 		ctx.reply_lines(maps.describe_lines())
 
 func _cmd_services(ctx: DotCmdContext) -> void:
-	ctx.reply_lines(services.describe_lines())
+	ctx.reply_lines(hservices.describe_lines())
 
 	if combat != null:
 		ctx.reply_lines(combat.describe_lines())
@@ -254,7 +254,7 @@ func _punish(ctx: DotCmdContext, kind: DotPunishment.Kind, verb: String) -> void
 	var seconds := maxi(0, ctx.arg_int(1))
 	var reason := ctx.rest(2) if ctx.args.size() > 2 else "No reason given."
 
-	var issued: DotResult = await services.moderation.issue(
+	var issued: DotResult = await hservices.moderation.issue(
 		kind,
 		DotPunishmentSubject.for_uid(session.uid()),
 		reason,
@@ -273,7 +273,7 @@ func _punish(ctx: DotCmdContext, kind: DotPunishment.Kind, verb: String) -> void
 
 	# Told to the person it happened to, on the channel they are reading. A mute nobody is
 	# told about is a microphone that has stopped working, which is what they report.
-	services.chat.notice(
+	hservices.chat.notice(
 		session.peer_id,
 		(issued.value as DotPunishment).player_message(),
 		HungryServices.CHANNEL_ALL
@@ -300,10 +300,10 @@ func _cmd_loadouts(ctx: DotCmdContext) -> void:
 
 func _cmd_net(ctx: DotCmdContext) -> void:
 	ctx.reply_lines(net.describe_lines())
-	ctx.reply("link     %s" % str(bridge.link.describe()))
+	ctx.reply("link     %s" % str(hbridge.link.describe()))
 
 func _cmd_restart(ctx: DotCmdContext) -> void:
-	world.start(_tick)
+	world.start(tick)
 	ctx.reply("Round restarted.")
 
 func _cmd_rotation(ctx: DotCmdContext) -> void:
@@ -344,7 +344,7 @@ func _cmd_give(ctx: DotCmdContext) -> void:
 		ctx.reply("%s is already carrying the maximum." % monster.display_name)
 		return
 
-	bridge.send_carry(monster.id)
+	hbridge.send_carry(monster.id)
 	ctx.reply("Gave %s a %s." % [monster.display_name, ctx.args[1]])
 
 func _cmd_burst(ctx: DotCmdContext) -> void:

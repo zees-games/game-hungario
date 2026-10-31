@@ -19,20 +19,11 @@ Every one of these is already encoded somewhere in dot-core; they are collected 
 | **A mounted resource pack can never be unmounted** | dot-cloud namespaces content by `id/version`. The rider pack uses it: `res://dot_cloud/hungry_avatars/1.0.0/`, and a second version cannot shadow the first. The game itself still ships in the build |
 | **An HTTPS page may not open a `ws://` socket** | `embed.html` checks for it and says so, because the browser's own error does not mention mixed content |
 
-## Exporting
+## Delivery
 
-```bash
-godot --headless --path . --export-release "Web" web/build/index.html
-```
+A player reaches this game through the client shell (`dot-server-deploy`) in a browser, which fetches the signed `game-hungario` dot-cloud pack from the CDN and mounts it; nothing is exported by hand for them. Publish with `dot-cloud/tools/publish_pack.sh --host-addons <addons.lock> --id game-hungario --version <next>`.
 
-The preset is not committed (`export_presets.cfg` is gitignored, because it carries absolute paths and sometimes signing material). Create it in the editor with:
-
-- **Main scene:** `res://examples/play.tscn`. It is the launcher, and in a browser it takes the server from the query string.
-- **Renderer:** Compatibility. `gl_compatibility` is already the project default — Forward+ does not run in a browser.
-- **Extensions Support:** off unless you have measured that you need threads. Turning it on requires the two isolation headers below on *every* response, including the WASM and the PCK, and a single missing one takes the whole page down with a message that does not mention headers.
-- **Thread Support:** off. `DotPlatform.has_threads()` is the check every dot-* class makes, and the whole family works without them.
-
-Then drop `embed.html` beside the exported `index.js`, `index.wasm` and `index.pck`, and serve the directory. `embed.html` replaces Godot's generated `index.html`: it is smaller, it handles the device-pixel-ratio and touch-action problems, and it takes the server from `?server=wss://host:port`.
+`embed.html` and a hand export remain for running the game standalone behind your own origin. Export the "Web" preset to `web/build/index.html` with Godot's `--export-release`. The preset is not committed (`export_presets.cfg` carries absolute paths). Use `res://examples/play.tscn` as the main scene, Compatibility as the renderer, and leave Extensions and Thread Support off (`DotPlatform.has_threads()` is the check the family makes). Drop `embed.html` beside the exported `index.js`, `index.wasm` and `index.pck`; it takes the server from `?server=wss://host:port`.
 
 ## Headers
 
@@ -78,4 +69,4 @@ Audio in a browser needs a user gesture before it will start. Tapping either but
 
 - **A server browser.** The page takes one address. Picking from a list is website-city's, and the reporting side of that already exists — `DotBackboneClient` posts a server's player count, map and roster to its site listing.
 - **A real TLS setup.** Certificates, a reverse proxy and a domain are deployment, not code.
-- **A downloadable *game*.** The rider cosmetics are published, signed, fetched, verified and mounted for real — `examples/content.tscn` runs the whole path — but the game itself ships inside the build, so `changegame` never exercises dot-server's content sync and no client has ever downloaded a map. Serving the pack from the same origin as the export is the easy case and needs none of the CORS headers above.
+- **A downloadable *game*.** The rider cosmetics are published, signed, fetched, verified and mounted for real — `examples/content.tscn` runs the whole path — and the game itself is a signed pack the shell fetches. Serving a pack from the same origin as the page is the easy case and needs none of the CORS headers above.

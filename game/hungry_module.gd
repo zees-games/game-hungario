@@ -1,16 +1,44 @@
 extends "res://game/hungry_module_events.gd"
 
-func _module_load() -> DotResult:
-	world = DotRegistry.get_node_service(HungryWorld.SERVICE) as HungryWorld
+func _game_service() -> StringName:
+	return HungryWorld.SERVICE
 
-	if world == null:
-		return DotResult.fail(
-			DotError.CODE_STATE,
-			"No HungryWorld is registered.",
-			"load a mode scene first, or set DotGameManager.initial_game to '%s'"
-				% GAME_CLASSIC
-		)
+func _game_missing_hint() -> String:
+	return "load a mode scene first, or set DotGameManager.initial_game to '%s'" % GAME_CLASSIC
 
+func _net_config() -> DotNetConfig:
+	var config := DotNetConfig.new()
+	config.tick_rate = (game as HungryWorld).tick_rate
+	config.snapshot_rate = SNAPSHOT_RATE
+	config.enable_prediction = true
+	config.enable_lag_compensation = false
+	# The pieces are what a snapshot is made of, and a crowded fight is a lot of them.
+	config.max_entities_per_snapshot = 120
+	config.world_extent = Dot2DNetSync.WORLD_EXTENT
+	config.reconcile_position_epsilon = HungryNetBridge.RECONCILE_EPSILON
+	return config
+
+func _make_bridge() -> Node:
+	return HungryNetBridge.new()
+
+func _wants_platform_module() -> bool:
+	return false
+
+func _make_services() -> Node:
+	var made := HungryServices.new()
+	made.bridge = bridge as HungryNetBridge
+	made.world = world
+	made.server = server
+	made.punishments_path = punishments_path
+	return made
+
+func _map_config_keys() -> Dictionary:
+	return HungryMapConfig.KEYS
+
+func _map_config_game() -> String:
+	return HungryMapConfig.GAME_ID
+
+func _game_load() -> DotResult:
 	# Strict on a dedicated server: a typo in cfg/ stops the boot instead of being ignored.
 	var tuned := HungryTuning.result()
 
@@ -21,58 +49,65 @@ func _module_load() -> DotResult:
 		DotGameConfigBinder.fail_boot(get_tree(), tuned)
 		return tuned
 
-	_report_map(world)
 	world.ragdoll_rules = ragdoll_rules
-	_build_loading()
-	world.loading_fn = loading.is_loading
-
-	var netted := _build_netcode()
-
-	if not netted.ok:
-		return netted
+	world.loading_fn = is_loading
 
 	var loadouts_ready := _build_loadouts()
 
 	if not loadouts_ready.ok:
 		return loadouts_ready
 
-	hook_post("client_spawn", _on_client_spawn)
-	server.client_disconnected.connect(_on_client_disconnected)
+	if hservices == null:
+		return DotResult.fail(DotError.CODE_STATE, "The services could not be set up")
 
-	if not bridge.peer_admitted.is_connected(_on_peer_admitted):
-		bridge.peer_admitted.connect(_on_peer_admitted)
+	hbridge.peer_admitted.connect(_on_peer_admitted)
+	hbridge.say_requested.connect(_on_say_requested)
+	hbridge.voice_requested.connect(_on_voice_requested)
+	hbridge.vote_requested.connect(_on_vote_requested)
+	hservices.command_entered.connect(_on_chat_command)
+	# The server's own view of a bubble, off the signal that fires after a line was accepted.
+	hservices.chat.message_accepted.connect(_on_chat_accepted)
+	_build_mod_tools()
 
-	# [b]dot-server's own chat is cancelled here rather than listened to.[/b]
-	# [DotChatRouter] has the rules now — channels, a radius, a backlog, a `/me`, and a
-	# gag that survives a reconnect — and the one thing that must not happen is both
-	# running: two sets of rules to keep in step, and the one that skipped the filter
-	# would be the one that leaked admin chat. A pre-hook is what can cancel;
-	# [method DotChatManager.handle_message] broadcasts the moment the event returns.
+	# dot-server's own chat is cancelled in a pre-hook: dot-chat has the rules, and two paths
+	# would let the one that skipped the filter leak admin chat.
 	hook_pre("player_chat", _on_player_chat)
 
-	# dot-chat makes the join and leave notices now, so dot-server's would be a second
-	# one on a second path.
+	# dot-chat makes the join and leave notices now.
 	if server.chat != null:
 		server.chat.announce_joins = false
 
 	_register_games()
 	_register_console()
-	# The cvars exist only now, so the first map's file could not apply in the report above.
-	_report_map(world)
+	# The cvars exist only now, so the first map's file can apply.
+	var _reported := report_map(String(world.preset.id))
 	_build_query_provider()
 
 	_build_reporting()
 	_build_stats()
 
-	var extras := _build_extras()
+	var fought := _build_combat()
 
-	if not extras.ok:
-		return extras
+	if not fought.ok:
+		return fought
+
+	var hunted := _build_hunters()
+
+	if not hunted.ok:
+		return hunted
+
+	var earned := _build_progress()
+
+	if not earned.ok:
+		return earned
+
+	var mapped := _build_maps()
+
+	if not mapped.ok:
+		return mapped
 
 	if Engine.physics_ticks_per_second != world.tick_rate:
-		# Not corrected here: `sv_tickrate` is the operator's and this module is a guest
-		# in their server. Loud, because the symptom otherwise is a game that runs at the
-		# wrong speed with nothing in the log about it.
+		# Not corrected: `sv_tickrate` is the operator's. Loud, because the symptom is a game at the wrong speed.
 		log_warn("sv_tickrate does not match the world's tick rate", {
 			"engine": Engine.physics_ticks_per_second,
 			"world": world.tick_rate,
@@ -92,40 +127,7 @@ func _module_load() -> DotResult:
 
 	return DotResult.success(null)
 
-## The loading roster and the handler for the client's cover report on dot-server's envelope.
-## A kind on the existing envelope because the RPC set is frozen; a client that predates it is
-## released by the roster's timeout. Duck-typed so an older dot-server still loads this.
-func _build_loading() -> void:
-	loading = DotGameRoster.new()
-	loading.server = server
-
-	if server == null or not ("envelope" in server):
-		return
-
-	var env: Object = server.get(&"envelope")
-
-	if env != null and env.has_method("register"):
-		env.call("register", DotGameRoster.COVER_KIND, Callable(self, "_on_cover_report"), false)
-		_handles_cover = true
-
-func _on_cover_report(peer_id: int, payload: Dictionary) -> void:
-	var covered: Variant = payload.get("covered")
-
-	if loading != null and covered is bool:
-		loading.report_cover(peer_id, covered)
-
-## Whether this peer's client is behind its loading cover. False for a bot (peer 0) and for
-## anybody not seated.
-func is_peer_loading(peer_id: int) -> bool:
-	return loading != null and loading.is_peer_loading(peer_id)
-
-func can_be_harmed(seat: int) -> bool:
-	return loading == null or not loading.is_loading(seat)
-
-func can_peer_be_harmed(peer_id: int) -> bool:
-	return not is_peer_loading(peer_id)
-
-func _module_unload() -> void:
+func _game_unload() -> void:
 	if stats != null:
 		DotRegistry.unregister_instance(DotGameStatsFeed.SERVICE, stats)
 
@@ -133,73 +135,30 @@ func _module_unload() -> void:
 		workbench.queue_free()
 		workbench = null
 
-	if _map_config != null:
-		var _restored := _map_config.restore()
-		_map_config = null
-
-	if _handles_cover and server != null:
-		var env: Object = server.get(&"envelope")
-
-		if env != null and env.has_method("handle"):
-			env.call("handle", DotGameRoster.COVER_KIND, Callable())
-
-		_handles_cover = false
-
-	if loading != null:
-		loading.clear()
-		loading = null
-
 	if world != null and is_instance_valid(world):
 		world.loading_fn = Callable()
 
 	if server != null and server.client_disconnected.is_connected(_on_client_disconnected):
 		server.client_disconnected.disconnect(_on_client_disconnected)
 
-	# Every player this module put in the world comes out with it. A module that unloaded
-	# and left them there would leave the world holding monsters whose sessions no longer
-	# exist, and a netcode manager holding peers nothing will ever drive.
-	if bridge != null and is_instance_valid(bridge):
+	# Every player this module put in the world comes out with it, or the world keeps
+	# monsters whose sessions no longer exist.
+	if hbridge != null and is_instance_valid(hbridge):
 		for userid in _joined.keys():
-			bridge.remove_peer(bridge.peer_for_player(int(userid)))
+			hbridge.remove_peer(hbridge.peer_for_player(int(userid)))
 
 	if world != null and is_instance_valid(world):
 		for bot_id in _bots.keys():
 			world.remove_player(int(bot_id))
 
-	_joined.clear()
 	_bots.clear()
 
 	if backbone != null and is_instance_valid(backbone):
-		# A listing that shows a dead server as full for the length of the backbone's
-		# staleness window is worse than one that shows nothing, so this is worth trying —
-		# and it is only a try. `report_offline` suspends on an HTTP request and this is
-		# not a coroutine, so what actually happens is the request is issued and the node
-		# is freed at the end of the frame with the reply unread. A process that exits
-		# first abandons it, which is exactly what the staleness window exists to cover.
-		#
-		# Queued rather than removed: taking it out of the tree now would pull the HTTP
-		# client out from under the request that was just started.
+		# A try only: `report_offline` suspends and this is not a coroutine, so the request is
+		# issued and the node freed with the reply unread; the listing's staleness window covers the rest.
 		backbone.report_offline()
 		backbone.queue_free()
 		backbone = null
-
-	if net != null and is_instance_valid(net):
-		net.stop()
-
-## Tells dot-server which map this is, for the query's map field and the backbone report.
-##
-## The mode's preset, for the reason [method stats_report] gives: `hungry_frenzy` means
-## something to somebody reading a server browser, and the content id says only that it
-## is this repository.
-func _report_map(on: HungryWorld) -> void:
-	if server == null or server.games == null:
-		return
-	var map_id := String(on.preset.id) if on != null and on.preset != null else ""
-	server.games.set_current_map(map_id)
-	if server.console != null and map_id != "":
-		if _map_config == null:
-			_map_config = HungryMapConfig.build(server.console)
-		var _applied := _map_config.apply(map_id)
 
 ## Rebinds onto the world the new mode brought with it.
 ##
@@ -215,20 +174,24 @@ func _module_game_changed(content_key: String) -> void:
 		world = null
 		return
 
+	# The world and its loading hook are set before report_map, which marks the seats
+	# loading on a new map and notifies listeners that ask the world whether it can harm them.
+	var changed := next != world
+	if changed:
+		world = next
+		world.ragdoll_rules = ragdoll_rules
+		world.loading_fn = is_loading
+
 	# Before the same-world check, not after it: the game manager forgets the map every
 	# time it unloads a scene, so this has to be said again on every change.
-	_report_map(next)
+	report_map(String(next.preset.id))
 
-	if next == world:
+	if not changed:
 		return
-
-	world = next
-	world.ragdoll_rules = ragdoll_rules
-	world.loading_fn = loading.is_loading
 
 	# Every client covers for the new mode and says so when it lifts; until it does nobody is
 	# harmed, and one that never re-covers is released after the roster's grace.
-	loading.mark_reloading()
+	mark_reloading()
 
 	# Everything that holds a world holds the new one. A layer left pointing at a freed
 	# scene is a use-after-free on the next tick, and the ones that hold *placements*
@@ -242,8 +205,8 @@ func _module_game_changed(content_key: String) -> void:
 		hazards.world = world
 		hazards.clear_all()
 
-	if services != null:
-		services.world = world
+	if hservices != null:
+		hservices.world = world
 
 	_watch_spawns(world)
 
@@ -265,7 +228,7 @@ func _module_game_changed(content_key: String) -> void:
 	if maps != null:
 		maps.note_playing(game_id_of(next.preset.id))
 
-	var rebound := bridge.rebind(world)
+	var rebound := hbridge.rebind(world)
 
 	if not rebound.ok:
 		log_warn("could not rebind the bridge", {"error": str(rebound.error)})
@@ -275,75 +238,11 @@ func _module_game_changed(content_key: String) -> void:
 	# holds the old monster under that id would otherwise be handed a new one silently.
 	_bots.clear()
 
-	world.start(_tick)
+	world.start(tick)
 
 	log_info("rebound onto a new world", {
 		"preset": String(world.preset.id), "content_key": content_key
 	})
-
-## Everything that is not the netcode, the loadouts or the stats.
-##
-## [b]Built in this order because each one needs the last.[/b] The services register a
-## mute source that the chat router warns about the absence of; the progress layer takes
-## its readings from the stats tracker; the hunters and the hazards both act on the world
-## and are announced through the bridge. None of it suspends, because
-## [method DotModuleHost.load_module] does not await `_module_load` and a module whose load
-## suspends returns null to it.
-func _build_extras() -> DotResult:
-	var serviced := _build_services()
-
-	if not serviced.ok:
-		return serviced
-
-	var fought := _build_combat()
-
-	if not fought.ok:
-		return fought
-
-	var hunted := _build_hunters()
-
-	if not hunted.ok:
-		return hunted
-
-	var earned := _build_progress()
-
-	if not earned.ok:
-		return earned
-
-	return _build_maps()
-
-func _build_services() -> DotResult:
-	services = HungryServices.new()
-	services.name = "Services"
-	services.bridge = bridge
-	services.world = world
-	services.server = server
-	services.punishments_path = punishments_path
-	add_child(services)
-
-	var ready := services.setup()
-
-	if not ready.ok:
-		return ready.wrap("The services could not be set up")
-
-	# sv_voice_enable and sv_voice_mode: enforced on the router, replicated so a client hides
-	# its key. On this module, so they go when it unloads.
-	if services.voice != null:
-		var _voice_cvars := services.voice.bind_cvars(add_cvar, DotConVar.FLAG_NOTIFY | DotConVar.FLAG_REPLICATED)
-
-	bridge.say_requested.connect(_on_say_requested)
-	bridge.voice_requested.connect(_on_voice_requested)
-	bridge.vote_requested.connect(_on_vote_requested)
-	services.command_entered.connect(_on_chat_command)
-
-	# The server's own view of a bubble, off the one signal that fires after a line has
-	# been accepted — not off the request, or a line refused for being a duplicate would
-	# still be attributed to somebody.
-	services.chat.message_accepted.connect(_on_chat_accepted)
-
-	_build_mod_tools()
-
-	return DotResult.success(null)
 
 func _build_mod_tools() -> void:
 	var world_fn := func() -> HungryWorld: return world
@@ -351,7 +250,7 @@ func _build_mod_tools() -> void:
 	mod_tools = DotModTools.new()
 	mod_tools.name = "ModTools"
 	mod_tools.register_service = false
-	mod_tools.manager = services.moderation
+	mod_tools.manager = hservices.moderation
 	mod_tools.immunity_fn = func(id: StringName) -> int:
 		var session := server.session_by_userid(String(id).to_int()) if String(id).is_valid_int() else null
 		return session.immunity if session != null else 0
@@ -504,16 +403,11 @@ func _build_maps() -> DotResult:
 	maps.change_due.connect(_on_change_due)
 	maps.announced.connect(_on_vote_announced)
 
-	# The vote's clock stops while the server hibernates and starts again from the top when
-	# somebody joins. This module is not on DotGameModule, which does it for the games that are.
-	if maps.director != null:
-		maps.director.follow_hibernation(server)
-
 	# The cues and the countdown, to every client. The ballot goes out as chat through
 	# `announced`; a sound and a number a HUD counts are what chat cannot carry.
 	maps.cue_due.connect(func(cue: StringName, seconds_left: int, runoff: bool) -> void:
-		if bridge != null:
-			bridge.broadcast_vote_cue(cue, seconds_left, runoff)
+		if hbridge != null:
+			hbridge.broadcast_vote_cue(cue, seconds_left, runoff)
 	)
 
 	# The match a round ends in, and the leading score, for the vote. Callables, because a
@@ -538,69 +432,10 @@ func _build_maps() -> DotResult:
 	return DotResult.success(null)
 
 
-func _build_netcode() -> DotResult:
-	net = DotNetManager.new()
-	net.name = "Net"
-	net.is_server = true
-	net.local_peer_id = 1
-	# The module drives the tick, because the world's tick has to happen *inside*
-	# dot-net's — between applying inputs and building the snapshot. See
-	# [method HungryNetBridge.server_tick].
-	net.auto_tick = false
-	net.config_file = ""
-
-	var config := DotNetConfig.new()
-	config.tick_rate = world.tick_rate
-	config.snapshot_rate = SNAPSHOT_RATE
-	config.enable_prediction = true
-	config.enable_lag_compensation = false
-	# The pieces are what a snapshot is made of, and a crowded fight is a lot of them.
-	config.max_entities_per_snapshot = 120
-	config.world_extent = Dot2DNetSync.WORLD_EXTENT
-	config.reconcile_position_epsilon = HungryNetBridge.RECONCILE_EPSILON
-	net.config = config
-
-	add_child(net)
-
-	var ready_result := net.setup()
-
-	if not ready_result.ok:
-		return ready_result.wrap("The netcode could not start")
-
-	bridge = HungryNetBridge.new()
-	bridge.name = "Bridge"
-	add_child(bridge)
-
-	# The link is parented to the server node, because Godot routes an RPC by the
-	# receiver's path and a client's [DotClientLink] is named to match. See
-	# [HungryNetLink].
-	var attached := bridge.attach(world, net, server)
-
-	if not attached.ok:
-		return attached
-
-	# [b]A client whose game messages cannot work with this server's is dropped, in words.[/b]
-	# dot-net compares the two schema tables and refuses a pair where either lacks a type
-	# the other REQUIRES, but it owns no socket and can only say so; this is the socket.
-	# The same line DotGameNetcode.refuse_peer is for games built on dot-game.
-	net.peer_schema_refused.connect(_refuse_peer)
-
-	# After the bridge, before the seal: the remote workbench's frame (the client attaches it in the same order).
-	var remote_made := DotGameWorkbenchRemote.serve(net)
-	DotLog.result(CHANNEL, "the remote workbench frame", remote_made)
-
-	var started := net.start()
-
-	if not started.ok:
-		return started
-
-	return DotResult.success(null)
-
-
 func _build_loadouts() -> DotResult:
 	loadouts = DotLoadoutManager.new()
 	loadouts.name = "Loadouts"
-	loadouts.schema = bridge.loadout_schema
+	loadouts.schema = hbridge.loadout_schema
 	loadouts.register_service = true
 	loadouts.load_layered_config = false
 	loadouts.config_file = ""
@@ -627,7 +462,7 @@ func _build_loadouts() -> DotResult:
 		return ready_result.wrap("The loadout manager could not start")
 
 	loadouts.entitlement_source = _entitlements_for_key
-	bridge.entitlement_source = _entitlements_for_player
-	bridge.loadout_sink = _store_loadout
+	hbridge.entitlement_source = _entitlements_for_player
+	hbridge.loadout_sink = _store_loadout
 
 	return DotResult.success(null)

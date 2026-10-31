@@ -47,7 +47,7 @@ var punishments_loaded: bool = false
 
 
 ## Builds all three.
-func setup() -> DotResult:
+func setup(_server: Node = null, _game: Node = null, _link: Node = null) -> DotResult:
 	if bridge == null or world == null:
 		return DotResult.fail(
 			DotError.CODE_STATE, "The services need a bridge and a world."
