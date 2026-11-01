@@ -82,6 +82,11 @@ func _build_presentation() -> void:
 		var _l := _menu.add_page(HungryMenus.loadout_page(null).page, &"general")
 
 
+## Frame sequence after each still (DOT_SHOT_FRAMES); see DotShotSeq.
+var _seq := DotShotSeq.new()
+var _seq_active := false
+
+
 func _process(_delta: float) -> bool:
 	if _done:
 		return true
@@ -142,10 +147,23 @@ func _process(_delta: float) -> bool:
 		_wait -= 1
 		return false
 
+	if _seq_active:
+		if _seq.step(root):
+			return false
+		_seq_active = false
+		_at += 1
+		_wait = SETTLE
+		return false
+
 	var image := root.get_texture().get_image()
 	var path := OUT_DIR.path_join(str(shot["file"]))
 	image.save_png(path)
 	print("wrote %s (%d x %d)" % [path, image.get_width(), image.get_height()])
+
+	if _seq.enabled():
+		_seq.begin(path)
+		_seq_active = true
+		return false
 
 	_at += 1
 	_wait = SETTLE
