@@ -2,6 +2,7 @@ extends RefCounted
 
 const HungryLayout := preload("hungry_layout.gd")
 const HungryPreset := preload("hungry_preset.gd")
+const HungryPaths := preload("hungry_paths.gd")
 
 const CHANNEL := "hungry.workshop"
 
@@ -45,7 +46,7 @@ func follow(index: DotContentIndex = null) -> void:
 		own.id = id
 		own.display_name = String(id).capitalize()
 		own.kind = DotMapDef.KIND_ARENA
-		own.scene_path = "res://game/hungry_workshop.gd"
+		own.scene_path = HungryPaths.rebase("res://game/hungry_workshop.gd")
 		var _added := catalogue.add(own)
 
 	catalogue.follow_content(index if index != null else DotContentIndex.shared(), accepted())

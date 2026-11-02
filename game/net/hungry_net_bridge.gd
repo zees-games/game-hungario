@@ -1,4 +1,4 @@
-extends "res://game/net/hungry_net_bridge_server.gd"
+extends "./hungry_net_bridge_server.gd"
 
 ## Binds a world and a manager to each other and puts the link where RPCs will find it.
 ##

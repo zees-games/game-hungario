@@ -1,4 +1,4 @@
-extends "res://game/hungry_module_events.gd"
+extends "./hungry_module_events.gd"
 
 func _game_service() -> StringName:
 	return HungryWorld.SERVICE

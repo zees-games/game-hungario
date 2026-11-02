@@ -1,4 +1,4 @@
-extends "res://game/net/hungry_net_bridge_state.gd"
+extends "./hungry_net_bridge_state.gd"
 
 ## Mirrors the match entity on a client. Called once, from the first HELLO.
 func _mirror_match_entity(net_id: int) -> DotResult:

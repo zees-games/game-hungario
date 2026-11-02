@@ -1,4 +1,4 @@
-extends "res://game/hungry_module_state.gd"
+extends "./hungry_module_state.gd"
 
 func _register_console() -> void:
 	_register_commands()

@@ -1,4 +1,4 @@
-extends "res://game/client/hungry_client_state.gd"
+extends "./hungry_client_state.gd"
 
 ## The playable client: a world, a camera, a renderer, a HUD and a socket.
 

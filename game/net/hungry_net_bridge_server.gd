@@ -1,4 +1,4 @@
-extends "res://game/net/hungry_net_bridge_client.gd"
+extends "./hungry_net_bridge_client.gd"
 
 ## Marks a peer able to receive, and gives it everything it has missed.
 ## Also where the peer joins the manager: registered earlier, the server would send it snapshots

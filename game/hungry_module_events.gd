@@ -1,4 +1,4 @@
-extends "res://game/hungry_module_console.gd"
+extends "./hungry_module_console.gd"
 
 ## The module drives no clock of its own: the base ticks once, then this runs.
 func _can_tick() -> bool:
