@@ -91,14 +91,8 @@ func _process(_delta: float) -> bool:
 	if _done:
 		return true
 
-	# The monsters are added on the FIRST FRAME, not in `_initialize`.
-	#
-	# `HungryWorld.setup()` creates its `DotMatch` and adds it as a child, and a node added
-	# from `SceneTree._initialize` does not get its `_ready` until the first frame -- so the
-	# match's scoreboard does not exist yet and `add_player` dies on it. The error is
-	# "Nonexistent function 'join' in base 'Nil'", which reads like a missing method rather
-	# than like a node that has not started. It is written down because it is
-	# easy to hit.
+	# The monsters are added on the FIRST FRAME: a node added from `_initialize` gets no `_ready`
+	# until then, so the match's scoreboard is missing and `add_player` dies on a Nil `join`.
 	if not _seeded:
 		_seeded = true
 

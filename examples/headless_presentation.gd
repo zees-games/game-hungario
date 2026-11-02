@@ -950,10 +950,7 @@ func _test_the_mode_list() -> void:
 	_check(fresh != null and fresh != client and fresh.world != null and fresh.world.preset.id == &"frenzy"
 		and holder.get_child_count() == 1, "choosing Frenzy plays it now, in a fresh client in the old one's place",
 		str(fresh.world.preset.id) if fresh != null and fresh.world != null else "none")
-	# Through the warmup and the countdown into a round: the old client's world is gone, and
-	# nothing of it (spawn points, services) may be what the new one's match reaches for.
-	# The offline world does not tick while the loading cover is up, and the cover lifts on
-	# the clock, so this waits in real time rather than in frames.
+	# Real time, not frames: the offline world does not tick under the loading cover, which lifts on the clock.
 	var until := Time.get_ticks_msec() + 20000
 	while Time.get_ticks_msec() < until:
 		await get_tree().physics_frame

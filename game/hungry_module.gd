@@ -60,22 +60,7 @@ func _game_load() -> DotResult:
 	if hservices == null:
 		return DotResult.fail(DotError.CODE_STATE, "The services could not be set up")
 
-	hbridge.peer_admitted.connect(_on_peer_admitted)
-	hbridge.say_requested.connect(_on_say_requested)
-	hbridge.voice_requested.connect(_on_voice_requested)
-	hbridge.vote_requested.connect(_on_vote_requested)
-	hservices.command_entered.connect(_on_chat_command)
-	# The server's own view of a bubble, off the signal that fires after a line was accepted.
-	hservices.chat.message_accepted.connect(_on_chat_accepted)
-	_build_mod_tools()
-
-	# dot-server's own chat is cancelled in a pre-hook: dot-chat has the rules, and two paths
-	# would let the one that skipped the filter leak admin chat.
-	hook_pre("player_chat", _on_player_chat)
-
-	# dot-chat makes the join and leave notices now.
-	if server.chat != null:
-		server.chat.announce_joins = false
+	_wire_services()
 
 	_register_games()
 	_register_console()
@@ -126,6 +111,25 @@ func _game_load() -> DotResult:
 	})
 
 	return DotResult.success(null)
+
+## Bridge and chat signals, mod tools, and the pre-hook that keeps dot-chat's rules authoritative.
+func _wire_services() -> void:
+	hbridge.peer_admitted.connect(_on_peer_admitted)
+	hbridge.say_requested.connect(_on_say_requested)
+	hbridge.voice_requested.connect(_on_voice_requested)
+	hbridge.vote_requested.connect(_on_vote_requested)
+	hservices.command_entered.connect(_on_chat_command)
+	# The server's own view of a bubble, off the signal that fires after a line was accepted.
+	hservices.chat.message_accepted.connect(_on_chat_accepted)
+	_build_mod_tools()
+
+	# dot-server's own chat is cancelled in a pre-hook: dot-chat has the rules, and two paths
+	# would let the one that skipped the filter leak admin chat.
+	hook_pre("player_chat", _on_player_chat)
+
+	# dot-chat makes the join and leave notices now.
+	if server.chat != null:
+		server.chat.announce_joins = false
 
 func _game_unload() -> void:
 	if stats != null:

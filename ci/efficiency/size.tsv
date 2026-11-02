@@ -5,9 +5,9 @@ examples/headless_presentation.gd::_test_blind_and_beacon	139
 examples/headless_presentation.gd::_test_board_makes_room	146
 examples/headless_presentation.gd::_test_chat_box	109
 examples/headless_presentation.gd::_test_party_over_http	98
-examples/headless_round.gd	2645
+examples/headless_round.gd	2644
 examples/headless_round.gd::_test_determinism	90
-examples/headless_round.gd::_test_devouring	130
+examples/headless_round.gd::_test_devouring	99
 examples/headless_round.gd::_test_ejecting	89
 examples/headless_round.gd::_test_full_round	89
 examples/headless_round.gd::_test_hunter_round_a_rock	94
@@ -33,8 +33,6 @@ game/client/hungry_renderer.gd	805
 game/hungry_layout.gd	1696
 game/hungry_maps.gd::setup	87
 game/hungry_mod_tools.gd::handlers	100
-game/hungry_module.gd::_module_game_changed	84
-game/hungry_module.gd::_module_load	95
 game/hungry_world.gd	1746
 game/hungry_world.gd::setup	93
 tools/screenshot_map.gd::_initialize	126

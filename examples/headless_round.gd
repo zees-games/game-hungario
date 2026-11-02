@@ -760,8 +760,7 @@ func _test_devouring() -> void:
 
 	big.rider_piece().set_mass(500.0, world.tunables.mass_rules)
 
-	# Spawn protection first: this is a rule, and a test that cleared it would never
-	# notice if it stopped working.
+	# Spawn protection first: clearing it would hide it breaking.
 	var eaten := [0]
 	world.piece_eaten.connect(func(_e: int, _v: int, _m: float) -> void:
 		eaten[0] += 1
@@ -770,8 +769,7 @@ func _test_devouring() -> void:
 	world.tick({})
 	_check(eaten[0] == 0, "spawn protection stops an instant kill")
 
-	# Cleared rather than waited out: four seconds of ticks lets the kill happen on its own, and the chase below would then ask a dead monster where it is,
-	# a runtime error that aborts the rest of this function while earlier checks still say ok.
+	# Cleared, not waited out: the kill would land on its own and the chase would ask a dead monster where it is.
 	big.clear_effect(HungryContent.FLAG_PROTECTED)
 	small.clear_effect(HungryContent.FLAG_PROTECTED)
 
@@ -809,9 +807,44 @@ func _test_devouring() -> void:
 		"and dot-match recorded the kill"
 	)
 
-	# How the last piece goes down on every screen: picked here, once (dot-player-char's
-	# rule over the server's weights), and pushed away from the eater. Armed by deciding
-	# nothing in `_absorb` (null) and by measuring power the wrong way round (the shares).
+	_check_devour_death_picks(world, small)
+
+	# Respawning is dot-match's, driven from a tick count rather than a timer.
+	for _i in range(int(TICK_RATE * 5)):
+		world.tick({})
+
+		if small.alive:
+			break
+
+	_check(small.alive, "and the victim comes back")
+	_check(
+		is_equal_approx(
+			small.mass(),
+			HungryContent.START_MASS * HungryContent.trait_mass(small.trait_id)
+		),
+		"at the starting mass their trait gives them again (%.1f)" % small.mass()
+	)
+
+	# An eat ratio above 1 makes equal monsters safe whichever resolves first.
+	world.spawn(1, Vector2(0.0, 500.0))
+	world.spawn(2, Vector2(10.0, 500.0))
+	big.rider_piece().set_mass(200.0, world.tunables.mass_rules)
+	small.rider_piece().set_mass(200.0, world.tunables.mass_rules)
+	big.clear_effect(HungryContent.FLAG_PROTECTED)
+	small.clear_effect(HungryContent.FLAG_PROTECTED)
+
+	_run_ticks(world, 30)
+	_check(
+		big.alive and small.alive,
+		"two equal monsters cannot eat each other"
+	)
+
+	_drop(world)
+	_done()
+
+## The death pick an eater gives its victim, and the power thresholds that gate a launch.
+func _check_devour_death_picks(world: HungryWorld, small: HungryMonster) -> void:
+	# The server picks the fall once, pushed away from the eater; armed by deciding nothing in `_absorb`.
 	_check(
 		small.death != null and DotPlayerDeathReactions.stock().find(small.death.reaction) != null
 			and small.death.direction.length() > 0.9 and small.death.damage > 0.0,
@@ -838,43 +871,6 @@ func _test_devouring() -> void:
 	)
 	world.ragdoll_rules.reaction_weights = ""
 	world.ragdoll_rules.exaggerate = false
-
-	# Respawning is dot-match's, driven from a tick count rather than a timer.
-	for _i in range(int(TICK_RATE * 5)):
-		world.tick({})
-
-		if small.alive:
-			break
-
-	_check(small.alive, "and the victim comes back")
-	_check(
-		is_equal_approx(
-			small.mass(),
-			HungryContent.START_MASS * HungryContent.trait_mass(small.trait_id)
-		),
-		"at the starting mass their trait gives them again (%.1f)" % small.mass()
-	)
-
-	# Two monsters of equal size must never eat each other, whichever is resolved first.
-	# That is what an eat ratio above 1 is for, and it is the difference between a rule
-	# and a coin flip.
-	world.spawn(1, Vector2(0.0, 500.0))
-	world.spawn(2, Vector2(10.0, 500.0))
-	big.rider_piece().set_mass(200.0, world.tunables.mass_rules)
-	small.rider_piece().set_mass(200.0, world.tunables.mass_rules)
-	big.clear_effect(HungryContent.FLAG_PROTECTED)
-	small.clear_effect(HungryContent.FLAG_PROTECTED)
-
-	_run_ticks(world, 30)
-	_check(
-		big.alive and small.alive,
-		"two equal monsters cannot eat each other"
-	)
-
-	_drop(world)
-
-
-	_done()
 
 ## Where a dead monster's owner looks.
 func _test_spectating() -> void:

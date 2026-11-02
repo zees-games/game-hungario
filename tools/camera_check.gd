@@ -1,13 +1,12 @@
 extends Node
 
 ## The framing camera flown round the real offline game: the monster, whole and burst, put at the
-## centre, the edges and the corners of the arena, and every piece must be in view with the view
-## inside the arena. Armed by a camera that does not follow, which must lose the monster on some
-## places. This game is 2D, so there are no walls to probe, no view key (mp_forceview) and no
-## mp_solidplayers body; the spectator's watched point is the other camera it has.
+## centre, edges and corners; every piece must be in view, inside the arena. Armed by a camera that
+## does not follow. 2D: no walls to probe, no mp_forceview, no mp_solidplayers body.
 
 const HungryCamera := preload("../game/client/hungry_camera.gd")
 const HungryClient := preload("../game/client/hungry_client.gd")
+const CLIENT_SCENE := preload("../game/client/hungry_client.tscn")
 const HungryMonster := preload("../game/hungry_monster.gd")
 const HungryPiece := preload("../game/hungry_piece.gd")
 
@@ -25,7 +24,7 @@ func _process(_delta: float) -> void:
 		return
 	_built = true
 	DotLog.set_level(DotLog.Level.ERROR)
-	_client = (load("res://game/client/hungry_client.tscn") as PackedScene).instantiate() as HungryClient
+	_client = CLIENT_SCENE.instantiate() as HungryClient
 	_client.force_offline = true
 	_client.offline_bots = 0
 	add_child(_client)

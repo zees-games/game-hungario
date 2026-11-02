@@ -12,7 +12,6 @@ game/client/hungry_hud.gd::_refresh_mass::string_build	1
 game/client/hungry_hud.gd::_refresh_status::string_build	1
 game/client/hungry_hud.gd::refresh_leaderboard::alloc_array	1
 game/client/hungry_renderer.gd::present_beacons::alloc_dict	1
-game/hungry_module.gd::_drive_bots::alloc_array	1
 tools/screenshot_cover.gd::_process::string_build	1
 tools/screenshot_cover.gd::_save::string_build	1
 tools/screenshot_map.gd::_fx::find_children	1
