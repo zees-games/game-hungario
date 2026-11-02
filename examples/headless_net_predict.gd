@@ -202,6 +202,12 @@ func _test_drawn_through_a_slip() -> void:
 	var command := Dot2DCommand.new()
 	command.aim = Vector2.RIGHT
 	command.reach = 900.0
+	# Eating mid-window grows the monster a tick before the client hears of it, and the replay
+	# is a real step back: clear the path, since this section is about the draw, not food.
+	var here := _server_world.monster_for(7).centre()
+	for grid_id in _server_world.field.alive_ids():
+		if _server_world.field.position_of(grid_id).distance_to(here) < 400.0:
+			_server_world.field.take(grid_id)
 	_steps(20, command)
 
 	var clock := _client_net.clock
