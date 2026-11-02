@@ -218,7 +218,7 @@ func setup() -> DotResult:
 	spectate.name = "Spectate"
 	add_child(spectate)
 
-	var watching := spectate.setup(self)
+	var watching := spectate.bind(self)
 
 	if not watching.ok:
 		# Not fatal. A world with no spectator camera is the world this game has had

@@ -1,4 +1,4 @@
-extends Node
+extends DotSpectatorHost
 
 const HungryWorld := preload("hungry_world.gd")
 
@@ -25,30 +25,17 @@ const CHANNEL := "hungry.spectate"
 
 var world: HungryWorld = null
 
-var manager: DotSpectatorManager = null
-
-
-func setup(p_world: HungryWorld) -> DotResult:
+## Binds the world and builds the manager. [method setup] itself takes no world.
+func bind(p_world: HungryWorld) -> DotResult:
 	world = p_world
+	authoritative = world.is_authority
+	tick_rate = world.tick_rate
+	death_cam_seconds = 1.0
+	freeze_cam_seconds = 0.0
+	chase_height = 0.8
+	history_seconds = 4.0
 
-	manager = DotSpectatorManager.new()
-	manager.name = "SpectatorManager"
-	manager.authoritative = world.is_authority
-	manager.rules = _rules()
-	manager.participants_fn = _participants
-	# The side they are actually on, not a constant.
-	#
-	# dot-spectate keys teams by [code]int[/code] and treats 0 as "no team". A hardcoded
-	# 1 made everybody — including somebody on the spectator side — a team-mate of
-	# everybody, which is what `force_camera` reads as permission to watch. The stack is
-	# built before anything can spectate, and 0 is the honest answer while it is not.
-	manager.team_fn = func(key: String) -> int:
-		return world.player_stack.team_index_of(key) if world.player_stack != null else 0
-	manager.alive_fn = _alive
-	manager.pose_fn = _pose_of
-	add_child(manager)
-
-	var res := manager.setup()
+	var res := setup()
 	if not res.ok:
 		return res.wrap("hungario spectate")
 
@@ -60,28 +47,18 @@ func setup(p_world: HungryWorld) -> DotResult:
 	return DotResult.success(null)
 
 
-func _rules() -> DotSpectatorRules:
-	var rules := DotSpectatorRules.new()
+func _channel() -> String:
+	return CHANNEL
 
-	# A free-for-all has no sides, so restricting the camera to one restricts it to a
-	# team of one. What matters here is the OTHER setting.
-	rules.force_camera = 0
 
-	# Off, and it is the important line in this file. Knowing where the biggest monster
-	# is standing is the whole skill of this game, and a living player with a camera on
-	# somebody else has it for free.
-	rules.allow_while_alive = false
-
-	# No roaming for the same reason: a free camera over a 2D arena is the entire map.
-	rules.allow_roaming = false
-
-	# Dead monsters are gone rather than lying about, so there is nothing to cycle to.
-	rules.cycle_includes_dead = false
-
-	rules.death_cam_ticks = int(1.0 * float(world.tick_rate))
-	rules.freeze_cam_ticks = 0
-	rules.history_ticks = 4 * world.tick_rate
-	return rules
+func _tune_rules(r: DotSpectatorRules) -> DotSpectatorRules:
+	# A free-for-all has no sides, so restricting the camera to one restricts it to a team of one.
+	r.force_camera = 0
+	# Knowing where the biggest monster stands is the skill; a living watcher would have it free.
+	r.allow_while_alive = false
+	r.allow_roaming = false
+	r.cycle_includes_dead = false
+	return r
 
 
 func _participants() -> PackedStringArray:
@@ -93,16 +70,18 @@ func _participants() -> PackedStringArray:
 	return out
 
 
-func _alive(key: String) -> bool:
+## The side they are actually on: dot-spectate reads 0 as "no team", and the stack is built
+## before anything can spectate.
+func _team_of(key: String) -> int:
+	return world.player_stack.team_index_of(key) if world.player_stack != null else 0
+
+
+func _is_alive(key: String) -> bool:
 	var monster := world.monster_for(key.to_int())
 	return monster != null and monster.alive
 
 
-## A monster's centroid, as a transform on the XZ plane.
-##
-## The centroid rather than a piece: after a burst the pieces are most of a screen
-## apart, and a camera on the biggest of them shows a player half of somebody's monster
-## — which is the same reason `HungryCamera` frames the spread.
+## The centroid rather than a piece: after a burst the pieces are most of a screen apart.
 func _pose_of(key: String) -> Transform3D:
 	var monster := world.monster_for(key.to_int())
 	if monster == null or not monster.alive:
@@ -111,84 +90,39 @@ func _pose_of(key: String) -> Transform3D:
 	return Transform3D(Basis.IDENTITY, Vector3(at.x, 0.0, at.y))
 
 
+func _current_tick() -> int:
+	return world.current_tick()
+
+
 func tick(_delta: float) -> void:
-	if manager != null:
-		manager.advance(world.current_tick())
+	advance_live()
 
 
 ## Where a viewer's camera should be, in world units. Null when they are not watching.
 ##
-## Returns a [Variant] deliberately: "not spectating" and "spectating a point at the
-## origin" are different answers, and a [Vector2] alone cannot tell them apart — which
-## in a game whose arena is centred on the origin is the difference between a working
-## camera and one pinned to the middle of the map.
+## A [Variant]: "not spectating" and "spectating the origin" differ, and this arena is
+## centred on the origin.
 func camera_position(viewer: int) -> Variant:
-	if manager == null or not manager.is_spectating(str(viewer)):
+	if not is_spectating(str(viewer)):
 		return null
 	var flat := manager.camera_2d_of(str(viewer))
 	return flat[0] as Vector2
 
 
-func is_spectating(viewer: int) -> bool:
-	return manager != null and manager.is_spectating(str(viewer))
-
-
-func watching(viewer: int) -> int:
-	if manager == null:
-		return 0
-	var target := manager.view(str(viewer)).target
-	return target.to_int() if target != "" else 0
-
-
-func next_target(viewer: int) -> DotResult:
-	if manager == null:
-		return DotResult.fail(DotError.CODE_STATE, "Spectating is not set up.")
-	return manager.next_target(str(viewer))
-
-
 func _on_died(player_id: int, killer_id: int) -> void:
-	# The server's chain, and only the server's. A client's world is a mirror and emits
-	# `player_died` too — the signal says a death happened, not who decides what follows —
-	# and a mirror's [method DotSpectatorManager.advance] runs no timers, so a chain started
-	# there is a death camera nothing ever hands over. dot-spectate refuses it with a
-	# `push_error` on every death; the view a client draws arrives by `apply_wire`. The
-	# manager's own flag rather than `world.is_authority`, because it is the one dot-spectate
-	# checks, and the two agreeing is `setup`'s business rather than every caller's.
+	# Only the server's chain: a mirror emits `player_died` too but runs no timers, so a
+	# chain started there is a death camera nothing hands over.
 	if manager == null or not manager.authoritative:
 		return
 	var monster := world.monster_for(player_id)
 	var at := monster.centre() if monster != null else Vector2.ZERO
-	manager.on_death(
-		str(player_id),
-		Vector3(at.x, 0.0, at.y),
-		str(killer_id) if killer_id != 0 else "",
-		world.current_tick()
-	)
-	# DEBUG: a transition. "My camera went somewhere odd when I died" is answered by who
-	# it was put on, and dot-spectate's own choice can fall through to the leader.
+	death(str(player_id), Vector3(at.x, 0.0, at.y), str(killer_id) if killer_id != 0 else "")
 	DotLog.debug(CHANNEL, "a dead player is spectating", {
-		"player": player_id, "killer": killer_id, "watching": watching(player_id),
+		"player": player_id, "killer": killer_id, "watching": watching(str(player_id)),
 	})
 
 
 func _on_spawned(player_id: int) -> void:
-	if manager != null:
-		if is_spectating(player_id):
-			DotLog.debug(CHANNEL, "a respawn ends spectating", {"player": player_id})
-
-		manager.on_spawn(str(player_id))
-
-
-func forget(player_id: int) -> void:
-	if manager != null:
-		manager.on_leave(str(player_id))
-
-
-func describe() -> Dictionary:
-	return manager.describe() if manager != null else {}
-
-
-func describe_lines() -> PackedStringArray:
-	if manager == null:
-		return PackedStringArray(["spectate: not set up"])
-	return manager.describe_lines()
+	if is_spectating(str(player_id)):
+		DotLog.debug(CHANNEL, "a respawn ends spectating", {"player": player_id})
+	spawned(str(player_id))

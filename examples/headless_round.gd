@@ -905,7 +905,7 @@ func _test_spectating() -> void:
 	)
 
 	_check(
-		not world.spectate.is_spectating(1),
+		not world.spectate.is_spectating("1"),
 		"a living player is not watching anything"
 	)
 
@@ -914,16 +914,16 @@ func _test_spectating() -> void:
 	monster.alive = false
 	world.player_died.emit(1, 2)
 
-	_check(world.spectate.is_spectating(1), "a dead one is")
+	_check(world.spectate.is_spectating("1"), "a dead one is")
 
 	# The death camera first, then a real target — the hand-over every game that writes
 	# this itself gets wrong.
 	_run_ticks(world, world.tick_rate * 3)
 
 	_check(
-		world.spectate.watching(1) == 2,
+		world.spectate.watching("1") == "2",
 		"and ends up watching the player who is still alive",
-		str(world.spectate.watching(1))
+		world.spectate.watching("1")
 	)
 
 	var where: Variant = world.spectate.camera_position(1)
@@ -941,7 +941,7 @@ func _test_spectating() -> void:
 	# And coming back stops it.
 	world.spawn(1, Vector2(0.0, 0.0))
 	_check(
-		not world.spectate.is_spectating(1),
+		not world.spectate.is_spectating("1"),
 		"and respawning puts them back in their own view"
 	)
 
