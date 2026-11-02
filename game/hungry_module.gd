@@ -13,7 +13,7 @@ func _net_config() -> DotNetConfig:
 	config.enable_prediction = true
 	config.enable_lag_compensation = false
 	# The pieces are what a snapshot is made of, and a crowded fight is a lot of them.
-	config.max_entities_per_snapshot = 120
+	config.max_entities_per_snapshot = 0
 	config.world_extent = Dot2DNetSync.WORLD_EXTENT
 	config.reconcile_position_epsilon = HungryNetBridge.RECONCILE_EPSILON
 	return config

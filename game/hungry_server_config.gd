@@ -83,10 +83,10 @@ static func make_binder(config: DotConfig, json_path := "") -> DotGameConfigBind
 @export_group("Server")
 
 ## Player slots. Read when the roster is built, so a change takes a restart.
-@export_range(1, 128, 1) var max_players: int = 32
+@export_range(1, 4095, 1, "or_greater") var max_players: int = 32
 
 ## The default for `bot_quota` (bots kept in fill mode). Read once at load.
-@export_range(0, 64, 1) var bot_fill: int = 6
+@export_range(0, 256, 1, "or_greater") var bot_fill: int = 6
 
 
 func env_prefix() -> String:

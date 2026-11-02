@@ -2,7 +2,7 @@
 # an operator overrides in cfg/server/game/game-hungario/config_server/game.yml. Layers: defaults < this < env < argv.
 
 # --- Server
-# Player slots. Read when the roster is built, so a change takes a restart. [1..128]
+# Player slots. Read when the roster is built, so a change takes a restart. [1..]
 # max_players: 32
-# The default for `bot_quota` (bots kept in fill mode). Read once at load. [0..64]
+# The default for `bot_quota` (bots kept in fill mode). Read once at load. [0..]
 # bot_fill: 6
