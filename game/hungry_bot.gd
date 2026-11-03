@@ -144,8 +144,14 @@ static func command_for(
 
 	var target := origin
 	var deciding := true
+	var flee_range := head.radius() * 6.0 + FLEE_MARGIN * clampf(_medium.reaction / maxf(skill.reaction, 0.05), 0.25, 3.0)
 
-	if threat_distance < head.radius() * 6.0 + FLEE_MARGIN * clampf(_medium.reaction / maxf(skill.reaction, 0.05), 0.25, 3.0):
+	# A snack inside the threat's flee range makes the bot step out, turn back for it and
+	# step in again: 14 s of dithering against the wall in the soak.
+	if threat_distance < INF and snack.distance_to(threat) < flee_range:
+		snack_score = -INF
+
+	if threat_distance < flee_range:
 		# Away from the threat, and biased along the wall rather than into it, because a
 		# bot that flees straight into a corner dies there every time.
 		var away := (origin - threat).normalized()
