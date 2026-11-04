@@ -4,6 +4,7 @@
 #   tools/screenshot_map.sh warrens
 #   tools/screenshot_map.sh reef --at=632,1180 --name=lagoon   # stand somewhere else
 #   tools/screenshot_map.sh warrens --admin   # also a beacon and a blind
+#   tools/screenshot_map.sh warrens --touch --ballot   # with the touch Menu button; godot --resolution 844x390 for a phone
 #
 # Uses xvfb-run because this needs a rendering context: --headless gives a null renderer
 # and a 64 x 64 viewport, and every frame it saves is empty — which is worse than no

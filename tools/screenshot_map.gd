@@ -6,6 +6,7 @@ const HungryContent := preload("../game/hungry_content.gd")
 const HungryPresentation := preload("../game/client/hungry_presentation.gd")
 const HungrySound := preload("../game/client/hungry_sound.gd")
 const HungryHud := preload("../game/client/hungry_hud.gd")
+const HungrySettings := preload("../game/client/hungry_settings.gd")
 const HungryPreset := preload("../game/hungry_preset.gd")
 const HungryRenderer := preload("../game/client/hungry_renderer.gd")
 const HungryWorkshop := preload("../game/hungry_workshop.gd")
@@ -34,6 +35,9 @@ var _world: HungryWorld = null
 var _renderer: HungryRenderer = null
 var _camera: HungryCamera = null
 var _hud: HungryHud = null
+
+## `--touch`: draws the touch Menu button over the HUD. Run at phone size, 844x390, to see it.
+var _touch := false
 var _shots: Array[Dictionary] = []
 var _at := 0
 var _wait := SETTLE
@@ -62,6 +66,7 @@ func _initialize() -> void:
 	var fx := false
 	var ballot := false
 	var workshop := false
+	_touch = false
 
 	for argument in OS.get_cmdline_user_args():
 		if argument.begins_with("--at="):
@@ -71,6 +76,8 @@ func _initialize() -> void:
 				at = Vector2(float(parts[0]), float(parts[1]))
 		elif argument.begins_with("--name="):
 			tag = "_" + argument.trim_prefix("--name=")
+		elif argument == "--touch":
+			_touch = true
 		elif argument == "--admin":
 			admin = true
 		elif argument == "--fx":
@@ -230,6 +237,16 @@ func _boot() -> void:
 	layer.add_child(_hud)
 	_hud.build(_world, null, 1)
 	_hud.visible = false
+
+	if _touch:
+		# The real dot-menu in touch mode: only a frame says whether its Menu button shares a corner.
+		var menu := DotMenu.new()
+		menu.name = "GameMenu"
+		var settings := HungrySettings.new()
+		settings.config.touch = &"on"
+		menu.config = settings.config
+		layer.add_child(menu)
+		var _built := menu.setup()
 
 
 func _process(_delta: float) -> bool:
