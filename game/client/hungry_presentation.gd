@@ -212,6 +212,11 @@ static func sound_catalogue() -> DotAudioCatalogue:
 		d.priority = 100
 		c.add(d)
 
+	_add_cue_sounds(c)
+	return c
+
+
+static func _add_cue_sounds(c: DotAudioCatalogue) -> void:
 	var click := DotAudioDef.new()
 	click.id = &"click"
 	click.generated = true
@@ -258,8 +263,6 @@ static func sound_catalogue() -> DotAudioCatalogue:
 		fall.priority = 55
 		fall.max_distance = 2000.0
 		c.add(fall)
-
-	return c
 
 
 func _build_audio() -> DotResult:

@@ -87,22 +87,7 @@ func _initialize() -> void:
 	var preset := HungryPreset.for_id(wanted)
 
 	if workshop:
-		DirAccess.make_dir_recursive_absolute("user://ws_shot/")
-		var doc := FileAccess.open("user://ws_shot/ruin.json", FileAccess.WRITE)
-		doc.store_string(JSON.stringify({"id": "ruin", "name": "Ruin", "preset": "classic", "blocks": [
-			[0.45, 0.0, 0.12], [0.35, 0.3, 0.07], [-0.5, 0.25, 0.14], [-0.2, -0.5, 0.1],
-			[0.1, -0.6, 0.06], [0.0, 0.0, 0.09],
-		]}))
-		doc.close()
-		var index := DotContentIndex.new()
-		index.set_session(DotContentIndex.SESSION_SOLO)
-		index.add_pack({"content_id": "fixture/ruins", "version": "1.0.0", "prefix": "user://ws_shot/",
-			"session": DotContentIndex.SESSION_SOLO, "source": &"subscription",
-			"provides": {"schema": 1, "title": "Fixture Pack", "kinds": ["map"], "entries": [
-				{"kind": "map", "id": "ruin", "name": "Ruin", "scene": "ruin.json", "map_kind": "arena"}]}})
-		var shop := HungryWorkshop.new()
-		shop.follow(index)
-		preset = shop.preset_for(&"ruin")
+		preset = _workshop_preset()
 
 	_world = HungryWorld.new()
 	_world.name = "World"
@@ -129,12 +114,17 @@ func _initialize() -> void:
 	# frames still came out because the world limped on without a match.
 	# `tools/screenshot_menus.gd` seeds its monsters on the first frame for the same reason.
 
+	_shots = _plan_shots(wanted, tag, preset, fx, ballot, admin)
+
+
+## The frames to take: see the three framings and the optional ones below.
+func _plan_shots(wanted: StringName, tag: String, preset: HungryPreset, fx: bool, ballot: bool, admin: bool) -> Array[Dictionary]:
 	# [b]Three framings, because the level is three different claims.[/b] The whole arena
 	# says the shape reads; a player's own view says the scale does — a gate is only a gate
 	# if it looks like one from where a player sits — and the grown view is the one that
 	# says the mode still draws when the camera has zoomed out, which is the framing
 	# nothing in this project had ever rendered.
-	_shots = [
+	var shots: Array[Dictionary] = [
 		{"name": "%s%s_arena" % [wanted, tag], "mass": 0.0, "whole": true},
 		{"name": "%s%s_gate" % [wanted, tag], "mass": 0.0, "whole": false},
 		{"name": "%s%s_grown" % [wanted, tag], "mass": preset.win_mass * 0.55, "whole": false},
@@ -155,7 +145,7 @@ func _initialize() -> void:
 	# Before the grown frame, which feeds the player and does not give it back: a pop is
 	# sized for a starting monster's mouthful.
 	if fx:
-		_shots.insert(2, {"name": "%s%s_fx" % [wanted, tag], "mass": 0.0, "whole": false, "fx": true})
+		shots.insert(2, {"name": "%s%s_fx" % [wanted, tag], "mass": 0.0, "whole": false, "fx": true})
 
 	# The HUD under a ballot, drawn where and as the client shell draws one (its notice
 	# overlay's column: 16 px in from the right, 110 px down, a third of the frame wide), with
@@ -163,11 +153,33 @@ func _initialize() -> void:
 	# ballot is the one thing on this screen the game does not place, so only a frame says
 	# whether the game made room for it. Settles for longer: the HUD eases out of its way.
 	if ballot:
-		_shots.append({"name": "%s%s_ballot" % [wanted, tag], "mass": 0.0, "whole": false, "ballot": true, "settle": 40})
+		shots.append({"name": "%s%s_ballot" % [wanted, tag], "mass": 0.0, "whole": false, "ballot": true, "settle": 40})
 
 	if admin:
-		_shots.append({"name": "%s%s_beacon" % [wanted, tag], "mass": 0.0, "whole": false, "beacon": true})
-		_shots.append({"name": "%s%s_blind" % [wanted, tag], "mass": 0.0, "whole": false, "blind": true})
+		shots.append({"name": "%s%s_beacon" % [wanted, tag], "mass": 0.0, "whole": false, "beacon": true})
+		shots.append({"name": "%s%s_blind" % [wanted, tag], "mass": 0.0, "whole": false, "blind": true})
+
+	return shots
+
+
+## A fixture pack map (solo), through the same workshop path the map menu uses.
+func _workshop_preset() -> HungryPreset:
+	DirAccess.make_dir_recursive_absolute("user://ws_shot/")
+	var doc := FileAccess.open("user://ws_shot/ruin.json", FileAccess.WRITE)
+	doc.store_string(JSON.stringify({"id": "ruin", "name": "Ruin", "preset": "classic", "blocks": [
+		[0.45, 0.0, 0.12], [0.35, 0.3, 0.07], [-0.5, 0.25, 0.14], [-0.2, -0.5, 0.1],
+		[0.1, -0.6, 0.06], [0.0, 0.0, 0.09],
+	]}))
+	doc.close()
+	var index := DotContentIndex.new()
+	index.set_session(DotContentIndex.SESSION_SOLO)
+	index.add_pack({"content_id": "fixture/ruins", "version": "1.0.0", "prefix": "user://ws_shot/",
+		"session": DotContentIndex.SESSION_SOLO, "source": &"subscription",
+		"provides": {"schema": 1, "title": "Fixture Pack", "kinds": ["map"], "entries": [
+			{"kind": "map", "id": "ruin", "name": "Ruin", "scene": "ruin.json", "map_kind": "arena"}]}})
+	var shop := HungryWorkshop.new()
+	shop.follow(index)
+	return shop.preset_for(&"ruin")
 
 
 ## The half of the setup that needs the world's nodes to have had `_ready`: see the note
@@ -240,94 +252,7 @@ func _process(_delta: float) -> bool:
 
 	if not _prepared:
 		_prepared = true
-		var monster := _world.monster_for(1)
-
-		if float(shot["mass"]) > 0.0 and monster != null:
-			# The default spot is chosen for the starting monster's view, and in the
-			# gauntlet it is a slalom gate a grown one does not fit: fed there and left idle
-			# it sat 190 units into a post (89 past the wall, before [refuge-outgrown-1]),
-			# where any player steering would have walked out. So the grown frame moves it
-			# to where its grown size fits first. Not under `--at`: a refuge frame is asking
-			# exactly what happens to a monster that outgrows the room it stands in.
-			if _stand_at == Vector2.INF and _world.layout != null:
-				# With a margin: it eats what its new disc covers (495 -> 591 in the gauntlet).
-				var grown := _world.tunables.mass_rules.radius_for(float(shot["mass"])) * 1.3
-				monster.pieces[0].state.position = _room_for(monster.centre(), grown)
-
-			_world.feed_player(1, float(shot["mass"]) - monster.mass())
-
-		if bool(shot["whole"]):
-			# The whole arena in one frame. The rig frames a monster, so it is turned off
-			# rather than fought with: a camera being smoothed toward a target is a camera
-			# that is somewhere else on the frame that gets saved.
-			_camera.zoom_with_size = false
-			_camera.clamp_to_arena = false
-			_camera.follow_sec = 0.0
-			_camera.monster_source = Callable()
-			# And the rig's anchor pinned to the middle, through the spectating seam. Setting
-			# the camera's position alone is undone on the next frame by the rig following
-			# its anchor, which is still wherever the player stands — and this frame only
-			# ever came out centred because the anchor used to be at the origin, where the
-			# arena's centre also is, while the four startup errors (see `_initialize`)
-			# kept the player from existing. With a live match the player is put at 0.36 of the height and the
-			# whole-arena frame came out cropped by a third.
-			var middle := _world.arena.bounds.get_center()
-			_camera.position_source = func() -> Variant: return middle
-			_camera.global_position = middle
-
-			var fit := (
-				root.get_visible_rect().size / (_world.arena.bounds.size * 1.04)
-			)
-			_camera.zoom = Vector2(minf(fit.x, fit.y), minf(fit.x, fit.y))
-		else:
-			_camera.zoom_with_size = true
-			_camera.clamp_to_arena = true
-			_camera.monster_source = func() -> Object: return _world.monster_for(1)
-			_camera.position_source = Callable()
-			# The zoom snapped rather than eased. At `zoom_sec` 0.45 against four frames
-			# the gate and grown frames both came out at whatever zoom the ease had reached
-			# from the whole-arena one — nearly the same zoom, so the grown frame did not
-			# show the zoomed-out view it exists to show.
-			_camera.zoom_sec = 0.0
-
-		if shot.has("vote"):
-			_hud.visible = true
-			# The client refreshes the board on its own cadence (`HungryClient`), not the
-			# HUD, so without this the frame drew a board with its header and no rows.
-			_hud.refresh_leaderboard()
-			_hud.say("A vote for what plays next starts in 5s.", Color(0.62, 0.78, 1.0))
-			_hud.vote_countdown(4, false)
-
-		if shot.has("ballot"):
-			_ballot()
-
-		if shot.has("beacon"):
-			_beacon_two()
-
-		if shot.has("fx"):
-			_fx()
-
-		if shot.has("blind"):
-			_hud.visible = true
-			_world.monster_for(1).blinded = true
-			# Straight to fully down: four settle frames are a sixth of the fade, and a frame
-			# of a blind a quarter of the way down says nothing about the finished one.
-			_hud.present_blind(1.0)
-
-		_world.tick({})
-
-		# A fed monster grows by hundreds of mass in one call, and a tick pushes it out of
-		# the rocks BEFORE it eats — so on the tick after the feed it swallows the food its
-		# new disc now covers, grows again, and is drawn overlapping a post by exactly that
-		# growth (`[hungario-grown-1]`: 12.7 units in shallows_grown, 825 -> 919 mass). The
-		# game pushes it out on the next tick; the frame was simply taken first. So tick on
-		# until the player stands clear, as it would one tick later in any real round.
-		if float(shot["mass"]) > 0.0:
-			for _settle in range(30):
-				if not _player_overlaps():
-					break
-
-				_world.tick({})
+		_prepare(shot)
 
 	_wait -= 1
 
@@ -351,6 +276,103 @@ func _process(_delta: float) -> bool:
 	_prepared = false
 	_wait = SETTLE if _at >= _shots.size() else int(_shots[_at].get("settle", SETTLE))
 	return false
+
+
+## Sets up one shot: the player's mass, the camera framing and whatever the shot shows.
+func _prepare(shot: Dictionary) -> void:
+	var monster := _world.monster_for(1)
+
+	if float(shot["mass"]) > 0.0 and monster != null:
+		# The default spot is chosen for the starting monster's view, and in the
+		# gauntlet it is a slalom gate a grown one does not fit: fed there and left idle
+		# it sat 190 units into a post (89 past the wall, before [refuge-outgrown-1]),
+		# where any player steering would have walked out. So the grown frame moves it
+		# to where its grown size fits first. Not under `--at`: a refuge frame is asking
+		# exactly what happens to a monster that outgrows the room it stands in.
+		if _stand_at == Vector2.INF and _world.layout != null:
+			# With a margin: it eats what its new disc covers (495 -> 591 in the gauntlet).
+			var grown := _world.tunables.mass_rules.radius_for(float(shot["mass"])) * 1.3
+			monster.pieces[0].state.position = _room_for(monster.centre(), grown)
+
+		_world.feed_player(1, float(shot["mass"]) - monster.mass())
+
+	_frame_camera(bool(shot["whole"]))
+
+	if shot.has("vote"):
+		_hud.visible = true
+		# The client refreshes the board on its own cadence (`HungryClient`), not the
+		# HUD, so without this the frame drew a board with its header and no rows.
+		_hud.refresh_leaderboard()
+		_hud.say("A vote for what plays next starts in 5s.", Color(0.62, 0.78, 1.0))
+		_hud.vote_countdown(4, false)
+
+	if shot.has("ballot"):
+		_ballot()
+
+	if shot.has("beacon"):
+		_beacon_two()
+
+	if shot.has("fx"):
+		_fx()
+
+	if shot.has("blind"):
+		_hud.visible = true
+		_world.monster_for(1).blinded = true
+		# Straight to fully down: four settle frames are a sixth of the fade, and a frame
+		# of a blind a quarter of the way down says nothing about the finished one.
+		_hud.present_blind(1.0)
+
+	_world.tick({})
+
+	# A fed monster grows by hundreds of mass in one call, and a tick pushes it out of
+	# the rocks BEFORE it eats — so on the tick after the feed it swallows the food its
+	# new disc now covers, grows again, and is drawn overlapping a post by exactly that
+	# growth (`[hungario-grown-1]`: 12.7 units in shallows_grown, 825 -> 919 mass). The
+	# game pushes it out on the next tick; the frame was simply taken first. So tick on
+	# until the player stands clear, as it would one tick later in any real round.
+	if float(shot["mass"]) > 0.0:
+		for _settle in range(30):
+			if not _player_overlaps():
+				break
+
+			_world.tick({})
+
+
+## The whole arena in one frame, or the rig following the player.
+func _frame_camera(whole: bool) -> void:
+	if whole:
+		# The whole arena in one frame. The rig frames a monster, so it is turned off
+		# rather than fought with: a camera being smoothed toward a target is a camera
+		# that is somewhere else on the frame that gets saved.
+		_camera.zoom_with_size = false
+		_camera.clamp_to_arena = false
+		_camera.follow_sec = 0.0
+		_camera.monster_source = Callable()
+		# And the rig's anchor pinned to the middle, through the spectating seam. Setting
+		# the camera's position alone is undone on the next frame by the rig following
+		# its anchor, which is still wherever the player stands — and this frame only
+		# ever came out centred because the anchor used to be at the origin, where the
+		# arena's centre also is, while the four startup errors (see `_initialize`)
+		# kept the player from existing. With a live match the player is put at 0.36 of the height and the
+		# whole-arena frame came out cropped by a third.
+		var middle := _world.arena.bounds.get_center()
+		_camera.position_source = func() -> Variant: return middle
+		_camera.global_position = middle
+
+		var fit := (
+			root.get_visible_rect().size / (_world.arena.bounds.size * 1.04)
+		)
+		_camera.zoom = Vector2(minf(fit.x, fit.y), minf(fit.x, fit.y))
+	else:
+		_camera.zoom_with_size = true
+		_camera.clamp_to_arena = true
+		_camera.monster_source = func() -> Object: return _world.monster_for(1)
+		_camera.position_source = Callable()
+		# The zoom snapped rather than eased. At `zoom_sec` 0.45 against four frames
+		# the gate and grown frames both came out at whatever zoom the ease had reached
+		# from the whole-arena one — nearly the same zoom, so the grown frame did not
+		# show the zoomed-out view it exists to show.
+		_camera.zoom_sec = 0.0
 
 
 ## The nearest point to [param from] where a disc of [param radius] is clear of the rocks

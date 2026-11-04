@@ -2,6 +2,7 @@
 extends DotHud
 
 const HungryBeacon := preload("hungry_beacon.gd")
+const HungryBindings := preload("hungry_bindings.gd")
 const HungryContent := preload("../hungry_content.gd")
 const HungryEvents := preload("../net/hungry_events.gd")
 const HungryField := preload("../hungry_field.gd")
@@ -189,6 +190,26 @@ func build(p_world: HungryWorld, p_bridge: HungryNetBridge, p_player_id: int) ->
 	blind_overlay.visible = false
 	add_child(blind_overlay)
 
+	_build_stats()
+	_build_board()
+	_build_top()
+
+	if HungryTouch.wanted():
+		touch = HungryTouch.make()
+		add_child(touch)
+		touch.apply_safe_area()
+
+	status_label = Label.new()
+	status_label.name = "Status"
+	status_label.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
+	status_label.offset_top = -22.0
+	status_label.offset_bottom = -4.0
+	status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	status_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(status_label)
+
+
+func _build_stats() -> void:
 	mass_bar = DotStatBar.new()
 	mass_bar.name = "Mass"
 	mass_bar.format = "%d"
@@ -231,6 +252,8 @@ func build(p_world: HungryWorld, p_bridge: HungryNetBridge, p_player_id: int) ->
 	carry_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(carry_label)
 
+
+func _build_board() -> void:
 	leaderboard = DotTableView.new()
 	leaderboard.name = "Leaderboard"
 	leaderboard.max_rows = BOARD_ROWS
@@ -274,6 +297,8 @@ func build(p_world: HungryWorld, p_bridge: HungryNetBridge, p_player_id: int) ->
 	# Under the blind, which is the first child. See [member blind_overlay].
 	move_child(minimap, 0)
 
+
+func _build_top() -> void:
 	# Top centre, full width: the strip centres its plate on its own middle. Its own theme is
 	# the accent; the plate and words are the menu theme's, set on this HUD by the menu.
 	strip = DotScoreStrip.new()
@@ -298,20 +323,6 @@ func build(p_world: HungryWorld, p_bridge: HungryNetBridge, p_player_id: int) ->
 	vote_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	vote_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.40))
 	add_child(vote_label)
-
-	if HungryTouch.wanted():
-		touch = HungryTouch.make()
-		add_child(touch)
-		touch.apply_safe_area()
-
-	status_label = Label.new()
-	status_label.name = "Status"
-	status_label.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
-	status_label.offset_top = -22.0
-	status_label.offset_bottom = -4.0
-	status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	status_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(status_label)
 
 
 ## Shows or hides the minimap. A player's setting.
@@ -338,6 +349,27 @@ func _watched() -> HungryMonster:
 	var value: Variant = watching_source.call()
 	return value as HungryMonster if value is HungryMonster else null
 
+
+## The opening hints, with the keys as they are bound now (the table the Controls page rebinds).
+func say_welcome(keys) -> void:
+	say(
+		"Move with the mouse — near is slow, far is fast.",
+		Color(0.70, 0.78, 0.90)
+	)
+	say(
+		"%s splits, %s ejects, %s throws. Let go of the mouse to gather." % [
+			keys.key_for(HungryBindings.SPLIT), keys.key_for(HungryBindings.EJECT),
+			keys.key_for(HungryBindings.THROW),
+		],
+		Color(0.70, 0.78, 0.90)
+	)
+	say(
+		"%s is the board, %s is chat, %s is help, %s the modes, Escape is the menu and your loadout." % [
+			keys.key_for(HungryBindings.SCOREBOARD), keys.key_for(HungryBindings.CHAT),
+			keys.key_for(DotMenuBindings.HELP_ACTION), DotInputBinding.describe_action(&"dot_menu_maps"),
+		],
+		Color(0.62, 0.68, 0.78)
+	)
 
 
 func say(text: String, colour: Color = Color(0.88, 0.90, 0.94)) -> void:

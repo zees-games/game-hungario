@@ -215,18 +215,8 @@ func setup() -> DotResult:
 		return match_result
 
 	spectate = HungrySpectate.new()
-	spectate.name = "Spectate"
-	add_child(spectate)
 
-	var watching := spectate.bind(self)
-
-	if not watching.ok:
-		# Not fatal. A world with no spectator camera is the world this game has had
-		# since it was written; saying so and carrying on is better than refusing to
-		# start a round over where a dead player's camera points.
-		DotLog.warn(CHANNEL, "spectating is off", {"why": watching.error.message})
-		remove_child(spectate)
-		spectate.queue_free()
+	if not spectate.attach_to(self):
 		spectate = null
 
 	_build_player_stack()

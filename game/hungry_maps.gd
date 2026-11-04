@@ -223,6 +223,33 @@ func setup(p_games: Object) -> DotResult:
 			"detail": layered.error.detail,
 		})
 
+	_build_director(rules)
+
+	feed = DotVoteBallotFeed.of(director, func(state: Dictionary) -> void:
+		if ballot_fn.is_valid():
+			ballot_fn.call(state)
+	)
+	feed.title = "Vote for the next mode"
+	feed.people_fn = func(voter: StringName) -> Dictionary:
+		return people_fn.call(voter) if people_fn.is_valid() else {}
+
+	director.change_due.connect(func(id: StringName, _choice: DotVoteChoice) -> void:
+		change_due.emit(id)
+	)
+
+	# Two signals, two messages: dot-vote emits a countdown second and that second's cue
+	# separately, and merging them here would be this file deciding which is which.
+	director.cue.connect(func(id: StringName) -> void: cue_due.emit(id, 0, false))
+	director.countdown_tick.connect(func(seconds_left: int, runoff: bool) -> void:
+		cue_due.emit(&"", seconds_left, runoff)
+	)
+
+	# No second clock: the vote's own clock hears extends, kept-mode ballots and stops, and dot-vote's `timeleft` already reads it.
+
+	return DotResult.success(null)
+
+
+func _build_director(rules: DotVoteRules) -> void:
 	director = DotVoteDirector.new()
 	director.name = "Vote"
 	director.rules = rules
@@ -253,29 +280,6 @@ func setup(p_games: Object) -> DotResult:
 	if "round_in_progress_fn" in director:
 		director.set(&"round_in_progress_fn", round_in_progress)
 	add_child(director)
-
-	feed = DotVoteBallotFeed.of(director, func(state: Dictionary) -> void:
-		if ballot_fn.is_valid():
-			ballot_fn.call(state)
-	)
-	feed.title = "Vote for the next mode"
-	feed.people_fn = func(voter: StringName) -> Dictionary:
-		return people_fn.call(voter) if people_fn.is_valid() else {}
-
-	director.change_due.connect(func(id: StringName, _choice: DotVoteChoice) -> void:
-		change_due.emit(id)
-	)
-
-	# Two signals, two messages: dot-vote emits a countdown second and that second's cue
-	# separately, and merging them here would be this file deciding which is which.
-	director.cue.connect(func(id: StringName) -> void: cue_due.emit(id, 0, false))
-	director.countdown_tick.connect(func(seconds_left: int, runoff: bool) -> void:
-		cue_due.emit(&"", seconds_left, runoff)
-	)
-
-	# No second clock: the vote's own clock hears extends, kept-mode ballots and stops, and dot-vote's `timeleft` already reads it.
-
-	return DotResult.success(null)
 
 
 ## Somebody is playing something. Both the rotation and the vote are told.

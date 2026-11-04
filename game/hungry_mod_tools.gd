@@ -33,6 +33,13 @@ const HungryMonster := preload("hungry_monster.gd")
 ## a running module and a handler holding the old one would act on a freed arena.
 
 static func handlers(world_fn: Callable) -> Dictionary:
+	var all := _admin_handlers(world_fn)
+	all.merge(_world_handlers(world_fn))
+	all.merge(_flag_handlers(world_fn))
+	return all
+
+
+static func _admin_handlers(world_fn: Callable) -> Dictionary:
 	return {
 		DotModTools.ACTION_NOCLIP: func(id: StringName, args: Dictionary) -> DotResult:
 			var monster := _monster(world_fn.call(), id)
@@ -61,7 +68,11 @@ static func handlers(world_fn: Callable) -> Dictionary:
 			# The step it landed on, which is what the admin is told: speeds are a ladder
 			# because only an index travels.
 			return DotResult.success(Dot2DAdminModifiers.bits_speed(monster.admin)),
+	}
 
+
+static func _world_handlers(world_fn: Callable) -> Dictionary:
+	return {
 		DotModTools.ACTION_SLAY: func(id: StringName, _args: Dictionary) -> DotResult:
 			var world: HungryWorld = world_fn.call()
 			var monster := _monster(world, id)
@@ -107,7 +118,11 @@ static func handlers(world_fn: Callable) -> Dictionary:
 				return _absent(id)
 			monster.carried.clear()
 			return DotResult.success(null),
+	}
 
+
+static func _flag_handlers(world_fn: Callable) -> Dictionary:
+	return {
 		DotModTools.ACTION_RENAME: func(id: StringName, args: Dictionary) -> DotResult:
 			var monster := _monster(world_fn.call(), id)
 			if monster == null:

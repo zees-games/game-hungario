@@ -25,15 +25,7 @@ examples/sandbox.gd::_test_chat	86
 examples/sandbox.gd::_test_game_change	114
 examples/sandbox.gd::_test_playing	120
 examples/sandbox.gd::_test_two_players	196
-game/client/hungry_client.gd	1185
-game/client/hungry_client.gd::_build_ui	81
-game/client/hungry_hud.gd::build	144
-game/client/hungry_presentation.gd::sound_catalogue	98
+game/client/hungry_client.gd	1167
 game/client/hungry_renderer.gd	805
 game/hungry_layout.gd	1696
-game/hungry_maps.gd::setup	87
-game/hungry_mod_tools.gd::handlers	100
-game/hungry_world.gd	1746
-game/hungry_world.gd::setup	93
-tools/screenshot_map.gd::_initialize	126
-tools/screenshot_map.gd::_process	136
+game/hungry_world.gd	1733

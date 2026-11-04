@@ -512,26 +512,8 @@ func _build_ui() -> void:
 
 	_wire_chat_window()
 
-	hud.say(
-		"Move with the mouse — near is slow, far is fast.",
-		Color(0.70, 0.78, 0.90)
-	)
-	# The keys as they are bound now, from the table the Controls page rebinds.
 	var keys := presentation.menu_settings.bindings if presentation != null and presentation.menu_settings != null else HungryBindings.make()
-	hud.say(
-		"%s splits, %s ejects, %s throws. Let go of the mouse to gather." % [
-			keys.key_for(HungryBindings.SPLIT), keys.key_for(HungryBindings.EJECT),
-			keys.key_for(HungryBindings.THROW),
-		],
-		Color(0.70, 0.78, 0.90)
-	)
-	hud.say(
-		"%s is the board, %s is chat, %s is help, %s the modes, Escape is the menu and your loadout." % [
-			keys.key_for(HungryBindings.SCOREBOARD), keys.key_for(HungryBindings.CHAT),
-			keys.key_for(DotMenuBindings.HELP_ACTION), DotInputBinding.describe_action(&"dot_menu_maps"),
-		],
-		Color(0.62, 0.68, 0.78)
-	)
+	hud.say_welcome(keys)
 
 
 ## What the camera frames and the pointer is measured from.

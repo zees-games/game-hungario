@@ -25,6 +25,23 @@ const CHANNEL := "hungry.spectate"
 
 var world: HungryWorld = null
 
+## Adds this host under [param p_world] and binds it; false (logged, and freed) when it cannot bind.
+func attach_to(p_world: HungryWorld) -> bool:
+	name = "Spectate"
+	p_world.add_child(self)
+
+	var watching := bind(p_world)
+
+	if not watching.ok:
+		# Not fatal: a world with no spectator camera is how this game ran before spectating existed.
+		DotLog.warn(CHANNEL, "spectating is off", {"why": watching.error.message})
+		p_world.remove_child(self)
+		queue_free()
+		return false
+
+	return true
+
+
 ## Binds the world and builds the manager. [method setup] itself takes no world.
 func bind(p_world: HungryWorld) -> DotResult:
 	world = p_world
