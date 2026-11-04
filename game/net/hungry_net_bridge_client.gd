@@ -84,9 +84,9 @@ func client_tick(tick: int, command: Dot2DCommand) -> void:
 		payload.append_array(writer.to_bytes())
 		link.send_input(payload)
 
-	for identity in net.registry.predicted():
-		for behaviour in identity.behaviours:
-			behaviour._net_simulate(tick, net.clock.tick_duration())
+	# Through the predictor, which remembers each tick: a snapshot can only skip its replay when the
+	# tick it describes was remembered.
+	net.predict_tick(tick, packet)
 
 	world.separate_local(monster, net.clock.tick_duration())
 

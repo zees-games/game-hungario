@@ -42,6 +42,9 @@ func _register_net_vars() -> void:
 		if int(spec["bits"]) > 0:
 			declaration.bits(int(spec["bits"]))
 
+		# Server-driven: only pull() on the authority writes the match, never a prediction.
+		declaration.server_driven()
+
 	# Above a piece: a client that missed the round ending draws a live HUD over a world
 	# that has already reset, and every other number on the screen is then wrong.
 	for declaration in net_vars:
