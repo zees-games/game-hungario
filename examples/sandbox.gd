@@ -503,7 +503,6 @@ func _test_playing() -> void:
 
 	var mine := _client.bridge.local_player_id
 	var module := _module()
-
 	_check(
 		module.world.monster_for(mine) != null,
 		"and the server agrees that is a player (%d)" % mine
@@ -512,18 +511,14 @@ func _test_playing() -> void:
 	var has_field := await _until(func() -> bool:
 		return _client.world.field.alive_count() > 100
 	, 8.0)
-
 	_check(
 		has_field,
 		"the field arrived (%d slots)" % _client.world.field.alive_count()
 	)
-	# Waited for rather than asserted: a round going live reseeds the whole field and
-	# resends it, so a client admitted a moment before that legitimately holds the
-	# previous seed for a few frames. What must not happen is that it keeps it.
+	# Waited for: a round going live reseeds and resends the field, so a client holds the old seed for a few frames.
 	var seeded := await _until(func() -> bool:
 		return _client.world.field.seed_value() == module.world.field.seed_value()
 	, 8.0)
-
 	_check(
 		seeded,
 		"from the same seed (%d vs %d)" % [
@@ -540,11 +535,18 @@ func _test_playing() -> void:
 	var mirrored := await _until(func() -> bool:
 		return _client.bridge.piece_count() > 0
 	, 8.0)
-
 	_check(mirrored, "and the monster is mirrored")
 
-	# Now actually play. Everything from here is over the socket: the command goes out as
-	# an RPC, the server simulates it, and the state comes back in a snapshot.
+	await _playing_moves(module, mine)
+	_playing_avatar(module, mine)
+	await _test_mass_actions_are_heard(module, mine)
+
+	_command = Dot2DCommand.new()
+	_done()
+
+
+## Over the socket: the command goes out as an RPC, the server simulates it, the state comes back in a snapshot.
+func _playing_moves(module: HungryModule, mine: int) -> void:
 	var before := module.world.monster_for(mine).centre()
 
 	_command = Dot2DCommand.new()
@@ -589,9 +591,9 @@ func _test_playing() -> void:
 		"and inputs are reaching the server (%d)" % module.hbridge.link.inputs_received
 	)
 
-	# The avatar the client published is the one the server holds. This is the whole
-	# dot-user-avatar path over a real connection: a document of ids, validated against a
-	# schema by a server that loaded no art.
+
+## The avatar the client published is the one the server holds: dot-user-avatar over a real connection.
+func _playing_avatar(module: HungryModule, mine: int) -> void:
 	var server_monster := module.world.monster_for(mine)
 	_check(
 		server_monster != null and server_monster.avatar != null,
@@ -602,11 +604,6 @@ func _test_playing() -> void:
 			and server_monster.avatar.schema_id == HungryContent.avatar_schema().id,
 		"under the rider schema"
 	)
-
-	await _test_mass_actions_are_heard(module, mine)
-
-	_command = Dot2DCommand.new()
-	_done()
 
 
 ## An admin's noclip and freeze, over a real socket, on the player's own predicted monster.
@@ -759,8 +756,7 @@ func _test_ambient_cvars() -> void:
 func _test_chat() -> void:
 	_section("chat")
 
-	# Attached here rather than at build time: `_client` is instantiated from a scene and
-	# its chat client exists once it is in the tree.
+	# Attached here: the chat client exists once `_client` is in the tree.
 	if not _client.chat.message_received.is_connected(_note_heard):
 		_client.chat.message_received.connect(_note_heard)
 
@@ -792,9 +788,7 @@ func _test_chat() -> void:
 		"and the HUD shows it"
 	)
 
-	# Sanitising is [DotChatFilter]'s and happens before anything else sees the text. A
-	# zero-width space is what somebody uses to slip a name past a filter or to break a
-	# HUD's layout, and a client should never be handed one.
+	# [DotChatFilter] sanitises first: a zero-width space slips a name past a filter, and no client should get one.
 	var zero_width := String.chr(0x200B)
 	var dirty := await _say_and_wait("bad%sline" % zero_width)
 	_check(
@@ -810,7 +804,12 @@ func _test_chat() -> void:
 	var nearby := await _until(func() -> bool: return _heard.size() > near_before, 6.0)
 	_check(nearby, "a line on the proximity channel reaches somebody standing there")
 
-	# [b]And the one payload that legitimately comes down dot-server's chat signal.[/b]
+	await _chat_legacy_path()
+	_done()
+
+
+## The one payload that legitimately comes down dot-server's chat signal, and the legacy path beside the router.
+func _chat_legacy_path() -> void:
 	_check(
 		_chat_state.size() >= 1,
 		"the server told the client what is carrying chat, on joining (%d)" % _chat_state.size()
@@ -828,9 +827,7 @@ func _test_chat() -> void:
 		+ "filter would be the one that leaked admin chat"
 	)
 
-	# The legacy path still works and is still the router's: a browser shell's own chat
-	# box goes through dot-server and has no way to name a channel, and the module
-	# forwards it rather than dropping it.
+	# A browser shell's chat box goes through dot-server and cannot name a channel; the module forwards it.
 	var forwarded_before := _heard.size()
 	_link.send_chat("said the old way", false)
 
@@ -841,7 +838,6 @@ func _test_chat() -> void:
 		forwarded,
 		"a line sent through dot-server's own chat is forwarded onto this game's wire"
 	)
-	_done()
 
 
 func _note_heard(message: DotChatMessage, _channel: StringName) -> void:
@@ -1154,15 +1150,14 @@ func _test_game_change() -> void:
 	var mine := _client.bridge.local_player_id
 	var before_world := module.world
 
-	# Moved once by a moderator, so `return` has a position in THIS arena to put them back at.
+	# Moved once, so `return` has a position in THIS arena.
 	var who := StringName(str(mine))
 	var here: Variant = module.mod_tools.position_fn.call(who)
 	var _moved: DotResult = await module.mod_tools.teleport(&"", who,
 		(here as Vector2) + Vector2(40.0, 0.0) if here is Vector2 else Vector2.ZERO)
 	_check(module.mod_tools.can_return(who), "a moderator moves the player, so `return` has somewhere to put them")
 
-	# To the reef, not frenzy: a mode with rocks adds the one thing a client derives rather than receives, the discs it predicts against.
-	# Recorded as it happens, since the cover can lift again before a poll could look.
+	# To the reef: rocks add the discs a client derives rather than receives. Recorded as it happens; the cover can lift before a poll.
 	var seen := {"loading": 0, "loaded": 0, "harmable_while_loading": true, "t0": 0, "ms": -1}
 	module.roster.loading_changed.connect(func(userid: int, is_loading: bool) -> void:
 		if userid != mine:
@@ -1187,13 +1182,18 @@ func _test_game_change() -> void:
 	var changed: DotResult = await _server.games.change_game(
 		HungryModule.GAME_REEF, "sandbox"
 	)
-
 	if not _check(changed.ok, "the server changes to the reef", str(changed.error)):
 		_done()
 		return
 
 	await _frames(10)
+	await _game_change_arrived(module, before_world, mine)
+	await _game_change_loading(module, mine, seen, closes, who)
+	_done()
 
+
+## The server's new world, and the client rebuilt from the hello without reconnecting.
+func _game_change_arrived(module: HungryModule, before_world: Variant, mine: int) -> void:
 	_check(module.world != before_world, "onto a new world")
 	_check(String(module.world.preset.id) == "reef", "under the new preset")
 	_check(_link.is_connected_to_server(), "and the client is still connected")
@@ -1203,7 +1203,6 @@ func _test_game_change() -> void:
 			module.world.arena.bounds.size
 		)
 	, 10.0)
-
 	_check(
 		followed,
 		"the client took the new arena (%s vs %s)" % [
@@ -1235,9 +1234,11 @@ func _test_game_change() -> void:
 		var monster := module.world.monster_for(mine)
 		return monster != null and monster.alive and _client.bridge.piece_count() > 0
 	, 10.0)
-
 	_check(back_in, "and is playing again without reconnecting")
 
+
+## The cover closes and lifts again, the seat is loading and unharmable meanwhile, and `return` has nowhere to go.
+func _game_change_loading(module: HungryModule, mine: int, seen: Dictionary, closes: Array, who: StringName) -> void:
 	# The map change covers the client again and the server counts the seat as loading until it lifts: well inside the 5 s a client that did not re-cover would wait.
 	_check(closes[0] >= 1, "the client covered again for the change (gate closed %d)" % closes[0])
 	var reloaded := await _until(func() -> bool: return int(seen["loaded"]) >= 1, 8.0)
@@ -1257,7 +1258,6 @@ func _test_game_change() -> void:
 		"and `return` has nowhere to put them, rather than a spot in the arena that is gone",
 		"it put them at %s, a position from the previous mode" % str(returned.value) if returned.ok else ""
 	)
-	_done()
 
 
 func _test_leaving() -> void:

@@ -14,9 +14,6 @@ examples/headless_round.gd::_test_spectating	96
 examples/headless_round.gd::_test_splitting	98
 examples/headless_round.gd::_test_where_a_hunter_appears	115
 examples/sandbox.gd	1286
-examples/sandbox.gd::_test_chat	86
-examples/sandbox.gd::_test_game_change	111
-examples/sandbox.gd::_test_playing	120
 game/client/hungry_client.gd	1167
 game/client/hungry_renderer.gd	805
 game/hungry_layout.gd	1696
