@@ -76,6 +76,13 @@ func _register_net_vars() -> void:
 
 	# Position is what everything else is judged against: a stale mass looks like a
 	# slightly wrong number, a stale position looks like a teleport.
+	# Effect bits (spawn protection ending, rush, frost) run on the server's timers; the client
+	# only adopts them (HungryMonster.adopt_flags), so a change is not a misprediction.
+	var flags_var := find_var(&"net_flags")
+
+	if flags_var != null:
+		flags_var.server_driven()
+
 	var position_var := find_var(&"net_position")
 
 	if position_var != null:

@@ -6,6 +6,40 @@ const HungryModule := preload("../game/hungry_module.gd")
 ## `--bots` adds that many of the module's own bots; `--play` supplies the pilot's movement.
 
 
+## `--play` steers through the stick actions (the pointer's stand-in in a headless run): the base pilot
+## has no movement actions here, so without this the measured monster stands still.
+class Mover extends Node:
+	const ACTIONS: Array[StringName] = [&"move_left", &"move_right", &"move_up", &"move_down"]
+	var _t := 0.0
+	var _next := 0.0
+	var _rng := RandomNumberGenerator.new()
+
+	func _ready() -> void:
+		_rng.seed = 20261104
+
+	func _process(delta: float) -> void:
+		_t += delta
+		if _t < _next:
+			return
+		_next = _t + _rng.randf_range(0.6, 2.0)
+		for a in ACTIONS:
+			if InputMap.has_action(a):
+				Input.action_release(a)
+		var first := _rng.randi_range(0, 3)
+		var second := _rng.randi_range(0, 3)
+		for a in [ACTIONS[first], ACTIONS[second]]:
+			if InputMap.has_action(a):
+				Input.action_press(a)
+
+
+func _ready() -> void:
+	super()
+	if "--play" in OS.get_cmdline_user_args() and "--still" not in OS.get_cmdline_user_args():
+		var mover := Mover.new()
+		mover.process_priority = -999
+		add_child(mover)
+
+
 func _configure() -> void:
 	client_scene = "res://game/client/hungry_client.tscn"
 	forward_action = &""
