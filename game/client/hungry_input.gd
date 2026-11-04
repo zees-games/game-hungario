@@ -154,8 +154,8 @@ func sample(_delta: float = 0.0) -> Dot2DCommand:
 	command.set_button(
 		Dot2DCommand.BUTTON_ACTION, _held(action_button) or _held(action_click) or touching_throw
 	)
-	command.set_button(Dot2DCommand.BUTTON_BOOST, _held(boost_button))
-	command.set_button(Dot2DCommand.BUTTON_EJECT, _held(eject_button))
+	command.set_button(Dot2DCommand.BUTTON_BOOST, _held(boost_button) or (touch != null and touch.boost_held))
+	command.set_button(Dot2DCommand.BUTTON_EJECT, _held(eject_button) or (touch != null and touch.eject_held))
 
 	var monster := _monster()
 

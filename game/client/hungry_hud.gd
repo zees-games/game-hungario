@@ -293,6 +293,11 @@ func _build_board() -> void:
 	minimap.offset_top = -200.0
 	minimap.offset_right = -20.0
 	minimap.offset_bottom = -20.0
+	if HungryTouch.wanted():
+		# The corner is the thumbs' cluster; park the map beside the mass bar.
+		minimap.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
+		minimap.offset_left = 340.0
+		minimap.offset_right = 520.0
 	add_child(minimap)
 	# Under the blind, which is the first child. See [member blind_overlay].
 	move_child(minimap, 0)

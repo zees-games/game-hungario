@@ -478,12 +478,12 @@ func _interface_touch(world: HungryWorld) -> void:
 		"nothing is pressed to start with"
 	)
 
-	touch.split_button.button_down.emit()
+	touch.buttons.button_down.emit(&"split")
 	_check(
 		sampler.sample().is_pressed(Dot2DCommand.BUTTON_SPLIT),
 		"the split button reaches the command"
 	)
-	touch.split_button.button_up.emit()
+	touch.buttons.button_up.emit(&"split")
 	_check(
 		not sampler.sample().is_pressed(Dot2DCommand.BUTTON_SPLIT),
 		"and lets go again"
@@ -491,20 +491,20 @@ func _interface_touch(world: HungryWorld) -> void:
 
 	# The throw button is disabled with nothing to throw, and names what it will throw
 	# when there is — throwing a lure at somebody chasing you is a wasted charge.
-	_check(touch.throw_button.disabled, "the throw button is disabled while empty")
+	_check(not touch.can_throw(), "the throw button does nothing while empty")
 	touch.show_carried(PackedStringArray(["pepper"]))
-	_check(not touch.throw_button.disabled, "and enabled once something is carried")
+	_check(touch.can_throw(), "and acts once something is carried")
 	_check(
-		touch.throw_button.text.to_lower().contains("pepper"),
-		"naming it (%s)" % touch.throw_button.text
+		touch.throw_label().to_lower().contains("pepper"),
+		"naming it (%s)" % touch.throw_label()
 	)
 
-	touch.throw_button.button_down.emit()
+	touch.buttons.button_down.emit(&"throw")
 	_check(
 		sampler.sample().is_pressed(Dot2DCommand.BUTTON_ACTION),
 		"and it reaches the command too"
 	)
-	touch.throw_button.button_up.emit()
+	touch.buttons.button_up.emit(&"throw")
 
 	remove_child(sampler)
 	sampler.free()
