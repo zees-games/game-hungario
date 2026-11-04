@@ -864,6 +864,30 @@ func _say_and_wait(text: String) -> String:
 func _test_two_players() -> void:
 	_section("a second player")
 
+	if not await _two_players_connect():
+		_done()
+		return
+
+	var mine := _client.bridge.local_player_id
+	var theirs := _other.bridge.local_player_id
+
+	_check(mine != theirs, "the two have different ids (%d and %d)" % [mine, theirs])
+
+	await _two_players_see_each_other(mine, theirs)
+
+	var module := _module()
+
+	await _two_players_movement(module, theirs)
+	await _test_blind_and_beacon_audience(module, theirs)
+	await _two_players_leave(module, theirs)
+
+	_other = null
+	_other_link = null
+	_done()
+
+
+## A second client connects, signs on, builds a client and is told who it is.
+func _two_players_connect() -> bool:
 	_other_side = Node.new()
 	_other_side.name = "OtherSide"
 	add_child(_other_side)
@@ -873,8 +897,7 @@ func _test_two_players() -> void:
 	)
 
 	_other_link = DotClientLink.new()
-	# "Server", the same as the first one and the same as DotServer. The name is the
-	# routing, not a description.
+	# Named "Server" like the first one: the name is the RPC routing.
 	_other_link.name = "Server"
 	_other_link.player_name = "Second Visitor"
 	_other_side.add_child(_other_link)
@@ -890,14 +913,12 @@ func _test_two_players() -> void:
 	)
 
 	if not _check(connecting.ok, "it connects", str(connecting.error)):
-		_done()
-		return
+		return false
 
 	var joined := await _until(func() -> bool: return spawned[0], 15.0)
 
 	if not _check(joined, "and completes signon"):
-		_done()
-		return
+		return false
 
 	_check(_server.sessions().size() == 2, "the server has two sessions")
 
@@ -912,16 +933,13 @@ func _test_two_players() -> void:
 	, 10.0)
 
 	if not _check(told, "and is told who it is"):
-		_done()
-		return
+		return false
 
-	var mine := _client.bridge.local_player_id
-	var theirs := _other.bridge.local_player_id
+	return true
 
-	_check(mine != theirs, "the two have different ids (%d and %d)" % [mine, theirs])
 
-	# Each has to know the other exists, which is the join broadcast, and to have a piece
-	# for them, which is interest plus the spawn events.
+## Each client has a piece for the other, and the join is announced and the backlog handed over.
+func _two_players_see_each_other(mine: int, theirs: int) -> void:
 	var sees_them := await _until(func() -> bool:
 		var monster := _client.world.monster_for(theirs)
 		return monster != null and monster.piece_count() > 0
@@ -935,8 +953,7 @@ func _test_two_players() -> void:
 	_check(sees_them, "the first client sees the second")
 	_check(sees_us, "and the second sees the first")
 
-	# What a join owes: an announcement to everybody already here, and the backlog to the one who just arrived.
-	# Neither can be sent from `client_spawn`, before the client has built anything to receive them.
+	# A join owes an announcement to those here and the backlog to the newcomer; neither can be sent from `client_spawn`.
 	var announced := await _until(func() -> bool:
 		for message: DotChatMessage in _heard:
 			if message.kind == DotChatMessage.Kind.JOIN:
@@ -953,11 +970,10 @@ func _test_two_players() -> void:
 	, 6.0)
 	_check(caught_up, "and the second is handed what was said before it arrived")
 
-	var module := _module()
 
-	# And the positions agree. This is the whole of "two people are in the same world":
-	# the server's idea of where somebody is, and every other client's, being the same
-	# place.
+## Positions agree with the server, the first client watches the second move, and chat and a loadout reach it.
+func _two_players_movement(module: HungryModule, theirs: int) -> void:
+	# "Two people are in the same world": the server's and every client's idea of where somebody is agree.
 	var server_at := module.world.monster_for(theirs).centre()
 	var seen_at := _client.world.monster_for(theirs).centre()
 
@@ -966,7 +982,6 @@ func _test_two_players() -> void:
 		"in the place the server says (%.1f units off)" % seen_at.distance_to(server_at)
 	)
 
-	# Move the second one and the first has to watch it move.
 	var before := _client.world.monster_for(theirs).centre()
 	_other_command = Dot2DCommand.new()
 	_other_command.aim = Vector2.UP
@@ -985,9 +1000,7 @@ func _test_two_players() -> void:
 
 	_other_command = Dot2DCommand.new()
 
-	# And still agrees about where it ended up. Moving is the easy half; a client whose
-	# view of somebody else drifts while they move is a client that will be eaten by
-	# something it was drawing somewhere else.
+	# Moving is the easy half; a view that drifts while they move gets eaten by something drawn elsewhere.
 	var settled := await _until(func() -> bool:
 		var here := _client.world.monster_for(theirs)
 		var there := module.world.monster_for(theirs)
@@ -1003,17 +1016,14 @@ func _test_two_players() -> void:
 			)
 	)
 
-	# Chat goes to everybody, not back to the sender only. Over this game's own wire, and
-	# from the SECOND client — the one that did not ask — which is the half a single
-	# client cannot prove.
+	# Chat goes to everybody, sent from the SECOND client: the half a single client cannot prove.
 	var heard_before := _heard.size()
 	_other.bridge.say(HungryServices.CHANNEL_ALL, "second player here")
 
 	var relayed := await _until(func() -> bool: return _heard.size() > heard_before, 6.0)
 	_check(relayed, "a line from one reaches the other")
 
-	# A loadout published by one is broadcast to all, because the trait changes how fast
-	# that monster moves and every client predicts nothing about it but draws all of it.
+	# A published loadout is broadcast to all: the trait changes how fast that monster moves.
 	var schema := _other.bridge.loadout_schema
 	var chosen := DotLoadout.empty(schema.id)
 	chosen.set_item(HungryContent.SLOT_STARTER, HungryContent.ITEM_FROST)
@@ -1027,10 +1037,10 @@ func _test_two_players() -> void:
 
 	_check(shared, "and so does a loadout they chose")
 
-	await _test_blind_and_beacon_audience(module, theirs)
 
-	# Leaving has to be visible too: a monster left behind by a player who is gone is one
-	# everybody else can still be eaten by.
+## When a player leaves, the other client, the server and the netcode forget them.
+func _two_players_leave(module: HungryModule, theirs: int) -> void:
+	# A monster left behind by a player who is gone is one everybody else can still be eaten by.
 	var their_peer := module.hbridge.peer_for_player(theirs)
 	_other_link.disconnect_from_server("done")
 
@@ -1043,20 +1053,14 @@ func _test_two_players() -> void:
 		module.world.monster_for(theirs) == null,
 		"and the server drops them too"
 	)
-	# A disconnect takes the peer off the ready set before removing it, and removal must not be gated on the ready set,
-	# or the manager keeps the peer and sends it a snapshot every interval (an "unknown peer ID" error in the server's log).
+	# Removal must not be gated on the ready set, or the manager keeps the peer and sends it snapshots ("unknown peer ID").
 	_check(
 		their_peer > 0 and not module.hbridge.net.peers().has(their_peer),
 		"and so does its netcode (peers %s)" % str(module.hbridge.net.peers())
 	)
 
-	_other = null
-	_other_link = null
-	_done()
 
-
-## An administrator's blind and beacon, with two real clients on real sockets: the one
-## thing about both that one client cannot show is who ELSE is told.
+## An administrator's blind and beacon with two real clients: who ELSE is told.
 func _test_blind_and_beacon_audience(module: HungryModule, theirs: int) -> void:
 	var id := StringName(str(theirs))
 	var blinded: DotResult = await module.mod_tools.toggle(&"console", id, DotModTools.ACTION_BLIND, true, 100)
@@ -1094,13 +1098,11 @@ func _test_blind_and_beacon_audience(module: HungryModule, theirs: int) -> void:
 	_check(cleared, "and turning both off reaches both clients")
 
 
-## The player's block list (`sm`) reaches this game's voice: dot-chat's DotChatSelfMute binds whatever is published as `dot_voice_client`.
-## Armed: drop `HungryVoice`'s publish and the first check fails; drop the list's binding and the second does.
+## The player's block list (`sm`) reaches this game's voice via dot-chat's DotChatSelfMute; armed: dropping either end fails a check.
 func _test_voice_mute() -> void:
 	_section("sm mutes a player's voice")
 
-	# The one client in this process so far, as in a real one (a second client publishes its
-	# own, and the registry holds the last).
+	# The one client in this process so far, as in a real one (a second publishes its own; the registry holds the last).
 	var voice: Variant = _client.voice if _client != null else null
 	var manager: DotVoiceManager = voice.manager if voice != null else null
 	if not _check(manager != null and DotRegistry.get_service(&"dot_voice_client") == manager,
@@ -1152,8 +1154,7 @@ func _test_game_change() -> void:
 	var mine := _client.bridge.local_player_id
 	var before_world := module.world
 
-	# Moved once by a moderator, so `return` has somewhere to put this player — a position in
-	# THIS arena, which the change is about to free.
+	# Moved once by a moderator, so `return` has a position in THIS arena to put them back at.
 	var who := StringName(str(mine))
 	var here: Variant = module.mod_tools.position_fn.call(who)
 	var _moved: DotResult = await module.mod_tools.teleport(&"", who,
@@ -1237,9 +1238,7 @@ func _test_game_change() -> void:
 
 	_check(back_in, "and is playing again without reconnecting")
 
-	# The map change covers the client again (it holds the gate until the new world's hello)
-	# and the server counts the seat as loading until the client says it lifted: well inside
-	# the 5 s a client that did not re-cover would wait.
+	# The map change covers the client again and the server counts the seat as loading until it lifts: well inside the 5 s a client that did not re-cover would wait.
 	_check(closes[0] >= 1, "the client covered again for the change (gate closed %d)" % closes[0])
 	var reloaded := await _until(func() -> bool: return int(seen["loaded"]) >= 1, 8.0)
 	_check(
