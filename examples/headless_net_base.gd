@@ -118,7 +118,7 @@ func _make_manager(server: bool, scope: StringName, peer_id: int) -> DotNetManag
 	config.tick_rate = TICK_RATE
 	config.snapshot_rate = SNAPSHOT_RATE
 	config.enable_lag_compensation = false
-	config.max_entities_per_snapshot = 120
+	config.max_entities_per_snapshot = 0
 	config.world_extent = Dot2DNetSync.WORLD_EXTENT
 	config.reconcile_position_epsilon = HungryNetBridge.RECONCILE_EPSILON
 	manager.config = config
