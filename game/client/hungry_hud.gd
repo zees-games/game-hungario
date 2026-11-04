@@ -276,10 +276,10 @@ func _build_board() -> void:
 	feed.outline_size = TEXT_OUTLINE
 	feed.outline_colour = TEXT_OUTLINE_COLOUR
 	feed.set_anchors_preset(Control.PRESET_TOP_LEFT)
-	# Under dot-menu's "H Help" plate, which is in this corner (HungrySettings); at 16 the
+	# Under dot-menu's "H Help" plate or touch Menu button (to y 66), in this corner (HungrySettings); at 16 the
 	# plate sat on the feed's first line.
 	feed.offset_left = 16.0
-	feed.offset_top = 64.0
+	feed.offset_top = 72.0
 	feed.offset_right = 520.0
 	feed.offset_bottom = 288.0
 	add_child(feed)
