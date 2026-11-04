@@ -1,10 +1,6 @@
 # size
 # Baselines only shrink: scripts/<gate> --update lowers or drops entries and refuses to add.
-examples/headless_presentation.gd	1415
-examples/headless_presentation.gd::_test_blind_and_beacon	139
-examples/headless_presentation.gd::_test_board_makes_room	146
-examples/headless_presentation.gd::_test_chat_box	109
-examples/headless_presentation.gd::_test_party_over_http	98
+examples/headless_presentation.gd	1107
 examples/headless_round.gd	2196
 examples/headless_round.gd::_test_determinism	90
 examples/headless_round.gd::_test_devouring	99
