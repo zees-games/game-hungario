@@ -167,14 +167,12 @@ func setup() -> DotResult:
 	tunables.mass_rules.merge_delay_sec = preset.merge_delay_sec
 
 	var valid := tunables.validate()
-
 	if not valid.ok:
 		return valid
 
 	items = HungryContent.item_catalogue()
 
 	var catalogue_valid := items.validate()
-
 	if not catalogue_valid.ok:
 		return catalogue_valid
 
@@ -215,10 +213,8 @@ func setup() -> DotResult:
 		return match_result
 
 	spectate = HungrySpectate.new()
-
 	if not spectate.attach_to(self):
 		spectate = null
-
 	_build_player_stack()
 
 	if register_service:

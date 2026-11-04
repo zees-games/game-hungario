@@ -28,4 +28,4 @@ examples/sandbox.gd::_test_two_players	196
 game/client/hungry_client.gd	1167
 game/client/hungry_renderer.gd	805
 game/hungry_layout.gd	1696
-game/hungry_world.gd	1733
+game/hungry_world.gd	1732
