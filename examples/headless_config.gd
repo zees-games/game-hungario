@@ -14,6 +14,7 @@ const HungryTuning := preload("../game/hungry_tuning.gd")
 const ROOT := "user://hungry_cfgtest"
 const GAME := "game-hungario"
 const CHECKS := 50
+const SECTIONS := 6
 
 
 func _ready() -> void:
@@ -32,15 +33,7 @@ func _run() -> void:
 	_workbench()
 	_layers()
 	_templates()
-	print("")
-	print("%d passed, %d failed" % [_passed, _failed])
-	for line in _failures:
-		print("  FAIL  %s" % line)
-	if _passed + _failed != CHECKS:
-		print("ERROR: %d checks ran, %d expected." % [_passed + _failed, CHECKS])
-		get_tree().quit(1)
-		return
-	get_tree().quit(1 if _failed > 0 else 0)
+	_report_sections(SECTIONS, SECTIONS, SECTIONS, CHECKS)
 
 
 func _server_config() -> void:

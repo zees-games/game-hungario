@@ -27,7 +27,8 @@ const WORK := "user://hungry_content_test"
 const VERSION := "1.0.0"
 
 ## Every check this suite runs. See the guard at the end of [method _run].
-const CHECKS := 46
+const CHECKS := 45
+const SECTIONS := 7
 
 var _client: DotCloudClient = null
 var _keys: Dictionary = {}
@@ -61,14 +62,7 @@ func _run() -> void:
 	_teardown()
 	DotPaths.remove_tree(WORK)
 
-	print("")
-	_check(
-		_completed == _entered,
-		"every section ran to its last line (%d of %d)" % [_completed, _entered],
-		"a section that aborted stops adding checks and the total cannot show it"
-	)
-
-	_report(CHECKS)
+	_report_sections(_entered, _completed, SECTIONS, CHECKS)
 
 
 ## Sections entered, and sections that ran to their last line.

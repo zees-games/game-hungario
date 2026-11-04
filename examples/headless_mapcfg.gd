@@ -10,6 +10,7 @@ const HungryMapConfig := preload("../game/hungry_map_config.gd")
 ## [/codeblock]
 
 const CHECKS := 8
+const SECTIONS := 1
 
 
 func _ready() -> void:
@@ -50,7 +51,7 @@ func _run() -> void:
 	_check(cfg.applied().is_empty(), "a mode without a file applies nothing")
 
 	DirAccess.remove_absolute(dir.path_join("warrens.yml"))
-	_report(CHECKS)
+	_report_sections(1, 1, SECTIONS, CHECKS)
 
 
 func _write(path: String, text: String) -> void:
