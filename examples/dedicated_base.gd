@@ -16,7 +16,7 @@ const HungryServices := preload("../game/hungry_services.gd")
 const HungryTuning := preload("../game/hungry_tuning.gd")
 const HungryWorld := preload("../game/hungry_world.gd")
 
-const PORT := 27081
+var PORT := HungryTestPorts.free_port(2)
 const SERVER_DIR := "user://hungry_dedicated"
 
 ## The app's URL segment on the website (this game's code name); display only, never proof.

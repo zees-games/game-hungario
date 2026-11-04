@@ -10,7 +10,7 @@ const HungrySoundSink := preload("../game/client/hungry_sound_sink.gd")
 
 ## A real server and a real client, one process, over a real socket, playing the game.
 
-const PORT := 27083
+var PORT := HungryTestPorts.free_port()
 const PROFILE_DIR := "user://hungry_sandbox_profiles"
 const AVATAR_DIR := "user://hungry_sandbox_avatars"
 const SCOPE_KEY := "user://hungry_sandbox_scope.key"
