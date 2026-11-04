@@ -49,14 +49,14 @@ static func make() -> HungryTouch:
 	return touch
 
 
-## Offsets are from the bottom-right corner (see [DotTouchButtons]). Throw is disabled
+## Offsets are from the bottom-right corner (see [DotTouchButtons]). Placed to leave the leaderboard's text columns and the minimap clear. Throw is disabled
 ## (drawn as its label only) until something is carried.
 static func layout(throw_label: String) -> Array[Dictionary]:
 	return [
-		{"id": &"split", "label": "SPLIT", "offset": Vector2(96, 110), "radius": 54.0},
-		{"id": &"throw", "label": throw_label, "offset": Vector2(210, 80), "radius": 40.0},
-		{"id": &"eject", "label": "EJECT", "offset": Vector2(60, 238), "radius": 32.0},
-		{"id": &"boost", "label": "BOOST", "offset": Vector2(196, 184), "radius": 34.0},
+		{"id": &"split", "label": "SPLIT", "offset": Vector2(80, 80), "radius": 46.0},
+		{"id": &"throw", "label": throw_label, "offset": Vector2(176, 52), "radius": 34.0},
+		{"id": &"eject", "label": "EJECT", "offset": Vector2(120, 170), "radius": 30.0},
+		{"id": &"boost", "label": "BOOST", "offset": Vector2(244, 52), "radius": 32.0},
 	]
 
 
