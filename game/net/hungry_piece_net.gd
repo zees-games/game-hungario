@@ -120,6 +120,13 @@ func _net_apply_input(input: DotNetInput, _tick: int) -> void:
 
 	bridge.note_command(piece.owner_id, command.command)
 
+	# A replay hands each tick its own recorded command; predict_piece reads the monster's last one.
+	if identity != null and not identity.is_authoritative:
+		var monster := _monster()
+
+		if monster != null:
+			monster.last_command = command.command.duplicate_command()
+
 
 # --- Simulation ------------------------------------------------------------
 
