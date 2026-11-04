@@ -56,7 +56,7 @@ static func layout(throw_label: String) -> Array[Dictionary]:
 		{"id": &"split", "label": "SPLIT", "offset": Vector2(80, 80), "radius": 46.0},
 		{"id": &"throw", "label": throw_label, "offset": Vector2(176, 52), "radius": 34.0},
 		{"id": &"eject", "label": "EJECT", "offset": Vector2(120, 170), "radius": 30.0},
-		{"id": &"boost", "label": "BOOST", "offset": Vector2(244, 52), "radius": 32.0},
+		{"id": &"boost", "label": "BOOST", "offset": Vector2(250, 52), "radius": 32.0},
 	]
 
 
