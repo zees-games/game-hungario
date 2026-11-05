@@ -146,7 +146,7 @@ func apply_safe_area() -> void:
 	if safe.size == Vector2i.ZERO or safe.size == full:
 		return
 
-	buttons.margin = EDGE_MARGIN + maxf(float(full.y - safe.end.y), float(full.x - safe.end.x))
+	buttons.margin = EDGE_MARGIN + maxf(0.0, maxf(float(full.y - safe.end.y), float(full.x - safe.end.x)))
 	buttons.queue_redraw()
 
 
