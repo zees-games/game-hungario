@@ -1,0 +1,174 @@
+{
+	"format": "dot-achievement-defs",
+	"version": 1,
+	"achievements": [
+		{
+			"key": "eat_100",
+			"name": "Peckish",
+			"description": "Eat 100 pieces of food.",
+			"points": 10,
+			"category": "",
+			"icon": "",
+			"hidden": false,
+			"secret": false,
+			"series": "appetite",
+			"tier": 1,
+			"requireAll": true,
+			"rules": [
+				{
+					"stat": "food",
+					"op": "at_least",
+					"value": 100.0,
+					"merge": "sum"
+				}
+			]
+		},
+		{
+			"key": "eat_1000",
+			"name": "Ravenous",
+			"description": "Eat 1000 pieces of food.",
+			"points": 25,
+			"category": "",
+			"icon": "",
+			"hidden": false,
+			"secret": false,
+			"series": "appetite",
+			"tier": 2,
+			"requireAll": true,
+			"rules": [
+				{
+					"stat": "food",
+					"op": "at_least",
+					"value": 1000.0,
+					"merge": "sum"
+				}
+			]
+		},
+		{
+			"key": "eat_10000",
+			"name": "Insatiable",
+			"description": "Eat 10000 pieces of food.",
+			"points": 50,
+			"category": "",
+			"icon": "",
+			"hidden": false,
+			"secret": false,
+			"series": "appetite",
+			"tier": 3,
+			"requireAll": true,
+			"rules": [
+				{
+					"stat": "food",
+					"op": "at_least",
+					"value": 10000.0,
+					"merge": "sum"
+				}
+			]
+		},
+		{
+			"key": "first_kill",
+			"name": "First bite",
+			"description": "Devour somebody.",
+			"points": 10,
+			"category": "",
+			"icon": "",
+			"hidden": false,
+			"secret": false,
+			"series": "",
+			"tier": 0,
+			"requireAll": true,
+			"rules": [
+				{
+					"stat": "kills",
+					"op": "at_least",
+					"value": 1.0,
+					"merge": "sum"
+				}
+			]
+		},
+		{
+			"key": "kill_50",
+			"name": "Apex",
+			"description": "Devour fifty players.",
+			"points": 30,
+			"category": "",
+			"icon": "",
+			"hidden": false,
+			"secret": false,
+			"series": "",
+			"tier": 0,
+			"requireAll": true,
+			"rules": [
+				{
+					"stat": "kills",
+					"op": "at_least",
+					"value": 50.0,
+					"merge": "sum"
+				}
+			]
+		},
+		{
+			"key": "fruit_25",
+			"name": "Orchard",
+			"description": "Eat twenty-five rare fruit.",
+			"points": 20,
+			"category": "",
+			"icon": "",
+			"hidden": false,
+			"secret": false,
+			"series": "",
+			"tier": 0,
+			"requireAll": true,
+			"rules": [
+				{
+					"stat": "fruit",
+					"op": "at_least",
+					"value": 25.0,
+					"merge": "sum"
+				}
+			]
+		},
+		{
+			"key": "mass_5000",
+			"name": "Titan",
+			"description": "Hold five thousand mass at once.",
+			"points": 40,
+			"category": "",
+			"icon": "",
+			"hidden": false,
+			"secret": false,
+			"series": "",
+			"tier": 0,
+			"requireAll": true,
+			"rules": [
+				{
+					"stat": "top_mass",
+					"op": "at_least",
+					"value": 5000.0,
+					"merge": "highest"
+				}
+			]
+		},
+		{
+			"key": "hunted",
+			"name": "Snack",
+			"description": "The arena eats back.",
+			"points": 15,
+			"category": "",
+			"icon": "",
+			"hidden": false,
+			"secret": true,
+			"series": "",
+			"tier": 0,
+			"requireAll": true,
+			"rules": [
+				{
+					"stat": "hunted",
+					"op": "at_least",
+					"value": 1.0,
+					"merge": "sum"
+				}
+			]
+		}
+	]
+}
