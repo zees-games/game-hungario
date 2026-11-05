@@ -31,6 +31,8 @@ var eject_held: bool = false
 var boost_held: bool = false
 
 var buttons: DotTouchButtons = null
+## The DotGameClient that fits the buttons; a relabel re-applies through it.
+var fit_client: Object = null
 
 ## What the throw button says it will throw. Set from the carry list.
 var _carried: StringName = &""
@@ -49,15 +51,18 @@ static func make() -> HungryTouch:
 	return touch
 
 
-## Offsets are from the bottom-right corner (see [DotTouchButtons]). Placed to leave the leaderboard's text columns and the minimap clear. Throw is disabled
+## dot-game's canonical slots, so split sits where every other game's main button does. Throw is disabled
 ## (drawn as its label only) until something is carried.
+static func touch_layout(throw_label: String) -> DotGameTouchLayout:
+	return DotGameTouchLayout.custom() \
+		.put(&"split", &"primary", "SPLIT") \
+		.put(&"throw", &"secondary", throw_label) \
+		.put(&"eject", &"below", "EJECT") \
+		.put(&"boost", &"outer", "BOOST")
+
+
 static func layout(throw_label: String) -> Array[Dictionary]:
-	return [
-		{"id": &"split", "label": "SPLIT", "offset": Vector2(80, 80), "radius": 46.0},
-		{"id": &"throw", "label": throw_label, "offset": Vector2(176, 52), "radius": 34.0},
-		{"id": &"eject", "label": "EJECT", "offset": Vector2(120, 170), "radius": 30.0},
-		{"id": &"boost", "label": "BOOST", "offset": Vector2(250, 52), "radius": 32.0},
-	]
+	return touch_layout(throw_label).buttons()
 
 
 func build() -> void:
@@ -71,7 +76,7 @@ func build() -> void:
 	buttons.margin = EDGE_MARGIN
 	buttons.set_anchors_preset(Control.PRESET_FULL_RECT)
 	buttons.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	buttons.set_buttons(layout("THROW"))
+	touch_layout("THROW").apply(buttons)
 	buttons.button_down.connect(_on_down)
 	buttons.button_up.connect(_on_up)
 	add_child(buttons)
@@ -125,7 +130,7 @@ func show_carried(items: PackedStringArray) -> void:
 		throw_held = false
 
 	if buttons != null:
-		buttons.set_buttons(layout(throw_label()))
+		touch_layout(throw_label()).apply(buttons, fit_client)
 
 
 ## What the throw button says.

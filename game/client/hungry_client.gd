@@ -487,7 +487,8 @@ func _build_ui() -> void:
 	# is what puts them inside the safe area.
 	sampler.touch = hud.touch
 	if hud.touch != null:
-		platform.fit_touch_buttons(hud.touch.buttons, HungryTouch.layout(hud.touch.throw_label()))
+		hud.touch.fit_client = platform
+		HungryTouch.touch_layout(hud.touch.throw_label()).apply(hud.touch.buttons, platform)
 
 	if platform.board is DotMenuScoreboard:
 		HungryMenus.dress_board(platform.board as DotMenuScoreboard, world, bridge)
