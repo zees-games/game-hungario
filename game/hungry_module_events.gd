@@ -322,6 +322,7 @@ static func game_descriptors() -> Array[DotGameDescriptor]:
 		[GAME_WARRENS, "Hungario: Warrens", HungryPaths.rebase("res://game/modes/warrens.tscn")],
 		[GAME_REEF, "Hungario: Reef", HungryPaths.rebase("res://game/modes/reef.tscn")],
 		[GAME_SHALLOWS, "Hungario: Shallows", HungryPaths.rebase("res://game/modes/shallows.tscn")],
+		[GAME_FAMINE, "Hungario: Famine", HungryPaths.rebase("res://game/modes/famine.tscn")],
 	]:
 		var descriptor := DotGameDescriptor.new()
 		descriptor.game_id = String(row[0])

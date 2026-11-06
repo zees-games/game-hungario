@@ -311,7 +311,7 @@ func _build_presentation() -> void:
 	platform.settings = HungrySettings.new()
 	platform.busy_fn = func() -> bool: return presentation != null and presentation.swallows_input()
 	platform.board_snapshot_fn = HungryMenus.solo_snapshot
-	# M: the six modes. Solo a choice starts that mode now; connected the server decides, by
+	# M: the seven modes. Solo a choice starts that mode now; connected the server decides, by
 	# the owner's `sv_map_menu_flag`, and anybody without it gets a vote instead.
 	platform.maps_rows_fn = mode_rows
 	platform.maps_change_fn = change_mode_offline
@@ -400,7 +400,7 @@ func _start_remote_workbench() -> void:
 	platform.add_workbench(wb)
 
 
-## The six modes, as the map menu (M) lists them solo: `{id, name, detail, current}`.
+## The seven modes, as the map menu (M) lists them solo: `{id, name, detail, current}`.
 func mode_rows() -> Array:
 	var out: Array = []
 	for id in MODE_IDS:
@@ -416,11 +416,12 @@ func mode_rows() -> Array:
 
 
 ## The preset ids, in the order the help screen describes them.
-const MODE_IDS: Array[StringName] = [&"classic", &"frenzy", &"gauntlet", &"warrens", &"reef", &"shallows"]
+const MODE_IDS: Array[StringName] = [&"classic", &"frenzy", &"gauntlet", &"warrens", &"reef", &"shallows", &"famine"]
 const MODE_BLURBS := {
 	&"classic": "The square arena.", &"frenzy": "Small and fast.", &"gauntlet": "A long narrow corridor.",
 	&"warrens": "Rocks and refuges.", &"reef": "A wall with four channels.",
 	&"shallows": "Posts whose gaps narrow toward the middle.",
+	&"famine": "Scarce food, plenty of peppers and items.",
 }
 
 

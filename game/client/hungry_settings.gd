@@ -265,7 +265,7 @@ static func fill_help(help: DotMenuHelp) -> void:
 	help.add_section("Mouse", [["Point", "Steer: the further the cursor, the faster; on yourself to pull your pieces together"]], &"keys")
 	help.add_text("Fruit and throwables", "Fruit gives you eight seconds of something: rush (faster), maw (eat players closer to your size) or rind (absorbs one burst). A pepper bursts whoever it hits into five pieces, a frostberry slows them, and a lure drops a ring of food where it lands.")
 	help.add_text("Loadout", "Escape, then Loadout: a starting throwable and a trait. The server checks it, and it takes effect the next time you spawn.")
-	help.add_text("Modes", "Classic, the square arena. Frenzy, small and fast. Gauntlet, a long narrow corridor. Warrens, rocks and refuges. Reef, a wall with four channels. Shallows, posts whose gaps narrow toward the middle. The players vote for the next mode; M lists them (solo it changes now).")
+	help.add_text("Modes", "Classic, the square arena. Frenzy, small and fast. Gauntlet, a long narrow corridor. Warrens, rocks and refuges. Reef, a wall with four channels. Famine, scarce food and plenty of throwables. Shallows, posts whose gaps narrow toward the middle. The players vote for the next mode; M lists them (solo it changes now).")
 
 
 ## This game's own page: the camera and what is drawn over the arena, the keys
