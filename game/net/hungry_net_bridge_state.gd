@@ -1,4 +1,4 @@
-extends Node
+extends DotGameNetIo
 
 const HungryContent := preload("../hungry_content.gd")
 
@@ -97,15 +97,6 @@ signal progress_received(state: Dictionary)
 signal vote_cue_received(state: Dictionary)
 
 var world: HungryWorld = null
-
-## Where the clock learns how long the link is, in milliseconds. dot-net cannot measure a transport;
-## dot-server's heartbeat does (`DotClientLink.ping_ms()`), and without it the clock assumes an instant
-## connection. Read on every snapshot.
-var rtt_source: Callable = Callable()
-
-var net: DotNetManager = null
-
-var link: HungryNetLink = null
 
 ## The schema both ends dress a rider from. Content, delivered like the meshes are.
 var avatar_schema: DotAvatarSchema = null
@@ -208,17 +199,6 @@ func mass_rules() -> Dot2DMassRules:
 func match_behaviour() -> HungryMatchNet:
 	return _match_behaviour
 
-
-func _send(peer_id: int, payload: PackedByteArray, delivery: int) -> void:
-	if link == null:
-		return
-
-	if delivery == DotNetMessage.Delivery.UNRELIABLE:
-		link.send_snapshot(peer_id, payload)
-	elif net.is_server:
-		link.send_event(peer_id, payload)
-	else:
-		link.send_request(payload)
 
 ## Sends an event to everybody who can receive one.
 ## Peer by peer, not [method DotNetManager.send]'s broadcast, which also reaches peers that have not
