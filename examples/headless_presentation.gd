@@ -830,14 +830,14 @@ func _test_the_mode_list() -> void:
 	for _i in 6:
 		await get_tree().process_frame
 	var menu: DotMenu = client.menu
-	_check(menu != null and client.mode_rows().size() == 6 and client.mode_rows()[0]["current"],
-		"six modes, Classic playing", str(client.mode_rows().size()))
+	_check(menu != null and client.mode_rows().size() == 7 and client.mode_rows()[0]["current"],
+		"seven modes, Classic playing", str(client.mode_rows().size()))
 	if menu == null:
 		holder.queue_free()
 		_done()
 		return
 	menu.close_all()
-	_check(menu.handle_event(_key(KEY_M)) and menu.picker.is_open() and menu.picker.items.size() == 6, "M opens the list")
+	_check(menu.handle_event(_key(KEY_M)) and menu.picker.is_open() and menu.picker.items.size() == 7, "M opens the list")
 	var _k := menu.handle_event(_key(KEY_2))
 	for _i in 6:
 		await get_tree().process_frame

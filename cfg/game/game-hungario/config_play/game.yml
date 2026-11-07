@@ -12,6 +12,14 @@
 # lure_food_count: 26
 # Ticks between two throws. [0..600]
 # throw_cooldown_ticks: 24
+# What a rush fruit multiplies speed by. Sent to clients in the hello. [0.1..5.0]
+# rush_speed_multiplier: 1.45
+# What a frostberry multiplies speed by. Sent to clients in the hello. [0.05..5.0]
+# frost_speed_multiplier: 0.55
+# Ticks between two splits. Sent to clients in the hello. [0..600]
+# split_cooldown_ticks: 21
+# Ticks between two ejects. Sent to clients in the hello. [0..600]
+# eject_cooldown_ticks: 10
 
 # --- Round
 # Seconds a dead player waits before respawning. [0.0..60.0]
