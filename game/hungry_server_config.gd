@@ -3,7 +3,7 @@ extends DotConfig
 
 ## The server's tunables, which only the server decides: reachable as `hungry_<field>` cvars, `cfg/game/game-hungario/config_arena|play|server/game.yml`, and the workbench (see [HungryTuning]).
 ##
-## Not here, on purpose: anything a client predicts with (the rush and frost speed multipliers, split and eject cooldowns, a mode's top speed and merge delay). A client builds those from its own code, so a server that changed them would rubber-band every player.
+## Also here: the numbers a client predicts with (rush and frost speed multipliers, split and eject cooldowns). They travel in the hello ([HungryPredicted]), so a server that changes them does not rubber-band anybody. A mode's top speed and merge delay travel the same way and are set by the mode.
 
 ## `@export_group` -> the cfg file it lives in: `cfg/game/game-hungario/config_<file>/game.yml`.
 const CFG_FILES := {
@@ -57,6 +57,18 @@ static func make_binder(config: DotConfig, json_path := "") -> DotGameConfigBind
 
 ## Ticks between two throws.
 @export_range(0, 600, 1) var throw_cooldown_ticks: int = 24
+
+## What a rush fruit multiplies speed by. Sent to clients in the hello.
+@export_range(0.1, 5.0, 0.05) var rush_speed_multiplier: float = 1.45
+
+## What a frostberry multiplies speed by. Sent to clients in the hello.
+@export_range(0.05, 5.0, 0.05) var frost_speed_multiplier: float = 0.55
+
+## Ticks between two splits. Sent to clients in the hello.
+@export_range(0, 600, 1) var split_cooldown_ticks: int = 21
+
+## Ticks between two ejects. Sent to clients in the hello.
+@export_range(0, 600, 1) var eject_cooldown_ticks: int = 10
 
 @export_group("Round")
 

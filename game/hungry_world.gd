@@ -8,6 +8,7 @@ const HungryMonster := preload("hungry_monster.gd")
 const HungryNetCommand := preload("net/hungry_net_command.gd")
 const HungryPiece := preload("hungry_piece.gd")
 const HungryPlayerStack := preload("hungry_player_stack.gd")
+const HungryPredicted := preload("hungry_predicted.gd")
 const HungryPreset := preload("hungry_preset.gd")
 const HungryProjectile := preload("hungry_projectile.gd")
 const HungryTuning := preload("hungry_tuning.gd")
@@ -118,6 +119,9 @@ var loading_fn: Callable = Callable()
 ## client alike, because both ends need the camera to point somewhere.
 var spectate: HungrySpectate = null
 
+## What a client predicts with: built from the server's config and mode, sent in the hello, adopted by clients. Shared with every monster.
+var predicted: HungryPredicted = HungryPredicted.new()
+
 ## Who is in the session, which side, which trait, where they appear, and the physics.
 var player_stack: HungryPlayerStack = null
 
@@ -165,6 +169,14 @@ func setup() -> DotResult:
 	tunables = HungryContent.tunables()
 	tunables.max_speed = preset.max_speed
 	tunables.mass_rules.merge_delay_sec = preset.merge_delay_sec
+
+	var server_config := HungryTuning.settings()
+	predicted.rush_multiplier = server_config.rush_speed_multiplier
+	predicted.frost_multiplier = server_config.frost_speed_multiplier
+	predicted.split_cooldown_ticks = server_config.split_cooldown_ticks
+	predicted.eject_cooldown_ticks = server_config.eject_cooldown_ticks
+	predicted.max_speed = tunables.max_speed
+	predicted.merge_delay_sec = preset.merge_delay_sec
 
 	var valid := tunables.validate()
 	if not valid.ok:
@@ -377,6 +389,16 @@ func adopt_layout(layout_id: StringName) -> void:
 	})
 
 
+## Adopts the numbers the authority predicts with. Client side, from the hello.
+func adopt_predicted(carried: HungryPredicted) -> void:
+	if carried == null or not carried.is_sane():
+		return
+
+	predicted.adopt(carried)
+	tunables.max_speed = carried.max_speed
+	tunables.mass_rules.merge_delay_sec = carried.merge_delay_sec
+
+
 ## Adopts the authority's field seed and empties the field. Client side.
 func adopt_field_seed(new_seed: int) -> void:
 	for grid_id in field.alive_ids():
@@ -413,6 +435,7 @@ func add_player(id: int, display_name: String) -> DotResult:
 		return DotResult.fail(DotError.CODE_STATE, "Player %d is already here." % id)
 
 	var monster := HungryMonster.make(id, display_name)
+	monster.predicted = predicted
 	_monsters[id] = monster
 
 	var added := match_node.add_player(str(id), display_name, _tick)
@@ -1273,7 +1296,7 @@ func _split(monster: HungryMonster, command: Dot2DCommand) -> int:
 		made += 1
 
 	if made > 0:
-		monster.split_ready_tick = _tick + HungryContent.SPLIT_COOLDOWN_TICKS
+		monster.split_ready_tick = _tick + predicted.split_cooldown_ticks
 
 	return made
 
@@ -1441,7 +1464,7 @@ func _eject(monster: HungryMonster, command: Dot2DCommand) -> int:
 		return 0
 
 	_grow(rider, rider.mass() - HungryContent.EJECT_MASS)
-	monster.eject_ready_tick = _tick + HungryContent.EJECT_COOLDOWN_TICKS
+	monster.eject_ready_tick = _tick + predicted.eject_cooldown_ticks
 	monster.ejected += 1
 
 	var at := rider.position() + direction * (rider.radius() + HungryContent.EJECT_REACH)

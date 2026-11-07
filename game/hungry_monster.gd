@@ -3,6 +3,7 @@ extends RefCounted
 const HungryContent := preload("hungry_content.gd")
 const HungryMonster := preload("hungry_monster.gd")
 const HungryPiece := preload("hungry_piece.gd")
+const HungryPredicted := preload("hungry_predicted.gd")
 
 ## One player: the pieces they control, what they are carrying, and what is currently
 ## happening to them.
@@ -73,6 +74,9 @@ func wear_loadout(document: DotLoadout) -> void:
 
 ## Tick this player may split again on.
 var split_ready_tick: int = 0
+
+## The numbers a client predicts with, shared with the world that owns this monster. See [HungryPredicted].
+var predicted: HungryPredicted = HungryPredicted.new()
 
 ## Tick this player may throw again on.
 var throw_ready_tick: int = 0
@@ -343,10 +347,10 @@ func speed_multiplier(_tick: int = 0) -> float:
 	var scale := HungryContent.trait_speed(trait_id)
 
 	if (flags & HungryContent.FLAG_RUSH) != 0:
-		scale *= HungryContent.RUSH_SPEED_MULTIPLIER
+		scale *= predicted.rush_multiplier
 
 	if (flags & HungryContent.FLAG_FROSTED) != 0:
-		scale *= HungryContent.FROST_SPEED_MULTIPLIER
+		scale *= predicted.frost_multiplier
 
 	return scale
 

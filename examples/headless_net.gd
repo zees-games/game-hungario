@@ -1,6 +1,6 @@
 extends "res://examples/headless_net_game.gd"
 
-const CHECKS := 186
+const CHECKS := 195
 
 func _ready() -> void:
 	DotLog.set_level(DotLog.Level.ERROR)
@@ -34,6 +34,7 @@ func _run() -> void:
 		_test_loss()
 		_test_game_change()
 		_test_warrens_rock_converges()
+		_test_predicted_carried()
 
 	_test_the_remote_workbench()
 	_teardown()

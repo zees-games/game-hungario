@@ -243,6 +243,7 @@ func _apply_hello(reader: DotNetReader) -> void:
 	# rectangle — the same ordering rule the seed above obeys, and for the same reason.
 	world.adopt_layout(StringName(String(hello["layout"])))
 	world.adopt_field_seed(int(hello["seed"]))
+	world.adopt_predicted(hello["predicted"])
 
 	hello_received.emit(local_player_id)
 

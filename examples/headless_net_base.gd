@@ -28,6 +28,8 @@ const HungryPieceNet := preload("../game/net/hungry_piece_net.gd")
 
 const HungryPreset := preload("../game/hungry_preset.gd")
 
+const HungryPredicted := preload("../game/hungry_predicted.gd")
+
 const HungryProjectile := preload("../game/hungry_projectile.gd")
 
 const HungryServices := preload("../game/hungry_services.gd")

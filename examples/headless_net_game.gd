@@ -235,6 +235,65 @@ func _test_game_change() -> void:
 	next.queue_free()
 	_done()
 
+## [game-hungario-client-1]: the numbers a client predicts with travel in the hello, so a server that
+## changed them does not leave the client on its own copies.
+func _test_predicted_carried() -> void:
+	_section("predicted values travel in the hello")
+
+	var tuned := HungryWorld.new()
+	tuned.name = "TunedWorld"
+	tuned.preset = HungryPreset.classic()
+	tuned.preset.max_speed = 333.0
+	tuned.preset.merge_delay_sec = 5.0
+	tuned.tick_rate = TICK_RATE
+	tuned.world_seed = SEED + 3
+	tuned.is_authority = true
+	tuned.register_service = false
+	add_child(tuned)
+	tuned.setup()
+	tuned.predicted.rush_multiplier = 2.0
+	tuned.predicted.frost_multiplier = 0.25
+	tuned.predicted.split_cooldown_ticks = 40
+	tuned.predicted.eject_cooldown_ticks = 3
+	tuned.start(_tick)
+
+	var rebound := _server_bridge.rebind(tuned)
+
+	if not _check(rebound.ok, "the bridge rebinds onto a tuned world", str(rebound.error)):
+		remove_child(tuned)
+		tuned.queue_free()
+		_done()
+		return
+
+	_flush()
+	_steps(20)
+
+	var seen := _client_world.predicted
+	_check(is_equal_approx(seen.rush_multiplier, 2.0), "the client adopts the rush multiplier (%.2f)" % seen.rush_multiplier)
+	_check(is_equal_approx(seen.frost_multiplier, 0.25), "and the frost multiplier (%.2f)" % seen.frost_multiplier)
+	_check(seen.split_cooldown_ticks == 40 and seen.eject_cooldown_ticks == 3, "and both cooldowns")
+	_check(
+		is_equal_approx(_client_world.tunables.max_speed, 333.0)
+			and is_equal_approx(_client_world.tunables.mass_rules.merge_delay_sec, 5.0),
+		"and the mode's top speed and merge delay (%.1f, %.1f)"
+			% [_client_world.tunables.max_speed, _client_world.tunables.mass_rules.merge_delay_sec]
+	)
+
+	var client_monster := _client_world.monster_for(7)
+	if _check(client_monster != null, "player 7 is on the client"):
+		client_monster.flags = HungryContent.FLAG_RUSH
+		_check(
+			is_equal_approx(client_monster.speed_multiplier(), HungryContent.trait_speed(client_monster.trait_id) * 2.0),
+			"so a rushing monster moves at the carried multiplier on the client"
+		)
+		client_monster.flags = 0
+
+	_server_bridge.rebind(_server_world)
+	_flush()
+	remove_child(tuned)
+	tuned.queue_free()
+	_done()
+
 ## [warren-net-1]: a round of `warrens`, and a client predicting itself against one of its rocks.
 ## A push-out the replay did not repeat reads as rubber-banding; the control (rock missing from the
 ## client only) must come apart. A split monster is bounded, not held equal (docs/netcode.md).

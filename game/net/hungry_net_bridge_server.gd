@@ -37,7 +37,8 @@ func _send_hello(peer_id: int, player_id: int) -> void:
 			net.clock.tick,
 			world.world_size,
 			avatar_pack_url,
-			world.layout.id if world.layout != null else &""
+			world.layout.id if world.layout != null else &"",
+			world.predicted
 		)
 	)
 
