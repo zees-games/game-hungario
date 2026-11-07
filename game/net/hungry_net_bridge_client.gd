@@ -105,18 +105,6 @@ func predict_piece(piece: HungryPiece, tick: int, delta: float) -> void:
 	)
 
 
-## Applies a snapshot. Client side.
-## Reconciliation is [DotNetManager]'s ([method DotNetManager.receive_snapshot] routes a predicted
-## entity to the predictor); a second pass here would replay the same inputs twice.
-func receive_snapshot(payload: PackedByteArray) -> DotResult:
-	if net == null or net.is_server:
-		return DotResult.fail(DotError.CODE_FORBIDDEN, "Only a client receives these.")
-
-	if rtt_source.is_valid():
-		net.stats.note_rtt(float(rtt_source.call()))
-
-	return net.receive_snapshot(payload)
-
 ## [param packet] and the commands before it from the local replay history, oldest first,
 ## for one input packet. See [constant INPUT_COPIES].
 func _input_copies(packet: DotNetInput) -> Array:
