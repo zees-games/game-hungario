@@ -1,4 +1,4 @@
-extends DotMenuSettings
+extends DotMenuGameSettings
 
 const HungryBindings := preload("hungry_bindings.gd")
 const HungryConfig := preload("../hungry_config.gd")
@@ -88,49 +88,52 @@ var migrated: PackedStringArray = PackedStringArray()
 
 
 func _init() -> void:
-	name = "Settings"
-	directory = SETTINGS_DIR
-	app_namespace = APP_NAMESPACE
-	schema = schema_for()
-	bindings = HungryBindings.make()
-	# The pointer is the control in this game and the client keeps it visible.
-	manage_pointer = false
-	# M is the mode list (dot-menu's map menu, on by default): `HungryClient._build_ui` hands it
-	# the six modes and the change.
-	config = DotMenuConfig.new()
-	config.brand_name = "Hungario"
-	# Top left: the top right is the leaderboard's, the bottom corners the minimap's and the
-	# mass bar's.
-	config.help_hint = &"top_left"
-	# The touch Menu button goes there too (it replaces the hint); the top right is the board's.
-	# By name: older dot-menu has no such property.
-	if &"menu_button_corner" in config:
-		config.set(&"menu_button_corner", &"top_left")
-	config.settings = {"master_volume": {"default": DEFAULT_MASTER}}
-	var _layered := config.load_layered()
+	super(spec_for())
 
 
-## This game's camera and interface keys out of [HungryConfig], net_stat in the top left,
-## then the stock settings it applies.
+## The game's settings as data. Its camera and interface keys come out of [HungryConfig], net_stat is in the top left, then
+## the stock settings it applies. The pointer is the control in this game and the client keeps it visible (the spec's
+## `manage_pointer` stays off). M is the mode list (dot-menu's map menu, on by default): `HungryClient._build_ui` hands it
+## the six modes and the change. The help hint and the touch Menu button sit top left: the top right is the leaderboard's,
+## the bottom corners the minimap's and the mass bar's.
+static func spec_for() -> DotMenuGameSpec:
+	var s := DotMenuGameSpec.new()
+	s.schema_version = SCHEMA_VERSION
+	s.brand_name = "Hungario"
+	s.settings_dir = SETTINGS_DIR
+	s.app_namespace = APP_NAMESPACE
+	s.has_fov = false
+	s.base_schema = func() -> DotSettingsSchema:
+		var base := DotSettingsSchema.from_config(HungryConfig.new(), SCOPES)
+		var _net := DotMenuStock.declare_net_stat(base, &"top_left")
+		return base
+	s.ambient_text = "Quiet sounds under the arena."
+	s.not_applied = NOT_APPLIED
+	s.bindings_maker = func() -> DotMenuBindings: return HungryBindings.make()
+	s.help_hint = &"top_left"
+	s.menu_button_corner = &"top_left"
+	s.config_settings = {"master_volume": {"default": DEFAULT_MASTER}}
+	# Migrates the old files into the document first, then dot-menu's setup.
+	s.before_setup = func(node: DotMenuGameSettings, p_store: DotSettingsStore) -> DotSettingsStore:
+		var where: DotSettingsStore = p_store if p_store != null else node.get(&"store")
+		if where == null:
+			where = DotSettingsStoreFile.new(node.directory)
+		node.set(&"migrated", migrate_store(where, node.app_namespace, node.get(&"legacy_config_path"), node.get(&"legacy_bindings_path")))
+		return where
+	s.page_makers = [[game_page, &"video"]]
+	s.help_about = "Steer a monster with the mouse and grow by eating: food, and anybody smaller than you. Split to throw half of you at somebody, but your pieces cannot merge for a while, so each is easier to eat. When you are eaten you watch whoever ate you until you respawn."
+	s.help_sections = [
+		["Mouse", [["Point", "Steer: the further the cursor, the faster; on yourself to pull your pieces together"]], &"keys"],
+		["Fruit and throwables", ["Fruit gives you eight seconds of something: rush (faster), maw (eat players closer to your size) or rind (absorbs one burst). A pepper bursts whoever it hits into five pieces, a frostberry slows them, and a lure drops a ring of food where it lands."], &"text"],
+		["Loadout", ["Escape, then Loadout: a starting throwable and a trait. The server checks it, and it takes effect the next time you spawn."], &"text"],
+		["Modes", ["Classic, the square arena. Frenzy, small and fast. Gauntlet, a long narrow corridor. Warrens, rocks and refuges. Reef, a wall with four channels. Famine, scarce food and plenty of throwables. Shallows, posts whose gaps narrow toward the middle. The players vote for the next mode; M lists them (solo it changes now)."], &"text"],
+	]
+	return s
+
+
+## This game's camera and interface keys, net_stat and the stock settings, as the spec declares them.
 static func schema_for() -> DotSettingsSchema:
-	var s := DotSettingsSchema.from_config(HungryConfig.new(), SCOPES)
-	s.version = SCHEMA_VERSION
-	var _net := DotMenuStock.declare_net_stat(s, &"top_left")
-	s.add(DotSettingsDef.boolean(&"ambient", true, &"audio").with_description("Quiet sounds under the arena."))
-	s.add(DotSettingsDef.number(&"ambient_volume", 1.0, 0.0, 1.0, &"audio"))
-	return DotMenuStock.declare(s, DotMenuStock.DEFAULT_GROUPS, null, NOT_APPLIED)
-
-
-## Migrates the old files into the document first, then dot-menu's setup.
-func setup(p_store: DotSettingsStore = null, with_menu: bool = true) -> DotResult:
-	var where: DotSettingsStore = p_store if p_store != null else store
-	if where == null:
-		where = DotSettingsStoreFile.new(directory)
-	migrated = migrate_store(where, app_namespace, legacy_config_path, legacy_bindings_path)
-	var res := super.setup(where, with_menu)
-	if res.ok and menu != null:
-		var _g := menu.add_page(game_page(), &"video")
-	return res
+	return spec_for().make_schema()
 
 
 ## Brings a version-1 document (or none) up to 2 in [param where], once: anything the old
@@ -257,20 +260,7 @@ static func _read_object(path: String) -> Dictionary:
 	return read.value
 
 
-# --- The menu ---------------------------------------------------------------------
-
-## The goal and the rules; the keys come from [HungryBindings].
-func _fill_help(help: DotMenuHelp) -> void:
-	fill_help(help)
-
-
-static func fill_help(help: DotMenuHelp) -> void:
-	help.about = "Steer a monster with the mouse and grow by eating: food, and anybody smaller than you. Split to throw half of you at somebody, but your pieces cannot merge for a while, so each is easier to eat. When you are eaten you watch whoever ate you until you respawn."
-	help.add_section("Mouse", [["Point", "Steer: the further the cursor, the faster; on yourself to pull your pieces together"]], &"keys")
-	help.add_text("Fruit and throwables", "Fruit gives you eight seconds of something: rush (faster), maw (eat players closer to your size) or rind (absorbs one burst). A pepper bursts whoever it hits into five pieces, a frostberry slows them, and a lure drops a ring of food where it lands.")
-	help.add_text("Loadout", "Escape, then Loadout: a starting throwable and a trait. The server checks it, and it takes effect the next time you spawn.")
-	help.add_text("Modes", "Classic, the square arena. Frenzy, small and fast. Gauntlet, a long narrow corridor. Warrens, rocks and refuges. Reef, a wall with four channels. Famine, scarce food and plenty of throwables. Shallows, posts whose gaps narrow toward the middle. The players vote for the next mode; M lists them (solo it changes now).")
-
+# --- The menu ----------------------------------------------------------------------
 
 ## This game's own page: the camera and what is drawn over the arena, the keys
 ## [HungryConfig] declares.

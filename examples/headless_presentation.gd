@@ -3,7 +3,7 @@ extends "headless_presentation_checks.gd"
 
 ## Settings, audio, effects, the console and the private arena.
 
-const CHECKS := 155
+const CHECKS := 159
 
 
 func _ready() -> void:
@@ -734,6 +734,22 @@ func _test_migration() -> void:
 		"a first run migrates nothing and writes nothing")
 	DotPaths.remove_tree(config_path)
 	DotPaths.remove_tree(keys_path)
+
+	# The spec's own doing: a first run's defaults, the game page, the corner plates and the help screen.
+	var d := HungrySettings.new()
+	d.store = DotSettingsStoreMemory.new()
+	d.legacy_config_path = ""
+	d.legacy_bindings_path = ""
+	add_child(d)
+	var made := d.setup(null, true)
+	_check(made.ok and d.menu != null and is_equal_approx(d.settings.get_float(&"master_volume"), HungrySettings.DEFAULT_MASTER),
+		"a first run starts the master volume at this game's 0.4")
+	_check(not d.schema.has(&"field_of_view") and d.schema.has(&"net_stat") and d.schema.has(&"ambient"),
+		"no field of view (a 2D game), but net_stat and the ambience")
+	_check(d.menu.page(&"game") != null and d.config.help_hint == &"top_left" and d.config.menu_button_corner == &"top_left" and not d.manage_pointer,
+		"the Game page, the corner plates and the client's own pointer")
+	_check(d.menu.help.about.begins_with("Steer a monster"), "and the help screen's goal")
+	d.queue_free()
 	_done()
 
 
