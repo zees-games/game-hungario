@@ -2,6 +2,7 @@ extends RefCounted
 
 const HungryContent := preload("../hungry_content.gd")
 const HungryField := preload("../hungry_field.gd")
+const HungryPredicted := preload("../hungry_predicted.gd")
 const HungryProjectile := preload("../hungry_projectile.gd")
 
 ## The wire format for everything that is not a snapshot or an input.
@@ -108,7 +109,8 @@ static func write_hello(
 	server_tick: int,
 	world_size: Vector2,
 	pack_url: String = "",
-	layout: StringName = &""
+	layout: StringName = &"",
+	predicted: HungryPredicted = null
 ) -> PackedByteArray:
 	var writer := _writer()
 	writer.write_varint(world_seed)
@@ -124,6 +126,14 @@ static func write_hello(
 	# build the same discs from it, the way both ends build the same food field from the
 	# seed above. See [HungryLayout].
 	writer.write_string(String(layout), LAYOUT_BYTES)
+	# The numbers the client predicts with. See [HungryPredicted].
+	var carried := predicted if predicted != null else HungryPredicted.new()
+	writer.write_float32(carried.rush_multiplier)
+	writer.write_float32(carried.frost_multiplier)
+	writer.write_uint(clampi(carried.split_cooldown_ticks, 0, 65535), 16)
+	writer.write_uint(clampi(carried.eject_cooldown_ticks, 0, 65535), 16)
+	writer.write_float32(carried.max_speed)
+	writer.write_float32(carried.merge_delay_sec)
 	return writer.to_bytes()
 
 
@@ -138,6 +148,14 @@ static func read_hello(reader: DotNetReader) -> Dictionary:
 		"pack_url": reader.read_string(PACK_URL_BYTES),
 		"layout": reader.read_string(LAYOUT_BYTES),
 	}
+	var predicted := HungryPredicted.new()
+	predicted.rush_multiplier = reader.read_float32()
+	predicted.frost_multiplier = reader.read_float32()
+	predicted.split_cooldown_ticks = reader.read_uint(16)
+	predicted.eject_cooldown_ticks = reader.read_uint(16)
+	predicted.max_speed = reader.read_float32()
+	predicted.merge_delay_sec = reader.read_float32()
+	out["predicted"] = predicted
 	out["ok"] = reader.ok()
 	return out
 
