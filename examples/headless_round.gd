@@ -2,7 +2,7 @@ extends "headless_round_checks.gd"
 
 ## Plays whole rounds of the game with nobody watching, and checks that they work.
 
-const CHECKS := 477
+const CHECKS := 486
 
 func _ready() -> void:
 	DotLog.set_level(DotLog.Level.ERROR)
@@ -26,6 +26,7 @@ func _run() -> void:
 	_test_round_reset()
 	_test_determinism()
 	_test_full_round()
+	_test_famine()
 	_test_what_a_bot_travels_at()
 	_test_sound()
 	_test_ejecting()
@@ -1065,7 +1066,7 @@ func _test_where_a_hunter_appears() -> void:
 
 	var radius := HungryHunters.largest_radius()
 
-	for mode: StringName in [&"classic", &"frenzy", &"gauntlet", &"warrens", &"reef", &"shallows"]:
+	for mode: StringName in [&"classic", &"frenzy", &"gauntlet", &"warrens", &"reef", &"shallows", &"famine"]:
 		var preset := HungryPreset.for_id(mode)
 		var bounds := Rect2(-preset.world_size * 0.5, preset.world_size)
 		var layout := HungryLayout.for_id(preset.layout, bounds)
@@ -1287,7 +1288,7 @@ func _drop_hunters(hunters: Node) -> void:
 func _test_the_reach() -> void:
 	_section("the reach of every level")
 
-	var modes: Array[StringName] = [&"classic", &"frenzy", &"gauntlet", &"warrens", &"reef", &"shallows"]
+	var modes: Array[StringName] = [&"classic", &"frenzy", &"gauntlet", &"warrens", &"reef", &"shallows", &"famine"]
 	var covered := {}
 
 	for mode in modes:
@@ -1506,6 +1507,60 @@ func _test_determinism() -> void:
 
 
 	_done()
+
+## The Famine mode, driven by bots: scarce food and plentiful throwables, a round that still ends with a winner.
+func _test_famine() -> void:
+	_section("famine, eight bots")
+
+	var preset := HungryPreset.for_id(&"famine")
+	var classic := HungryPreset.classic()
+	_check(
+		preset.id == &"famine" and preset.layout == HungryLayout.NONE and preset.validate().ok,
+		"famine is a valid mode with no rocks"
+	)
+	_check(
+		preset.food_target < classic.food_target and preset.fruit_target > classic.fruit_target
+			and preset.item_target > classic.item_target,
+		"with less food than Classic and more fruit and items"
+	)
+
+	var world := _make_world(preset, SEED + 11)
+	var ended := [false]
+	world.match_node.round_ended.connect(
+		func(_round_number: int, _winner: int, _outcome: DotMatchRules.Outcome) -> void: ended[0] = true
+	)
+
+	for id in range(1, 9):
+		world.add_player(id, "Bot %d" % id)
+
+	_settle(world)
+
+	var throws := [0]
+	world.projectile_thrown.connect(func(_s: HungryProjectile) -> void: throws[0] += 1)
+	var ticks := 0
+	var limit := TICK_RATE * 300
+
+	while not ended[0] and ticks < limit:
+		var commands: Dictionary = {}
+
+		for monster in world.monsters():
+			commands[monster.id] = HungryBot.command_for(world, monster, ticks)
+
+		world.tick(commands)
+		ticks += 1
+
+	_check(ended[0], "the round ends (%d ticks, %.0fs)" % [ticks, float(ticks) / TICK_RATE])
+	var top := world.leaderboard(1)
+	_check(
+		not top.is_empty() and top[0].mass() > HungryContent.START_MASS * 3.0,
+		"somebody grew (%.0f)" % (top[0].mass() if not top.is_empty() else 0.0)
+	)
+	_check(throws[0] > 0, "and the bots threw things (%d)" % throws[0])
+	_check(_furthest_edge(world) <= 0.5, "and nothing ended up outside the world")
+	_drop(world)
+
+	_done()
+
 
 ## [bot-drive-1]: what a bot actually travels at, against the speed the game gives it.
 func _test_what_a_bot_travels_at() -> void:

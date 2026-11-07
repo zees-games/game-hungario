@@ -181,6 +181,24 @@ static func shallows() -> HungryPreset:
 	return preset
 
 
+## A dial mode, no rocks: food is scarce and peppers and items are plentiful, so the round is decided by who takes the throwables and who holds a lead through a lean stretch.
+static func famine() -> HungryPreset:
+	var preset := HungryPreset.new()
+	preset.id = &"famine"
+	preset.display_name = "Famine"
+	preset.world_size = Vector2(3600.0, 3600.0)
+
+	# Half of Classic's density (40.7 per million square units, which is 527 on this square); the field refills only to the target.
+	preset.food_target = 260
+	preset.fruit_target = 30
+	preset.item_target = 44
+	preset.win_mass = 700.0
+	preset.max_speed = 450.0
+	preset.merge_delay_sec = 10.0
+	preset.time_limit_sec = 300.0
+	return preset
+
+
 static func for_id(preset_id: StringName) -> HungryPreset:
 	match preset_id:
 		&"frenzy":
@@ -193,6 +211,8 @@ static func for_id(preset_id: StringName) -> HungryPreset:
 			return reef()
 		&"shallows":
 			return shallows()
+		&"famine":
+			return famine()
 		_:
 			return classic()
 
