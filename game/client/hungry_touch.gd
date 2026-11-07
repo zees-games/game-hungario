@@ -31,6 +31,8 @@ var eject_held: bool = false
 var boost_held: bool = false
 
 var buttons: DotTouchButtons = null
+## The DotGameClient that fits the buttons; a relabel re-applies through it.
+var fit_client: Object = null
 
 ## What the throw button says it will throw. Set from the carry list.
 var _carried: StringName = &""
@@ -49,15 +51,18 @@ static func make() -> HungryTouch:
 	return touch
 
 
-## Offsets are from the bottom-right corner (see [DotTouchButtons]). Throw is disabled
+## dot-game's canonical slots, so split sits where every other game's main button does. Throw is disabled
 ## (drawn as its label only) until something is carried.
+static func touch_layout(throw_label: String) -> DotGameTouchLayout:
+	return DotGameTouchLayout.custom() \
+		.put(&"split", &"primary", "SPLIT") \
+		.put(&"throw", &"secondary", throw_label) \
+		.put(&"eject", &"below", "EJECT") \
+		.put(&"boost", &"outer", "BOOST")
+
+
 static func layout(throw_label: String) -> Array[Dictionary]:
-	return [
-		{"id": &"split", "label": "SPLIT", "offset": Vector2(96, 110), "radius": 54.0},
-		{"id": &"throw", "label": throw_label, "offset": Vector2(210, 80), "radius": 40.0},
-		{"id": &"eject", "label": "EJECT", "offset": Vector2(60, 238), "radius": 32.0},
-		{"id": &"boost", "label": "BOOST", "offset": Vector2(196, 184), "radius": 34.0},
-	]
+	return touch_layout(throw_label).buttons()
 
 
 func build() -> void:
@@ -71,7 +76,7 @@ func build() -> void:
 	buttons.margin = EDGE_MARGIN
 	buttons.set_anchors_preset(Control.PRESET_FULL_RECT)
 	buttons.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	buttons.set_buttons(layout("THROW"))
+	touch_layout("THROW").apply(buttons)
 	buttons.button_down.connect(_on_down)
 	buttons.button_up.connect(_on_up)
 	add_child(buttons)
@@ -125,7 +130,7 @@ func show_carried(items: PackedStringArray) -> void:
 		throw_held = false
 
 	if buttons != null:
-		buttons.set_buttons(layout(throw_label()))
+		touch_layout(throw_label()).apply(buttons, fit_client)
 
 
 ## What the throw button says.
@@ -146,7 +151,7 @@ func apply_safe_area() -> void:
 	if safe.size == Vector2i.ZERO or safe.size == full:
 		return
 
-	buttons.margin = EDGE_MARGIN + maxf(float(full.y - safe.end.y), float(full.x - safe.end.x))
+	buttons.margin = EDGE_MARGIN + maxf(0.0, maxf(float(full.y - safe.end.y), float(full.x - safe.end.x)))
 	buttons.queue_redraw()
 
 

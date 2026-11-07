@@ -102,6 +102,10 @@ func _init() -> void:
 	# Top left: the top right is the leaderboard's, the bottom corners the minimap's and the
 	# mass bar's.
 	config.help_hint = &"top_left"
+	# The touch Menu button goes there too (it replaces the hint); the top right is the board's.
+	# By name: older dot-menu has no such property.
+	if &"menu_button_corner" in config:
+		config.set(&"menu_button_corner", &"top_left")
 	config.settings = {"master_volume": {"default": DEFAULT_MASTER}}
 	var _layered := config.load_layered()
 

@@ -3,6 +3,7 @@ extends "./hungry_client_state.gd"
 ## The playable client: a world, a camera, a renderer, a HUD and a socket.
 
 const CHANNEL := "hungry.client"
+const HungryTouch := preload("hungry_touch.gd")
 
 ## Solo, the map menu changed the mode: [param fresh] is the client now playing it, in this
 ## one's place. Whatever held this client holds that one instead.
@@ -486,6 +487,9 @@ func _build_ui() -> void:
 	# sampler because whether a device wants them is a HUD question, and because the HUD
 	# is what puts them inside the safe area.
 	sampler.touch = hud.touch
+	if hud.touch != null:
+		hud.touch.fit_client = platform
+		HungryTouch.touch_layout(hud.touch.throw_label()).apply(hud.touch.buttons, platform)
 
 	if platform.board is DotMenuScoreboard:
 		HungryMenus.dress_board(platform.board as DotMenuScoreboard, world, bridge)
