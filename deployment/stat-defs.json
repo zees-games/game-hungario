@@ -1,0 +1,105 @@
+{
+	"format": "dot-stat-defs",
+	"version": 1,
+	"stats": [
+		{
+			"key": "food",
+			"name": "Food",
+			"description": "",
+			"kind": "COUNTER",
+			"unit": "",
+			"decimals": 0,
+			"category": "",
+			"column": "OPTIONAL",
+			"better": null
+		},
+		{
+			"key": "fruit",
+			"name": "Fruit",
+			"description": "",
+			"kind": "COUNTER",
+			"unit": "",
+			"decimals": 0,
+			"category": "",
+			"column": "OPTIONAL",
+			"better": null
+		},
+		{
+			"key": "pieces_eaten",
+			"name": "Pieces Eaten",
+			"description": "",
+			"kind": "COUNTER",
+			"unit": "",
+			"decimals": 0,
+			"category": "",
+			"column": "OPTIONAL",
+			"better": null
+		},
+		{
+			"key": "kills",
+			"name": "Kills",
+			"description": "",
+			"kind": "COUNTER",
+			"unit": "",
+			"decimals": 0,
+			"category": "",
+			"column": "OPTIONAL",
+			"better": null
+		},
+		{
+			"key": "deaths",
+			"name": "Deaths",
+			"description": "",
+			"kind": "COUNTER",
+			"unit": "",
+			"decimals": 0,
+			"category": "",
+			"column": "OPTIONAL",
+			"better": null
+		},
+		{
+			"key": "bursts",
+			"name": "Bursts",
+			"description": "",
+			"kind": "COUNTER",
+			"unit": "",
+			"decimals": 0,
+			"category": "",
+			"column": "OPTIONAL",
+			"better": null
+		},
+		{
+			"key": "items",
+			"name": "Items",
+			"description": "",
+			"kind": "COUNTER",
+			"unit": "",
+			"decimals": 0,
+			"category": "",
+			"column": "OPTIONAL",
+			"better": null
+		},
+		{
+			"key": "mass_eaten",
+			"name": "Mass eaten",
+			"description": "",
+			"kind": "COUNTER",
+			"unit": "",
+			"decimals": 1,
+			"category": "",
+			"column": "OPTIONAL",
+			"better": null
+		},
+		{
+			"key": "top_mass",
+			"name": "Biggest",
+			"description": "",
+			"kind": "BEST",
+			"unit": "",
+			"decimals": 1,
+			"category": "",
+			"column": "OPTIONAL",
+			"better": null
+		}
+	]
+}

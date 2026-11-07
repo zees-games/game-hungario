@@ -1,0 +1,36 @@
+{
+	"format": "dot-leaderboard-defs",
+	"version": 1,
+	"boards": [
+		{
+			"key": "top_mass",
+			"scope": {},
+			"name": "Biggest monster",
+			"description": "The most mass anybody has ever held in one round.",
+			"kind": "SCORE",
+			"decimals": 0,
+			"unit": " mass",
+			"visible": true
+		},
+		{
+			"key": "pieces_eaten",
+			"scope": {},
+			"name": "Most devoured",
+			"description": "Pieces swallowed, all time.",
+			"kind": "SCORE",
+			"decimals": 0,
+			"unit": "",
+			"visible": true
+		},
+		{
+			"key": "fewest_deaths",
+			"scope": {},
+			"name": "Hardest to eat",
+			"description": "Deaths in a round. Fewer is better.",
+			"kind": "PENALTY",
+			"decimals": 0,
+			"unit": "",
+			"visible": true
+		}
+	]
+}

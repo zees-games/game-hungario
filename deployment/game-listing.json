@@ -1,0 +1,15 @@
+{
+  "format": "tmc-game-listing",
+  "version": 1,
+  "listing": {
+    "name": "Hungario",
+    "description": "Players start as a small monster and grow by eating food and other players. Split to throw yourself at others, pick up fruit and throwables, and stay small enough to dodge the bigger monsters.",
+    "tags": ["2D", "Multiplayer"],
+    "platforms": ["PLATFORM_WEB"],
+    "graphicsType": "TWO_D",
+    "tmcKind": "GAME"
+  },
+  "pack": {
+    "id": "gamemann/game-hungario"
+  }
+}
