@@ -81,7 +81,7 @@ Lag compensation is off (`enable_lag_compensation`): nothing here is a hitscan s
 
 ## Touch
 
-`HungryTouch` is two buttons, because the game is nearly playable on a phone by accident: a drag is the pointer and near is slow. What a touchscreen cannot express is the two edge-triggered actions. They are `Control`s rather than `TouchScreenButton`s so pressing one consumes the touch before `_unhandled_input` and does not also drag the monster. `--touch` forces them on for a desktop look and for headless runs.
+`HungryTouch` wraps dot-ui's `DotTouchButtons` (split, throw, eject, boost; the throw label names what is carried): the game is nearly playable on a phone by accident, because a drag is the pointer and near is slow, and what a touchscreen cannot express is the edge-triggered actions. `DotTouchButtons` handles the touch in `_input` so pressing a button does not also steer. `--touch` forces them on for a desktop look and for headless runs, and the minimap moves beside the mass bar to leave the corner to the thumbs.
 
 ## A private arena whose host may leave
 
