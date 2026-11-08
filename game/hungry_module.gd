@@ -465,7 +465,7 @@ func _build_loadouts() -> DotResult:
 	if not ready_result.ok:
 		return ready_result.wrap("The loadout manager could not start")
 
-	loadouts.entitlement_source = _entitlements_for_key
+	loadouts.entitlement_source = DotLoadoutSiteSource.layered(_entitlements_for_key)
 	hbridge.entitlement_source = _entitlements_for_player
 	hbridge.loadout_sink = _store_loadout
 
