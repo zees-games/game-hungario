@@ -136,6 +136,8 @@ var backbone: DotBackboneClient = null
 ## Always built (the session figures are the game's own); reported only with a backbone. Keyed by the
 ## scoped id dot-platform resolved, so a guest with no scoped key is counted under nothing.
 var stats: DotStatsTracker = null
+## The skill rank (dot-stats' DotStatsRank): weighted lifetime figures, filed as rank_score.
+var rank: DotStatsRank = null
 ## Files kills for the head-to-head table (dot-stats), keyed like the counters.
 var _kill_feed: DotStatsEventFeed = null
 
@@ -317,6 +319,7 @@ static func stats_schema() -> DotStatsSchema:
 	var top := schema.define(&"top_mass", DotStatsDef.Kind.BEST, "Biggest")
 	top.publish = true
 	top.decimals = 1
+	var _rank := DotStatsRank.declare(schema, &"rank_score", "Rank score")
 	return schema
 
 func _build_stats() -> void:
@@ -326,6 +329,16 @@ func _build_stats() -> void:
 	stats.report_to_backbone = backbone != null
 	stats.reporter.client = backbone
 	add_child(stats)
+	rank = DotStatsRank.new()
+	rank.terms = [
+		{"stat": "pieces_eaten", "weight": 1.0},
+		{"stat": "kills", "weight": 1.0},
+		{"stat": "fruit", "weight": 0.2},
+		{"stat": "food", "weight": 0.01},
+		{"stat": "bursts", "weight": 0.25},
+		{"stat": "deaths", "weight": -0.5},
+	]
+	rank.record_fn = func(who: Variant, stat: StringName, value: float) -> void: stats.record(StringName(str(who)), stat, value)
 	_kill_feed = DotStatsEventFeed.new(stats)
 	_kill_feed.key_of = func(id: Variant) -> StringName: return _stat_key(int(id))
 	_kill_feed.extra = func() -> Dictionary: return {"mode": String(world.preset.id) if world != null and world.preset != null else ""}
@@ -359,11 +372,13 @@ func _on_stat_food(player_id: int, _grid_id: int, mass: float) -> void:
 	stats.record(key, &"food")
 	stats.record(key, &"mass_eaten", mass)
 	_note_mass(player_id)
+	_publish_rank(key)
 
 func _on_stat_fruit(player_id: int, _grid_id: int, _kind: HungryContent.Fruit) -> void:
 	var key := _stat_key(player_id)
 	if key != &"":
 		stats.record(key, &"fruit")
+		_publish_rank(key)
 
 func _on_stat_item(player_id: int, _grid_id: int, _item: StringName) -> void:
 	var key := _stat_key(player_id)
@@ -377,20 +392,29 @@ func _on_stat_piece(eater_id: int, _victim: int, mass: float) -> void:
 	stats.record(key, &"pieces_eaten")
 	stats.record(key, &"mass_eaten", mass)
 	_note_mass(eater_id)
+	_publish_rank(key)
 
 func _on_stat_death(player_id: int, killer_id: int) -> void:
 	var victim := _stat_key(player_id)
 	if victim != &"":
 		stats.record(victim, &"deaths")
+		_publish_rank(victim)
 	var killer := _stat_key(killer_id)
 	if killer != &"" and killer_id != player_id:
 		stats.record(killer, &"kills")
+		_publish_rank(killer)
 		var _filed := _kill_feed.report_kill(killer_id, player_id)
 
 func _on_stat_burst(_player_id: int, by_player: int, _pieces: int) -> void:
 	var key := _stat_key(by_player)
 	if key != &"":
 		stats.record(key, &"bursts")
+		_publish_rank(key)
+
+## Republishes a player's rank_score from the stored lifetime baseline plus this session.
+func _publish_rank(key: StringName) -> void:
+	if rank != null and stats.has_player(key):
+		var _s := rank.publish_lifetime(key, stats.session_values(key), stats.schema)
 
 ## Starts counting for a session under dot-game's stable per-server key (guests too); a bot is counted under nothing.
 func _begin_stats(session: DotClientSession) -> void:
@@ -400,12 +424,17 @@ func _begin_stats(session: DotClientSession) -> void:
 		return
 	var key := String(stats_feed.key_for(session))
 	_stat_keys[session.userid] = StringName(key)
+	# The stored lifetime totals are read before this session's figures are flushed into the store (reading later would count them twice).
+	if rank != null and stats.store != null:
+		rank.load_baseline(stats.store, StringName(key))
 	stats.begin(StringName(key), session.display_name)
 
 
 func _end_stats(session: DotClientSession) -> void:
 	if stats == null or not _stat_keys.has(session.userid):
 		return
+	if rank != null:
+		rank.forget(_stat_keys[session.userid])
 	stats.end(_stat_keys[session.userid])
 	_stat_keys.erase(session.userid)
 	stats_feed.forget(session.userid)
