@@ -6,6 +6,7 @@ func _can_tick() -> bool:
 
 func _game_tick(_tick: int, _delta: float) -> void:
 	_drive_bots()
+	_follow_npc_lod()
 
 	# After the world's own tick: hunters read where everybody is and hazards push pieces out of rocks,
 	# both on positions the movement just produced, or they see a one-tick lag.
@@ -356,3 +357,9 @@ func _register_games() -> void:
 			})
 
 
+## The hunters' level of detail and sense workers follow the `npc_lod*` cvars (dot-game's DotGameNpcLod; all off by default).
+func _follow_npc_lod() -> void:
+	if hunters == null or hunters.spawner == null:
+		return
+	if npc_lod == null or npc_lod.spawner != hunters.spawner:
+		var _lod := attach_npc_lod(hunters.spawner)
