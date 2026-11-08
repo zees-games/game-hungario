@@ -194,6 +194,15 @@ func _test_stats_wiring(module: HungryModule) -> void:
 		values.get_value(&"kills") == 1.0 and values.get_value(&"deaths") == 1.0,
 		"but a self-kill is only a death"
 	)
+	_check(module.stats.session_values(key).get_value(&"rank_score") == 2.0,
+		"the weighted rank files rank_score (2 pieces and kills, a death, a burst)",
+		str(module.stats.session_values(key).get_value(&"rank_score")))
+	var held := DotStatsValues.new()
+	held.values = {"pieces_eaten": 10.0}
+	module.rank.seed_baseline(&"rank-probe", held)
+	var life: float = module.rank.publish_lifetime(&"rank-probe", DotStatsValues.new(), module.stats.schema)
+	_check(life == 10.0, "a stored lifetime baseline (10 pieces) is what the published rank is built on", str(life))
+	module.rank.forget(&"rank-probe")
 
 	# THE check. `_begin_stats` asks dot-platform for a SCOPED key and files
 	# nothing without one; the account id the identity carries must never be what
