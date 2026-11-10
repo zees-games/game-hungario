@@ -1,6 +1,6 @@
 # Modes and levels
 
-Seven modes. `classic`, `frenzy` and `famine` are dials; `gauntlet`, `warrens`, `reef` and `shallows` are shapes, built by `HungryLayout` and tuned by `HungryPreset`. Every number below is in `hungry_layout.gd` or `hungry_preset.gd` as a named constant; this file says why it is that number.
+Eight modes. `classic`, `frenzy`, `famine` and `feast` are dials; `gauntlet`, `warrens`, `reef` and `shallows` are shapes, built by `HungryLayout` and tuned by `HungryPreset`. Every number below is in `hungry_layout.gd` or `hungry_preset.gd` as a named constant; this file says why it is that number.
 
 ## The rules every layout follows
 
@@ -31,6 +31,8 @@ Seven modes. `classic`, `frenzy` and `famine` are dials; `gauntlet`, `warrens`, 
 `classic` and `frenzy` are the same square at two sizes: bigger and slower, smaller and faster, with `merge_delay_sec` deciding whether splitting is a commitment or a move.
 
 `famine` is a dial mode with no rocks: a 3600 square at half Classic's food density with about twice its fruit and items and a win mass of 700, so a round is decided by who takes the peppers and throwables rather than by who finds the most crumbs. Its section in `headless_round` runs eight bots to the end of a round.
+
+`feast` is famine's opposite, a dial mode with no rocks: a 3600 square at twice Classic's food density with few peppers and items and a win mass of 2000 (Classic's is 2400, reached faster on the dense field), so size comes from crumbs and a split is a long commitment (20 s merge delay). Its section in `headless_round` runs eight bots to the end of a round.
 
 ## gauntlet: a corridor
 

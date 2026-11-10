@@ -417,12 +417,13 @@ func mode_rows() -> Array:
 
 
 ## The preset ids, in the order the help screen describes them.
-const MODE_IDS: Array[StringName] = [&"classic", &"frenzy", &"gauntlet", &"warrens", &"reef", &"shallows", &"famine"]
+const MODE_IDS: Array[StringName] = [&"classic", &"frenzy", &"gauntlet", &"warrens", &"reef", &"shallows", &"famine", &"feast"]
 const MODE_BLURBS := {
 	&"classic": "The square arena.", &"frenzy": "Small and fast.", &"gauntlet": "A long narrow corridor.",
 	&"warrens": "Rocks and refuges.", &"reef": "A wall with four channels.",
 	&"shallows": "Posts whose gaps narrow toward the middle.",
 	&"famine": "Scarce food, plenty of peppers and items.",
+	&"feast": "Food everywhere, a long round to the top.",
 }
 
 

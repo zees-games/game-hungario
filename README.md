@@ -33,6 +33,7 @@ There are six modes:
 | Classic | The standard square arena. |
 | Frenzy | Small, fast and over quickly. |
 | Famine | Scarce food, plenty of peppers and items. |
+| Feast | Food everywhere, few peppers, long merges. |
 | Gauntlet | A long, narrow corridor. |
 | Warrens | A square with rocks and refuges in it. |
 | Reef | A wall with four channels through it, tight at one end and open at the other. |
@@ -72,7 +73,7 @@ On Windows, run `bootstrap.ps1` instead and open the project in Godot.
 | --- | --- |
 | `./game.sh` | Open the launcher. Pass `-- --offline` to play against bots |
 | `./game.sh online` | Start a local server (Classic) and the browser client, and print the link to open |
-| `./game.sh online hungry_reef` | The same, in another mode (`hungry_frenzy`, `hungry_gauntlet`, `hungry_warrens`, `hungry_reef`, `hungry_shallows`, `hungry_famine`) |
+| `./game.sh online hungry_reef` | The same, in another mode (`hungry_frenzy`, `hungry_gauntlet`, `hungry_warrens`, `hungry_reef`, `hungry_shallows`, `hungry_famine`, `hungry_feast`) |
 | `./game.sh online down` | Stop them |
 | `./game.sh server` | Start a local dedicated server only |
 | `./game.sh test` | Check every script and run every test suite |

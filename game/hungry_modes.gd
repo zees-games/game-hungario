@@ -1,6 +1,6 @@
 extends RefCounted
 
-## The seven modes' dials as configs: one [DotGameConfigBinder] per mode, kind `mode_<id>` (`cfg/game/game-hungario/mode_frenzy/frenzy.yml`), laid over [HungryPreset] by [method preset_for].
+## The eight modes' dials as configs: one [DotGameConfigBinder] per mode, kind `mode_<id>` (`cfg/game/game-hungario/mode_frenzy/frenzy.yml`), laid over [HungryPreset] by [method preset_for].
 ##
 ## A mode scene builds its preset before the module exists, so this is static and loads on first use.
 
@@ -8,7 +8,7 @@ const HungryPreset := preload("hungry_preset.gd")
 const HungryModeConfig := preload("hungry_mode_config.gd")
 
 const GAME_ID := "game-hungario"
-const IDS: Array[StringName] = [&"classic", &"frenzy", &"gauntlet", &"warrens", &"reef", &"shallows", &"famine"]
+const IDS: Array[StringName] = [&"classic", &"frenzy", &"gauntlet", &"warrens", &"reef", &"shallows", &"famine", &"feast"]
 
 static var binders := {}
 static var _result: DotResult = null

@@ -199,6 +199,24 @@ static func famine() -> HungryPreset:
 	return preset
 
 
+## A dial mode, no rocks: the opposite of Famine. Crumbs everywhere, few peppers, a long merge delay, so the round is a climb and a split is a long commitment.
+static func feast() -> HungryPreset:
+	var preset := HungryPreset.new()
+	preset.id = &"feast"
+	preset.display_name = "Feast"
+	preset.world_size = Vector2(3600.0, 3600.0)
+
+	# Twice Classic's density (527 on this square, so 1050).
+	preset.food_target = 1050
+	preset.fruit_target = 8
+	preset.item_target = 12
+	preset.win_mass = 2000.0
+	preset.max_speed = 400.0
+	preset.merge_delay_sec = 20.0
+	preset.time_limit_sec = 480.0
+	return preset
+
+
 static func for_id(preset_id: StringName) -> HungryPreset:
 	match preset_id:
 		&"frenzy":
@@ -213,6 +231,8 @@ static func for_id(preset_id: StringName) -> HungryPreset:
 			return shallows()
 		&"famine":
 			return famine()
+		&"feast":
+			return feast()
 		_:
 			return classic()
 

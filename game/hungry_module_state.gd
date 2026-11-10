@@ -69,6 +69,8 @@ const GAME_SHALLOWS := "hungry_shallows"
 
 const GAME_FAMINE := "hungry_famine"
 
+const GAME_FEAST := "hungry_feast"
+
 ## The world, which is dot-game's `game`; typed here because every call on it is the game's own.
 var world: HungryWorld:
 	get:

@@ -28,7 +28,7 @@ static func accepted() -> PackedStringArray:
 	return PackedStringArray(["arena"])
 
 ## The game's own mode ids. A pack cannot take one.
-const OWN_IDS: Array[StringName] = [&"classic", &"frenzy", &"gauntlet", &"warrens", &"reef", &"shallows", &"famine"]
+const OWN_IDS: Array[StringName] = [&"classic", &"frenzy", &"gauntlet", &"warrens", &"reef", &"shallows", &"famine", &"feast"]
 
 ## Entry id -> why it was refused.
 var refused: Dictionary = {}
