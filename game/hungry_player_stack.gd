@@ -24,6 +24,9 @@ var teams: DotTeamRoster = null
 var classes: DotPlayerClassManager = null
 var characters: DotPlayerCharCatalogue = null
 var spawns: DotSpawnDirector = null
+## Per-preset spawn edits (`cfg/game/game-hungario/dot_spawn/spawn/<preset>.yml`); the module hands
+## in the set its workbench shows, so an edit there and the grid here read the same object.
+var spawn_overrides: DotProfileSet = null
 
 var _registered: bool = false
 
@@ -241,7 +244,25 @@ func refresh_spawns() -> void:
 			site.is_2d = true
 			spawns.add_site(site)
 
-	DotLog.debug(CHANNEL, "spawn sites", {"count": spawns.sites().size()})
+	var applied := 0
+	if spawn_overrides != null and world.preset != null:
+		var loaded := spawns.load_overrides(spawn_overrides, String(world.preset.id))
+		if loaded.ok:
+			applied = int(loaded.value)
+			# An authored point is a plain 3D site until told; this field is flat.
+			for site in spawns.sites():
+				site.is_2d = true
+		else:
+			DotLog.warn(CHANNEL, "spawn overrides not read", {"preset": String(world.preset.id), "error": loaded.error.message})
+
+	DotLog.debug(CHANNEL, "spawn sites", {"count": spawns.sites().size(), "overrides": applied})
+
+
+## Takes the module's override set and lays the grid again with it applied.
+func use_spawn_overrides(set: DotProfileSet) -> void:
+	spawn_overrides = set
+	if spawns != null:
+		refresh_spawns()
 
 
 

@@ -98,6 +98,7 @@ func _game_load() -> DotResult:
 			"world": world.tick_rate,
 		})
 
+	_hand_spawn_overrides(world)
 	world.start(0)
 	_start_workbench()
 
@@ -212,6 +213,7 @@ func _module_game_changed(content_key: String) -> void:
 	if hservices != null:
 		hservices.world = world
 
+	_hand_spawn_overrides(world)
 	_watch_spawns(world)
 
 	# The moderator's return history goes too, for everybody. Every position in it is a point

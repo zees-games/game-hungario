@@ -167,6 +167,10 @@ var _cv_hunters: DotConVar = null
 ## dot-workbench over the config and the modes; null until the load finishes.
 var workbench: DotGameWorkbench = null
 
+## Per-preset spawn points, one set for the module's life: every world's player stack applies
+## it and the workbench edits it, so a mode change does not leave the workbench on a freed stack.
+var spawn_overrides: DotProfileSet = DotSpawnOverrides.make_set(HungryMapConfig.GAME_ID)
+
 ## The admins' permission check the workbench runtime asks through [method _runtime_permit].
 var _admin_permit := Callable()
 
@@ -671,6 +675,7 @@ func _start_workbench() -> void:
 		workbench.add_set(ambient_set, "Ambience (hungry_ambient*)")
 	for id in HungryModes.IDS:
 		workbench.add_set(HungryModes.binders[id].profile_set(), "Mode: %s" % id)
+	workbench.add_set(spawn_overrides, "Spawn points (per preset)")
 	add_child(workbench)
 	var started := workbench.start(rt)
 	if not started.ok:
@@ -686,6 +691,11 @@ func _start_workbench() -> void:
 		HungryModes.binders[id].attach(rt)
 	add_command("workbench", func(ctx: DotCmdContext) -> void: ctx.reply_lines(_workbench_lines()),
 		"Show the admin workbench's state", DotAdminFlags.CVAR)
+
+## Hands [member spawn_overrides] to [param target]'s player stack, which lays its grid again with them.
+func _hand_spawn_overrides(target: HungryWorld) -> void:
+	if target != null and target.player_stack != null:
+		target.player_stack.use_spawn_overrides(spawn_overrides)
 
 ## [member DotProfileRuntime.permit]: the server's admin flags, by user id.
 func _runtime_permit(actor: Variant, flag: String) -> bool:

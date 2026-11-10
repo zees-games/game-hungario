@@ -48,6 +48,11 @@ func _test_module() -> void:
 	_check(module.workbench != null and module.workbench.api != null, "and the workbench over its config")
 	var amb: DotResult = module.workbench.api.handle(DotGameWorkbench.LOCAL_ACTOR, {"op": "set", "kind": "ambience", "id": DotGameWorkbench.CVAR_SET_ID, "key": "hungry_ambient_volume", "value": 0.2})
 	_check(amb.ok and is_equal_approx(_server.console.get_float("hungry_ambient_volume"), 0.2), "the hungry_ambient* cvars are a workbench set and an edit moves the cvar", "" if amb.ok else amb.error.message)
+	var kinds: DotResult = module.workbench.api.handle(DotGameWorkbench.LOCAL_ACTOR, {"op": "list"})
+	var listed_kinds: Array = (kinds.value as Dictionary).get("kinds", []) if kinds.ok else []
+	var spawn_set_listed: bool = listed_kinds.has(DotSpawnOverrides.KIND)
+	_check(spawn_set_listed, "dot-spawn's per-preset override set is a workbench kind", "" if kinds.ok else kinds.error.message)
+	_check(_world().player_stack != null and _world().player_stack.spawn_overrides == module.spawn_overrides, "and the live player stack applies the same set the workbench edits")
 	var _amb_back := _server.console.set_cvar("hungry_ambient_volume", "0.3")
 	var respawn := _server.console.find_cvar("hungry_respawn_delay_sec")
 	var _set := respawn.set_value("7")

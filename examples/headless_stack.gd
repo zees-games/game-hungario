@@ -27,7 +27,7 @@ const HungryWorld := preload("../game/hungry_world.gd")
 ##   hand beside it.
 
 const TICK_RATE := 60
-const CHECKS := 24
+const CHECKS := 28
 const SECTIONS := 4
 
 var _section_count := 0
@@ -221,6 +221,22 @@ func _test_spawn_director() -> void:
 	_check(
 		protection != null or is_equal_approx(spawns.rules.protection_sec, 0.0),
 		"a protection ledger exists once the rules open a window"
+	)
+
+	# The per-preset override set the module hands in: the grid is laid again with it,
+	# stays 2D, and a preset without a file changes nothing.
+	var grid := spawns.sites().size()
+	var overrides := DotSpawnOverrides.make_set("game-hungario")
+	_stack().use_spawn_overrides(overrides)
+	_check(_stack().spawn_overrides == overrides, "the stack keeps the override set it was handed")
+	_check(spawns.sites().size() == grid, "and the grid is the same size without a file for the preset")
+	var all_2d := true
+	for site in spawns.sites():
+		all_2d = all_2d and site.is_2d
+	_check(all_2d, "every site is still 2D after the overrides pass")
+	_check(
+		String(overrides.rel_path) == DotSpawnOverrides.KIND and overrides.game == "game-hungario",
+		"the set is dot-spawn's `spawn` kind under this game, where the workbench writes it"
 	)
 
 	_world.queue_free()
