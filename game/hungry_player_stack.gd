@@ -204,6 +204,8 @@ func _build_spawns() -> void:
 	spawns.register_service = false
 	spawns.rules = DotSpawnRules.deathmatch()
 	spawns.rules.seed_value = 0x4E55
+	# Free-for-all: draw across the whole grid (dot-spawn's scatter), not the safest cell every time.
+	spawns.rules.strategy = "scatter,map"
 	# [b]Distance from EVERY other monster, because in hungario everybody is dangerous
 	# to somebody.[/b] There are no sides, so the enemy list is the whole field — which
 	# is the honest answer here and is why the selector is asked for distance at all.

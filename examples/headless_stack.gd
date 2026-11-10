@@ -27,7 +27,7 @@ const HungryWorld := preload("../game/hungry_world.gd")
 ##   hand beside it.
 
 const TICK_RATE := 60
-const CHECKS := 28
+const CHECKS := 29
 const SECTIONS := 4
 
 var _section_count := 0
@@ -183,6 +183,7 @@ func _test_spawn_director() -> void:
 
 	var spawns := _stack().spawns
 	_check(spawns.sites().size() > 0, "a grid of sites is laid over the field")
+	_check(spawns.rules.strategy == "scatter,map", "a free-for-all respawn scatters across the grid")
 	_check(
 		spawns.sites()[0].is_2d,
 		"and they are 2D sites, because this arena is"
