@@ -1,4 +1,5 @@
 extends "exit_probe.gd"
+const HungryTestPorts := preload("test_ports.gd")
 
 const HungryBrowser := preload("../game/client/hungry_browser.gd")
 const HungryContent := preload("../game/hungry_content.gd")

@@ -1,4 +1,5 @@
 extends DotGameCheckSuite
+const HungryTestPorts := preload("test_ports.gd")
 
 const HungryClient := preload("../game/client/hungry_client.gd")
 const HungryContent := preload("../game/hungry_content.gd")
