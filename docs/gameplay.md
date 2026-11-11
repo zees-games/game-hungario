@@ -85,7 +85,7 @@ Lag compensation is off (`enable_lag_compensation`): nothing here is a hitscan s
 
 ## A private arena whose host may leave
 
-`HungryParty`: **migration is on** (a continuous arena has no round boundary to be in the middle of, so a host leaving should cost a moment, not the session), and **reporting is refused** — this game files to dot-stats and dot-achievements, and a peer-to-peer host can lie about how much they ate. `reporting_allowed()` is the one place asked. `headless_presentation` meets over a real HTTP rendezvous (game-playground's `RendezvousStub` on 38900-38960, answering late) so a missing `await` fails; with migration on, "the joiner does not elect itself" holds only until `host_timeout_sec`, because the stub relays no heartbeats.
+`HungryParty`: **migration is on** (a continuous arena has no round boundary to be in the middle of, so a host leaving should cost a moment, not the session), and **reporting is refused** — this game files to dot-stats and dot-achievements, and a peer-to-peer host can lie about how much they ate. `reporting_allowed()` is the one place asked. `headless_presentation` meets over a real HTTP rendezvous (game-playlot's `RendezvousStub` on 38900-38960, answering late) so a missing `await` fails; with migration on, "the joiner does not elect itself" holds only until `host_timeout_sec`, because the stub relays no heartbeats.
 
 ## Deliberately not here
 
