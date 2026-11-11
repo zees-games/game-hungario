@@ -19,7 +19,25 @@ func _initialize() -> void:
 	root.add_child(_client)
 
 
+## Frame sequence after each still (DOT_SHOT_FRAMES, set by the .sh); see DotShotSeq. The state machine holds still while it records, and `_seq_end` defers the quit until it is done.
+var _seq := DotShotSeq.new()
+var _seq_active := false
+var _seq_end := false
+
+
+func _seq_begin(path: String) -> void:
+	if _seq.enabled():
+		_seq.begin(path)
+		_seq_active = true
+
+
+
 func _process(_delta: float) -> bool:
+	if _seq_active:
+		_seq_active = _seq.step(root)
+		return false
+	if _seq_end:
+		return true
 	_frames += 1
 	var platform: DotGameClient = _client.get("platform")
 	if not _opened and _frames > 30 and platform.is_shown():
@@ -33,5 +51,7 @@ func _process(_delta: float) -> bool:
 	elif _opened and _frames == 15:
 		var path := ProjectSettings.globalize_path(OUT_DIR.path_join("workbench_panel.png"))
 		print("saved %s: %s" % [path, error_string(root.get_texture().get_image().save_png(path))])
-		return true
+		_seq_begin(path)
+		_seq_end = true
+		return false
 	return false

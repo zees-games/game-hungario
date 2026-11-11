@@ -11,7 +11,25 @@ func _initialize() -> void:
 	root.add_child((load("res://examples/play.tscn") as PackedScene).instantiate())
 
 
+## Frame sequence after each still (DOT_SHOT_FRAMES, set by the .sh); see DotShotSeq. The state machine holds still while it records, and `_seq_end` defers the quit until it is done.
+var _seq := DotShotSeq.new()
+var _seq_active := false
+var _seq_end := false
+
+
+func _seq_begin(path: String) -> void:
+	if _seq.enabled():
+		_seq.begin(path)
+		_seq_active = true
+
+
+
 func _process(_delta: float) -> bool:
+	if _seq_active:
+		_seq_active = _seq.step(root)
+		return false
+	if _seq_end:
+		return true
 	_frames += 1
 	if _frames < 400:
 		return false
@@ -22,4 +40,6 @@ func _process(_delta: float) -> bool:
 		print("path=%s margin=%s centre=%s gpos=%s" % [b.get_path(), b.get("margin"), b.call("centre_of", &"split"), b.global_position])
 		print("buttons visible=%s scale=%s footprint=%s size=%s" % [b.is_visible_in_tree(), b.get("button_scale"), b.call("footprint"), b.size])
 	print("saved %s (%s) window %s" % [path, error_string(err), root.size])
-	return true
+	_seq_begin(path)
+	_seq_end = true
+	return false

@@ -249,7 +249,25 @@ func _boot() -> void:
 		var _built := menu.setup()
 
 
+## Frame sequence after each still (DOT_SHOT_FRAMES, set by the .sh); see DotShotSeq. The state machine holds still while it records, and `_seq_end` defers the quit until it is done.
+var _seq := DotShotSeq.new()
+var _seq_active := false
+var _seq_end := false
+
+
+func _seq_begin(path: String) -> void:
+	if _seq.enabled():
+		_seq.begin(path)
+		_seq_active = true
+
+
+
 func _process(_delta: float) -> bool:
+	if _seq_active:
+		_seq_active = _seq.step(root)
+		return false
+	if _seq_end:
+		return true
 	if _finished:
 		return false
 
@@ -288,6 +306,7 @@ func _process(_delta: float) -> bool:
 	var path := "%s/%s.png" % [OUT_DIR, shot["name"]]
 	image.save_png(ProjectSettings.globalize_path(path))
 	print("wrote %s (%d x %d)" % [path, image.get_width(), image.get_height()])
+	_seq_begin(ProjectSettings.globalize_path(path))
 
 	_at += 1
 	_prepared = false
