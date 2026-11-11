@@ -190,7 +190,7 @@ func _blind(world: HungryWorld, me: HungryMonster, them: HungryMonster) -> void:
 	)
 
 	# The whole viewport, not the HUD's rect: `DotHud` insets itself by the safe area, and
-	# game-arena's first rendered blind left a frame of the world showing round the edge.
+	# game-fatal-contact's first rendered blind left a frame of the world showing round the edge.
 	var covered := hud.blind_overlay.get_global_rect()
 	var screen := get_viewport().get_visible_rect()
 	_check(

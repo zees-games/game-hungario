@@ -2,7 +2,7 @@ extends Node
 
 ## A private arena among friends, with the host able to leave.
 ##
-## [b]hungario's peer-to-peer decision is the opposite of game-arena's on one axis and the
+## [b]hungario's peer-to-peer decision is the opposite of game-fatal-contact's on one axis and the
 ## same on the other, and both halves follow from what kind of game it is.[/b]
 ##
 ## **Migration is on, where the arena turns it off.** A deathmatch is rounds: the host

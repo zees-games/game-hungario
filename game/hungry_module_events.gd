@@ -220,7 +220,7 @@ func _on_vote_requested(peer_id: int, token: String) -> void:
 			if parts.size() > 1:
 				result = maps.director.cast_one(voter, StringName(parts[1]))
 		"extend":
-			# An admin's, not a player's, as in game-playground: extending without a vote
+			# An admin's, not a player's, as in game-playlot: extending without a vote
 			# is what the ballot's own "extend" option exists to make a decision of the
 			# players. This line let anybody on the wire do it, as often as it allowed.
 			if not _voter_is_admin(voter):

@@ -11,7 +11,7 @@ const HungryWorld := preload("../game/hungry_world.gd")
 ## godot --headless --path . res://examples/headless_stack.tscn
 ## [/codeblock]
 ##
-## [b]A three-hundred-line player layer with no suite that named it.[/b] game-arena got
+## [b]A three-hundred-line player layer with no suite that named it.[/b] game-fatal-contact got
 ## one; this game did not, so the roster, the traits, the collision layout and the spawn
 ## director ran only as far as `setup()` inside somebody else's test.
 ##

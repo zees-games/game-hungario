@@ -559,7 +559,7 @@ func _build_query_provider() -> void:
 	# refusing to load the game over it would take the game down for a listing.
 	DotLog.result(CHANNEL, "the query provider", add_query_provider(provider), DotLog.Level.DEBUG)
 
-## A [DotQueryProvider] over this module. An inner class for game-arena's reason: it is
+## A [DotQueryProvider] over this module. An inner class for game-fatal-contact's reason: it is
 ## one method and a reference, and a file for it would be a file about nothing else.
 class HungryQueryProvider extends DotQueryProvider:
 	## The module, held as an [Object] because this script has no [code]class_name[/code]

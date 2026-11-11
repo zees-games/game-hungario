@@ -335,7 +335,7 @@ func refresh_spawn_rules() -> void:
 		return
 
 	spawns.rules.protection_sec = world.match_node.rules.spawn_protection_sec
-	# Off for game-arena's reason: only one of the two records can be revoked, and a
+	# Off for game-fatal-contact's reason: only one of the two records can be revoked, and a
 	# protection that ended for one gate and not the other is worse than either answer.
 	spawns.rules.protection_breaks_on_attack = false
 

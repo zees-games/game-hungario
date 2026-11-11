@@ -31,7 +31,7 @@ const RIPPLE_SCALE := 2.4
 
 ## Red-orange: the colour nothing else in this arena is — the food is every colour but
 ## this, the threat ring is a darker red and the level is blue — so it reads as a mark
-## rather than as another monster's rim. The same colour game-arena's beacon is.
+## rather than as another monster's rim. The same colour game-fatal-contact's beacon is.
 const COLOUR := Color(1.0, 0.28, 0.18)
 
 ## Clearance between the monster's outermost edge and the ring, in world units.

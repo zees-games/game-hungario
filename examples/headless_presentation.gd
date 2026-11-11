@@ -414,7 +414,7 @@ func _test_party() -> void:
 	add_child(party)
 	_check(party.setup().ok, "a party sets up")
 
-	# The axis where this game disagrees with game-arena, and it follows from what kind of
+	# The axis where this game disagrees with game-fatal-contact, and it follows from what kind of
 	# game it is: there is no round to be in the middle of.
 	_check(
 		party.session.config.migrate_host,

@@ -71,7 +71,7 @@ func _build() -> void:
 		# [b]Fleeing has a floor as well as a condition.[/b] `after` is what stops a
 		# hunter that is exactly on the ratio boundary flickering between CHASE and FLEE
 		# every tick — which looks like a hunter having a fit and is the classic broken
-		# NPC this family already documented in game-playground's chaser.
+		# NPC this family already documented in game-playlot's chaser.
 		DotNpcAiState.make(STATE_FLEE, _flee)
 			.after(1.5, STATE_WANDER)
 	)

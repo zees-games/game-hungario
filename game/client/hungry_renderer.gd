@@ -93,7 +93,7 @@ var _beacons: Dictionary = {}
 var hunters: HungryHunters = null
 var hazards: HungryHazards = null
 
-## The look: a bright pastel sky, the family's sunny look (game-arena's built-in maps) in
+## The look: a bright pastel sky, the family's sunny look (game-fatal-contact's built-in maps) in
 ## 2D. It was deep space (a near-black floor, a starfield, faint nebulae), which read as
 ## dark and heavy beside every other game; the saturated things on screen are now the food,
 ## the fruit and the monsters, on a pale ground that never competes with them.
