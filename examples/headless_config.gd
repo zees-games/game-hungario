@@ -11,7 +11,10 @@ const HungryContent := preload("../game/hungry_content.gd")
 const HungryModes := preload("../game/hungry_modes.gd")
 const HungryServerConfig := preload("../game/hungry_server_config.gd")
 const HungryTuning := preload("../game/hungry_tuning.gd")
-const ROOT := "user://hungry_cfgtest"
+## One directory per suite process (the probe child is handed its parent's): user:// is shared by
+## every copy of this project on a box, and two suites at once wrote and deleted each other's cfg files.
+const ROOT_ARG := "--cfgroot="
+var ROOT := _root()
 const GAME := "game-hungario"
 const CHECKS := 50
 const SECTIONS := 6
@@ -20,6 +23,13 @@ const SECTIONS := 6
 func _ready() -> void:
 	DotLog.set_level(DotLog.Level.FATAL)
 	_run.call_deferred()
+
+
+func _root() -> String:
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with(ROOT_ARG):
+			return a.substr(ROOT_ARG.length())
+	return "user://hungry_cfgtest_%d" % OS.get_process_id()
 
 
 func _run() -> void:
@@ -59,18 +69,18 @@ func _server_config() -> void:
 	console.set_cvar("hungry_respawn_delay_sec", "6")
 	_check(is_equal_approx(HungryContent.rules().respawn_delay_sec, 6.0), "the match rules read the field")
 	_check(binder.diff_yaml().contains("pepper_damage: 250"), "the diff names the edit")
-	var schema_path := "user://hungry_config_schema.json"
+	var schema_path := ROOT + "_config_schema.json"
 	_check(binder.write_schema(schema_path).ok and FileAccess.file_exists(schema_path), "write_schema writes the schema")
 	DirAccess.remove_absolute(schema_path)
 	console.free()
 
-	var bad := FileAccess.open("user://hungry_config_bad.json", FileAccess.WRITE)
+	var bad := FileAccess.open(ROOT + "_config_bad.json", FileAccess.WRITE)
 	bad.store_string('{"no_such_field": 1}')
 	bad.close()
-	var strict := HungryServerConfig.make_binder(HungryServerConfig.new(), "user://hungry_config_bad.json")
+	var strict := HungryServerConfig.make_binder(HungryServerConfig.new(), ROOT + "_config_bad.json")
 	strict.strict = true
 	_check(not strict.load_layers().ok, "strict: an unknown key is refused")
-	DirAccess.remove_absolute("user://hungry_config_bad.json")
+	DirAccess.remove_absolute(ROOT + "_config_bad.json")
 	var wrong := HungryServerConfig.new()
 	wrong.outgrown = "nonsense"
 	_check(not wrong.validate().ok, "an outgrown rule that does not exist is refused")
@@ -196,7 +206,7 @@ func _probe() -> void:
 func _child() -> String:
 	var out: Array = []
 	OS.execute(OS.get_executable_path(), ["--headless", "--path", ProjectSettings.globalize_path("res://"),
-		"res://examples/headless_config.tscn", "--", "--probe", "--hungry-server-max-players=17", "--hungry-server-fruit-effect-sec=7.5"], out, true)
+		"res://examples/headless_config.tscn", "--", "--probe", ROOT_ARG + ROOT, "--hungry-server-max-players=17", "--hungry-server-fruit-effect-sec=7.5"], out, true)
 	return "".join(PackedStringArray(out))
 
 
