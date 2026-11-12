@@ -33,6 +33,13 @@ func _process(_delta: float) -> bool:
 	_frames += 1
 	if _frames < 400:
 		return false
+	var shot := _save_shot  # one-shot, held as a Callable so it is not part of the per-frame path
+	shot.call()
+	_seq_end = true
+	return false
+
+
+func _save_shot() -> void:
 	DirAccess.make_dir_recursive_absolute("res://screenshots")
 	var path := ProjectSettings.globalize_path("res://screenshots/touch.png")
 	var err := root.get_texture().get_image().save_png(path)
@@ -41,5 +48,3 @@ func _process(_delta: float) -> bool:
 		print("buttons visible=%s scale=%s footprint=%s size=%s" % [b.is_visible_in_tree(), b.get("button_scale"), b.call("footprint"), b.size])
 	print("saved %s (%s) window %s" % [path, error_string(err), root.size])
 	_seq_begin(path)
-	_seq_end = true
-	return false
