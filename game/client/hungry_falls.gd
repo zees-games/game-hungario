@@ -32,7 +32,7 @@ var rules: DotPlayerRagdollRules = DotPlayerRagdollRules.new()
 ## The reactions a death's id is looked up in; only the poses and sounds matter here.
 var reactions: DotPlayerDeathReactions = DotPlayerDeathReactions.stock()
 
-## This machine's own limit, or -1 for dot-player-char's default.
+## This machine's own limit: -1 for dot-player-char's default, 0 = unlimited.
 var local_cap: int = -1
 
 ## [code]rider_fn.call(player_id) -> Node2D[/code]: the rider the renderer drew for them.
@@ -58,10 +58,16 @@ func note_piece(piece: HungryPiece) -> void:
 	}
 
 
-## The cap in force: the server's and this machine's, the lower.
+## The cap in force: the server's and this machine's, the lower; 0 on either side is no limit
+## from that side, and 0 here is no limit at all (dot-player-char's [code]sv_ragdoll_max 0[/code]).
 func cap() -> int:
-	var mine := local_cap if local_cap > 0 else DotPlayerRagdolls.default_local_cap()
-	return mini(rules.max_count if rules != null else 8, mine)
+	var server := rules.max_count if rules != null else 8
+	var mine := local_cap if local_cap >= 0 else DotPlayerRagdolls.default_local_cap()
+	if server <= 0:
+		return maxi(mine, 0)
+	if mine <= 0:
+		return server
+	return mini(server, mine)
 
 
 ## [param player_id] was eaten: their last piece goes down the way [param death] says (null
@@ -82,7 +88,8 @@ func fall(player_id: int, death: DotPlayerDeath) -> Node2D:
 
 	_reap()
 	var standing := _standing()
-	while standing.size() > cap() - 1 and not standing.is_empty():
+	var limit := cap()
+	while limit > 0 and standing.size() > limit - 1 and not standing.is_empty():
 		(standing.pop_front() as HungryFall).expire(EVICT_FADE)
 
 	var made := HungryFall.new()

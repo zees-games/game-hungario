@@ -3,7 +3,7 @@ extends "headless_presentation_checks.gd"
 
 ## Settings, audio, effects, the console and the private arena.
 
-const CHECKS := 159
+const CHECKS := 162
 
 
 func _ready() -> void:
@@ -1074,6 +1074,19 @@ func _test_a_fall() -> void:
 	falls.note_piece(piece)
 	_check(falls.fall(5, crumple) == null and not rider.visible,
 		"and hide draws no fall and no rider")
+
+	# No hard caps: 0 on either side is no limit from that side, so 0 and 0 is none at all.
+	var max_before := falls.rules.max_count
+	falls.rules.max_count = 0
+	falls.local_cap = 0
+	_check(falls.cap() == 0, "sv_ragdoll_max 0 and an unlimited machine leave falls uncapped", str(falls.cap()))
+	falls.local_cap = 6
+	_check(falls.cap() == 6, "an unlimited server leaves this machine's own limit", str(falls.cap()))
+	falls.rules.max_count = 3
+	falls.local_cap = 0
+	_check(falls.cap() == 3, "an unlimited machine leaves the server's limit", str(falls.cap()))
+	falls.rules.max_count = max_before
+	falls.local_cap = -1
 
 	var sink_ids := HungrySoundSink.CUES.keys()
 	var catalogued := HungryPresentation.sound_catalogue()
