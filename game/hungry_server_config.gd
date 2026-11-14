@@ -29,6 +29,12 @@ static func make_binder(config: DotConfig, json_path := "") -> DotGameConfigBind
 ## Rocks scattered into the arena at load.
 @export_range(0, 64, 1, "or_greater") var hazards_count: int = 0
 
+## Rocks one owner (an admin, the director) may have out at once. 0 = unlimited.
+@export_range(0, 24, 1, "or_greater") var hazards_per_owner: int = 24
+
+## Rocks in the arena at once, from everybody. 0 = unlimited.
+@export_range(0, 64, 1, "or_greater") var hazards_world_budget: int = 64
+
 ## A monster wedged in a refuge it outgrew: accept, cap (food stops counting) or eject (sheds the excess). Empty: the mode's.
 @export var outgrown: String = ""
 
@@ -54,6 +60,9 @@ static func make_binder(config: DotConfig, json_path := "") -> DotGameConfigBind
 
 ## Crumbs a lure plants where it lands.
 @export_range(1, 200, 1, "or_greater") var lure_food_count: int = 26
+
+## Most pieces one monster may split into. 0 = unlimited.
+@export_range(0, 16, 1, "or_greater") var max_pieces: int = 16
 
 ## Ticks between two throws.
 @export_range(0, 600, 1) var throw_cooldown_ticks: int = 24

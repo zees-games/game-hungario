@@ -9,7 +9,7 @@ const GAME_ID := "game-hungario"
 ## cvar -> its constraint. Rules only; nothing here runs a command.
 const KEYS := {
 	"hungry_hunters_on": {"type": "int", "min": 0, "max": 1},
-	"hungry_hazards_count": {"type": "int", "min": 0, "max": 64},
+	"hungry_hazards_count": {"type": "int", "min": 0},
 	"hungry_outgrown": {"type": "string"},
 	"hungry_warrens_corners": {"type": "string"},
 	"hungry_fruit_effect_sec": {"type": "float", "min": 0.5, "max": 120.0},

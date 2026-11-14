@@ -6,6 +6,10 @@
 # hunters_on: false
 # Rocks scattered into the arena at load. [0..]
 # hazards_count: 0
+# Rocks one owner (an admin, the director) may have out at once. 0 = unlimited. [0..]
+# hazards_per_owner: 24
+# Rocks in the arena at once, from everybody. 0 = unlimited. [0..]
+# hazards_world_budget: 64
 # A monster wedged in a refuge it outgrew: accept, cap (food stops counting) or eject (sheds the excess). Emp...
 # outgrown: ""
 # The warrens' corner rocks: open, or quartered (shut into a quarter past about 903 mass). Empty: the mode's....

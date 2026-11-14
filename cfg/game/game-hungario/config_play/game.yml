@@ -10,6 +10,8 @@
 # pepper_damage: 100.0
 # Crumbs a lure plants where it lands. [1..]
 # lure_food_count: 26
+# Most pieces one monster may split into. 0 = unlimited. [0..]
+# max_pieces: 16
 # Ticks between two throws. [0..600]
 # throw_cooldown_ticks: 24
 # What a rush fruit multiplies speed by. Sent to clients in the hello. [0.1..5.0]

@@ -1,6 +1,7 @@
 extends Node
 
 const HungryPaths := preload("hungry_paths.gd")
+const HungryTuning := preload("hungry_tuning.gd")
 
 const HungryMonster := preload("hungry_monster.gd")
 const HungryPiece := preload("hungry_piece.gd")
@@ -28,9 +29,6 @@ const CHANNEL := "hungry.hazards"
 
 static var HAZARD_SCENE := HungryPaths.rebase("res://game/hungry_hazard_body.tscn")
 
-## Nobody may hold more than this. An admin and the director are the only owners today.
-const PER_OWNER := 24
-const WORLD_BUDGET := 64
 ## How often one owner may place something, in seconds.
 ##
 ## [b]Zero, and that is a decision rather than a default.[/b] dot-props' interval exists
@@ -159,11 +157,15 @@ func setup(p_authoritative: bool, p_world: HungryWorld) -> DotResult:
 		return DotResult.success(null)
 
 	var limits := DotPropLimits.new()
-	limits.per_player_budget = PER_OWNER
-	limits.world_budget = WORLD_BUDGET
+	# Both from the server config (hungry_hazards_per_owner, hungry_hazards_world_budget), 0 = unlimited.
+	var tuning := HungryTuning.settings()
+	limits.per_player_budget = tuning.hazards_per_owner
+	limits.world_budget = tuning.hazards_world_budget
 	limits.spawn_interval = PLACE_INTERVAL
 	limits.clean_up_on_leave = true
-	limits.undo_depth = PER_OWNER
+	# DotPropLimits.undo_depth 0 means no undo, not unlimited: with no per-owner cap, keep its default.
+	if tuning.hazards_per_owner > 0:
+		limits.undo_depth = tuning.hazards_per_owner
 
 	var problem := limits.validate()
 

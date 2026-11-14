@@ -650,6 +650,9 @@ func _on_tuning_changed(key: String, _value: Variant, _source: String) -> void:
 				combat.rules.friendly_fire = fresh.friendly_fire
 				combat.rules.minimum = fresh.minimum
 				combat.rules.maximum = fresh.maximum
+		"max_pieces":
+			if world.tunables != null and world.tunables.mass_rules != null:
+				world.tunables.mass_rules.max_pieces = HungryContent.mass_rules().max_pieces
 
 ## dot-workbench over the server config and the six modes: the HTTP page only with `workbench.enabled` in cfg/server.yml, the F9 panel never on a dedicated server.
 func _start_workbench() -> void:

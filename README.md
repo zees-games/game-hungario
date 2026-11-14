@@ -89,11 +89,14 @@ Settings are console variables ("cvars"). Set them in the server's config files,
 | `bot_quota_mode` | `fill` | `fill`, `fixed` (that many bots), `per_player` (that many per person) or `off`. |
 | `bot_difficulty` | `medium` | `easy`, `medium`, `hard` or `nightmare`. |
 | `hungry_hunters_on` | 0 | 1 releases NPC hunters into the world. |
-| `hungry_hazards_count` | 0 | Rocks scattered into the world at load. Currently limited to 64 per server. |
+| `hungry_hazards_count` | 0 | Rocks scattered into the world at load. Any value. |
+| `hungry_hazards_per_owner` | 24 | Rocks one owner (an admin, the director) may have out at once. Any value, 0 = unlimited. |
+| `hungry_hazards_world_budget` | 64 | Rocks in the world at once, from everybody. Any value, 0 = unlimited. |
 | `hungry_outgrown` | empty | What happens to a monster stuck in a refuge it outgrew: `accept`, `cap` or `eject`. Empty uses the mode's own rule. |
 | `hungry_fruit_effect_sec` | 8 | Seconds a fruit effect lasts. |
 | `hungry_frost_sec` | 5 | Seconds a frosted monster is slowed. |
 | `hungry_pepper_damage` | 100 | Pepper damage at point blank. |
+| `hungry_max_pieces` | 16 | Most pieces one monster may split into. Any value, 0 = unlimited. |
 | `hungry_lure_food_count` | 26 | Food a lure drops. |
 | `hungry_throw_cooldown_ticks` | 24 | Ticks between two throws (60 ticks per second). |
 | `hungry_respawn_delay_sec` | 3 | Seconds a dead player waits before respawning. |
@@ -105,7 +108,7 @@ Other options (speed multipliers, cooldowns, intermission length, hunter speed) 
 
 Each mode has its own file, `cfg/game/game-hungario/mode_<id>/<id>.yml`, with its world size, food and item counts, win mass, time limit and refuge rule. Changes apply from the next mode change.
 
-A mode's top speed and merge delay stay in code. The client predicts movement with them, and the server sends them to clients when they join. A monster can currently have at most 16 pieces (`max_pieces` in `game/hungry_content.gd`).
+A mode's top speed and merge delay stay in code. The client predicts movement with them, and the server sends them to clients when they join.
 
 `hungry_bots N` still works but is deprecated. It sets `bot_quota N` and `bot_quota_mode fixed`. Offline, bot settings are console variables, or pass for example `-- --bot_difficulty hard` at launch.
 
