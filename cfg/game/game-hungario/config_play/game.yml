@@ -8,7 +8,7 @@
 # frost_sec: 5.0
 # Pepper damage at point blank, in dot-combat's units; the falloff and the minimum scale from it. [1.0..1000.0]
 # pepper_damage: 100.0
-# Crumbs a lure plants where it lands. [1..200]
+# Crumbs a lure plants where it lands. [1..]
 # lure_food_count: 26
 # Ticks between two throws. [0..600]
 # throw_cooldown_ticks: 24

@@ -4,7 +4,7 @@
 # --- Hand-bound cvars
 # Release NPC hunters into the arena. Off: a mode about eating and a mode about being hunted are different ga...
 # hunters_on: false
-# Rocks scattered into the arena at load. [0..64]
+# Rocks scattered into the arena at load. [0..]
 # hazards_count: 0
 # A monster wedged in a refuge it outgrew: accept, cap (food stops counting) or eject (sheds the excess). Emp...
 # outgrown: ""
