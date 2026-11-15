@@ -1,4 +1,4 @@
-extends "./hungry_client_state.gd"
+extends "./hungry_client_chat.gd"
 
 ## The playable client: a world, a camera, a renderer, a HUD and a socket.
 
@@ -215,7 +215,6 @@ func _build_client_services() -> void:
 	hazards.name = "Hazards"
 	add_child(hazards)
 	hazards.setup(false, world)
-
 
 
 	if bridge == null:
@@ -583,7 +582,6 @@ func _local_player() -> int:
 	return bridge.local_player_id if bridge != null else 1
 
 
-
 func _physics_process(delta: float) -> void:
 	if world == null:
 		return
@@ -649,7 +647,6 @@ func _watched_centre() -> Vector2:
 	return monster.centre() if monster != null else Vector2.ZERO
 
 
-
 ## Builds a world with bots in it, for playing without a server.
 func _start_offline() -> void:
 	world.add_player(1, "You")
@@ -713,7 +710,6 @@ func _tick_offline(_delta: float) -> void:
 			commands[id] = HungryBot.command_for(world, monster, _tick)
 
 	world.tick(commands)
-
 
 
 ## Reason the gate is held under while the server rebuilds the world.
@@ -1022,77 +1018,12 @@ func _on_chat_message(message: DotChatMessage, channel_id: StringName) -> void:
 		})
 
 
-
-## The chat box, or null before the presentation layer exists.
-func _chat_window() -> DotChatWindow:
-	return presentation.chat_window if presentation != null else null
-
-
-## Joins the chat box to the three things it needs.
-func _wire_chat_window() -> void:
-	var window := _chat_window()
-
-	if window == null:
-		return
-
-	window.submitted.connect(_on_chat_submitted)
-
-	window.opened.connect(func(_channel: StringName) -> void:
-		if voice != null:
-			voice.release()
-	)
-
-	var client_link := DotRegistry.get_service(&"dot_client_link")
-
-	if client_link != null and client_link.has_signal("chat_received"):
-		client_link.connect("chat_received", _on_server_chat_state)
-
-
 ## One handler for the sampler: the platform says when the cover, a menu, the console or the chat
 ## line has the keyboard. Split, throw, boost and eject are keys, and "gg boost" would eject
 ## the player's mass.
 func _suspend_input(blocked: bool) -> void:
 	if sampler != null:
 		sampler.suspended = blocked
-
-
-## dot-server's chat payload: what is carrying the conversation, and the server's own lines.
-func _on_server_chat_state(payload: Dictionary) -> void:
-	var kind := str(payload.get("kind", ""))
-
-	if kind == "system" or kind == "admin":
-		_draw_server_line(kind, str(payload.get("name", "")), str(payload.get("text", "")).strip_edges())
-		return
-
-	if kind != "state":
-		return
-
-	if presentation != null:
-		presentation.set_chat_relayed(bool(payload.get("relay", false)))
-
-
-func _draw_server_line(kind: String, speaker: String, text: String) -> void:
-	var window := _chat_window()
-
-	if window == null or text == "":
-		return
-
-	if kind == "system":
-		window.add_text(text if speaker == "" else "%s %s" % [speaker, text], Color(0.98, 0.84, 0.40))
-	else:
-		window.add_said(speaker, text, Color(0.98, 0.72, 0.35))
-
-
-func _on_chat_submitted(text: String, channel: StringName) -> void:
-	_on_say(text, channel)
-
-
-func _on_say(text: String, channel: StringName = HungryServices.CHANNEL_ALL) -> void:
-	if bridge != null and not bridge.net.is_server:
-		bridge.say(channel, text)
-	elif hud != null:
-		hud.say("(offline) %s" % text, Color(0.6, 0.62, 0.66))
-
 
 
 func _on_hunter(state: Dictionary) -> void:
@@ -1150,7 +1081,6 @@ func _on_progress(state: Dictionary) -> void:
 		],
 		Color(1.0, 0.85, 0.40) if mine else Color(0.78, 0.72, 0.58)
 	)
-
 
 
 ## The talk key. The held Tab board is the platform's. Escape, H and the menu's keys are dot-menu's

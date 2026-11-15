@@ -222,26 +222,7 @@ func _test_event_wire() -> void:
 			and defaults.split_cooldown_ticks == HungryContent.SPLIT_COOLDOWN_TICKS,
 		"and the game's own predicted values when none are given"
 	)
-	var tuned := HungryPredicted.new()
-	tuned.rush_multiplier = 1.75
-	tuned.frost_multiplier = 0.4
-	tuned.split_cooldown_ticks = 33
-	tuned.eject_cooldown_ticks = 7
-	tuned.max_speed = 300.5
-	tuned.merge_delay_sec = 2.5
-	var tuned_hello := HungryEvents.read_hello(
-		DotNetReader.new(
-			HungryEvents.write_hello(1, 60, 7, 2, 900, Vector2(5200.0, 5200.0), "", &"", tuned)
-		)
-	)
-	var back: HungryPredicted = tuned_hello["predicted"]
-	_check(
-		bool(tuned_hello["ok"]) and is_equal_approx(back.rush_multiplier, 1.75)
-			and is_equal_approx(back.frost_multiplier, 0.4)
-			and back.split_cooldown_ticks == 33 and back.eject_cooldown_ticks == 7
-			and is_equal_approx(back.max_speed, 300.5) and is_equal_approx(back.merge_delay_sec, 2.5),
-		"and the client-predicted values round-trip"
-	)
+	_event_wire_predicted()
 	_check(
 		String(hello["pack_url"]) == "https://cdn.example/hungry/manifest.json",
 		"and where this server's rider content lives"
@@ -290,6 +271,29 @@ func _test_event_wire() -> void:
 	_event_wire_catalogue()
 
 	_done()
+
+func _event_wire_predicted() -> void:
+	var tuned := HungryPredicted.new()
+	tuned.rush_multiplier = 1.75
+	tuned.frost_multiplier = 0.4
+	tuned.split_cooldown_ticks = 33
+	tuned.eject_cooldown_ticks = 7
+	tuned.max_speed = 300.5
+	tuned.merge_delay_sec = 2.5
+	var tuned_hello := HungryEvents.read_hello(
+		DotNetReader.new(
+			HungryEvents.write_hello(1, 60, 7, 2, 900, Vector2(5200.0, 5200.0), "", &"", tuned)
+		)
+	)
+	var back: HungryPredicted = tuned_hello["predicted"]
+	_check(
+		bool(tuned_hello["ok"]) and is_equal_approx(back.rush_multiplier, 1.75)
+			and is_equal_approx(back.frost_multiplier, 0.4)
+			and back.split_cooldown_ticks == 33 and back.eject_cooldown_ticks == 7
+			and is_equal_approx(back.max_speed, 300.5) and is_equal_approx(back.merge_delay_sec, 2.5),
+		"and the client-predicted values round-trip"
+	)
+
 
 func _event_wire_throw() -> void:
 	var shot := HungryProjectile.make(

@@ -1,23 +1,17 @@
 @tool
-extends Node
+extends "hungry_world_adopt.gd"
 
-const HungryContent := preload("hungry_content.gd")
-const HungryField := preload("hungry_field.gd")
-const HungryLayout := preload("hungry_layout.gd")
 const HungryMonster := preload("hungry_monster.gd")
 const HungryNetCommand := preload("net/hungry_net_command.gd")
 const HungryPiece := preload("hungry_piece.gd")
 const HungryPlayerStack := preload("hungry_player_stack.gd")
-const HungryPredicted := preload("hungry_predicted.gd")
 const HungryPreset := preload("hungry_preset.gd")
-const HungryProjectile := preload("hungry_projectile.gd")
 const HungryTuning := preload("hungry_tuning.gd")
 const HungrySpectate := preload("hungry_spectate.gd")
 
 ## The game: an arena, four fields of food, a set of monsters, and the rules that
 ## connect them.
 
-const CHANNEL := "hungry"
 const SERVICE := &"hungry_world"
 
 ## A monster ate a piece of food or a planted crumb.
@@ -77,11 +71,6 @@ signal field_changed()
 
 @export var service_scope: StringName = &""
 
-var arena: Dot2DArena = null
-
-## What is solid in this world: the level's own geometry.
-var layout: HungryLayout = HungryLayout.none()
-
 ## What a monster wedged in a refuge it has outgrown does (`[refuge-outgrown-1]`). Taken from
 ## the preset on setup and changed live by the server's `hungry_outgrown`.
 enum Outgrown { ACCEPT, CAP, EJECT }
@@ -95,9 +84,7 @@ var layout_variant: String = ""
 ## How deep into a rock counts as wedged, in units: less than this is a piece brushing one.
 const WEDGED_DEPTH := 1.0
 
-var field: HungryField = null
 var match_node: DotMatch = null
-var tunables: Dot2DTunables = null
 
 ## What an eaten monster does on every screen, and which death reactions the server allows:
 ## dot-player-char's `sv_ragdoll*` set. The module hands this world its own (bound to the
@@ -119,9 +106,6 @@ var loading_fn: Callable = Callable()
 ## client alike, because both ends need the camera to point somewhere.
 var spectate: HungrySpectate = null
 
-## What a client predicts with: built from the server's config and mode, sent in the hello, adopted by clients. Shared with every monster.
-var predicted: HungryPredicted = HungryPredicted.new()
-
 ## Who is in the session, which side, which trait, where they appear, and the physics.
 var player_stack: HungryPlayerStack = null
 
@@ -131,11 +115,7 @@ var _monsters: Dictionary = {}
 ## piece id -> [HungryPiece]. Every live piece in the world.
 var _pieces: Dictionary = {}
 
-## projectile id -> [HungryProjectile].
-var _shots: Dictionary = {}
-
 var _next_piece_id: int = 1
-var _next_shot_id: int = 1
 var _tick: int = 0
 var _registered_name: StringName = &""
 
@@ -188,15 +168,7 @@ func setup() -> DotResult:
 	if not catalogue_valid.ok:
 		return catalogue_valid
 
-	arena = Dot2DArena.new()
-	arena.name = "Arena"
-	arena.register_service = false
-	arena.bounds = Rect2(-world_size * 0.5, world_size)
-	arena.cell_size = HungryContent.CELL_SIZE
-	arena.interest_extent = Vector2(1180.0, 760.0)
-	arena.interest_scales_with_size = true
-	add_child(arena)
-	arena.setup()
+	_build_arena()
 
 	motor = Dot2DMotor.with_tunables(tunables)
 	motor.body = arena.body
@@ -238,6 +210,19 @@ func setup() -> DotResult:
 		DotRegistry.register(_registered_name, self)
 
 	return DotResult.success(null)
+
+
+## The bounded plane the pieces live on, sized to this world and added as its child.
+func _build_arena() -> void:
+	arena = Dot2DArena.new()
+	arena.name = "Arena"
+	arena.register_service = false
+	arena.bounds = Rect2(-world_size * 0.5, world_size)
+	arena.cell_size = HungryContent.CELL_SIZE
+	arena.interest_extent = Vector2(1180.0, 760.0)
+	arena.interest_scales_with_size = true
+	add_child(arena)
+	arena.setup()
 
 
 ## Stands up the player-facing addons and binds them to this world.
@@ -351,22 +336,6 @@ func reset_world() -> void:
 	field_changed.emit()
 
 
-## Adopts the authority's world size. Client side, from the hello.
-func adopt_world_size(size: Vector2) -> void:
-	if size.x <= 1.0 or size.y <= 1.0 or size.is_equal_approx(world_size):
-		return
-
-	world_size = size
-	arena.bounds = Rect2(-size * 0.5, size)
-
-	if arena.body != null:
-		arena.body.bounds = arena.bounds
-
-	field.set_bounds(arena.bounds)
-
-	DotLog.debug(CHANNEL, "adopted the authority's world size", {"size": size})
-
-
 ## Which variant of the layout to build: this world's own, then the operator's cvar, then the preset's.
 ## The cvar is read through the registry (none offline) and registered after the first world, so it takes effect from the next mode change.
 func _chosen_layout_variant() -> String:
@@ -378,25 +347,6 @@ func _chosen_layout_variant() -> String:
 		if HungryLayout.CORNER_VARIANTS.has(operator):
 			return "" if operator == HungryLayout.CORNER_DEFAULT else operator
 	return preset.layout_variant
-
-
-## Adopts the authority's layout. Client side, from the hello.
-func adopt_layout(layout_id: StringName) -> void:
-	layout = HungryLayout.for_id(layout_id, arena.bounds)
-
-	DotLog.debug(CHANNEL, "adopted the authority's layout", {
-		"layout": String(layout_id), "blocks": layout.count(),
-	})
-
-
-## Adopts the numbers the authority predicts with. Client side, from the hello.
-func adopt_predicted(carried: HungryPredicted) -> void:
-	if carried == null or not carried.is_sane():
-		return
-
-	predicted.adopt(carried)
-	tunables.max_speed = carried.max_speed
-	tunables.mass_rules.merge_delay_sec = carried.merge_delay_sec
 
 
 ## Adopts the authority's field seed and empties the field. Client side.
@@ -427,7 +377,6 @@ func apply_field_delta(
 	# delta nothing consumes is a dictionary that grows for the length of the session.
 	field.drain_delta()
 	field_changed.emit()
-
 
 
 func add_player(id: int, display_name: String) -> DotResult:
@@ -500,15 +449,6 @@ func pieces() -> Array[HungryPiece]:
 
 func piece_count() -> int:
 	return _pieces.size()
-
-
-func projectiles() -> Array[HungryProjectile]:
-	var out: Array[HungryProjectile] = []
-	var keys := _shots.keys()
-	keys.sort()
-	for key in keys:
-		out.append(_shots[key])
-	return out
 
 
 ## Puts a player in the world with one piece.
@@ -592,7 +532,6 @@ func _clear_of_layout(at: Vector2) -> Vector2:
 
 	var start_radius := tunables.mass_rules.radius_for(HungryContent.START_MASS)
 	return layout.nearest_clear(at, start_radius, arena.bounds)
-
 
 
 ## Creates a piece and registers it with the arena.
@@ -751,7 +690,6 @@ func feed_player(player_id: int, mass: float) -> bool:
 	_grow(biggest, biggest.mass() + mass)
 	monster.best_mass = maxf(monster.best_mass, monster.mass())
 	return true
-
 
 
 ## Advances the whole world one tick. The authority's entry point.
@@ -1004,7 +942,6 @@ func _separate(monster: HungryMonster, delta: float) -> void:
 			)
 
 
-
 ## Food, fruit and item drops. One query per piece over one grid.
 func _resolve_field() -> void:
 	var rules := tunables.mass_rules
@@ -1216,7 +1153,6 @@ func _absorb(eater: HungryPiece, victim: HungryPiece, rules: Dot2DMassRules) -> 
 		player_died.emit(victim.owner_id, eater.owner_id)
 
 
-
 ## Eaten by something at least this many times your mass: swallowed whole, which is this
 ## game's headshot (dot-player-char's `needs_headshot`: the headshot launch).
 const SWALLOWED_WHOLE := 4.0
@@ -1258,7 +1194,6 @@ func _sorted_piece_ids() -> Array[int]:
 
 	out.sort()
 	return out
-
 
 
 ## Halves every eligible piece and throws one half along the aim.
@@ -1409,7 +1344,6 @@ func _resolve_merges() -> void:
 					break
 
 
-
 ## Throws the oldest carried item along the aim.
 func _throw(monster: HungryMonster, command: Dot2DCommand) -> HungryProjectile:
 	if _tick < monster.throw_ready_tick or command.aim == Vector2.ZERO:
@@ -1480,20 +1414,6 @@ func _eject(monster: HungryMonster, command: Dot2DCommand) -> int:
 
 	field_changed.emit()
 	return placed.size()
-
-
-## Mirrors a throw the authority has announced. Client side.
-func adopt_projectile(shot: HungryProjectile) -> void:
-	if shot == null or shot.id <= 0:
-		return
-
-	_shots[shot.id] = shot
-	_next_shot_id = maxi(_next_shot_id, shot.id + 1)
-
-
-## Removes a projectile the authority says has landed. Client side.
-func drop_projectile(shot_id: int) -> void:
-	_shots.erase(shot_id)
 
 
 func _resolve_projectiles() -> void:
@@ -1591,7 +1511,6 @@ func _land(shot: HungryProjectile, at: Vector2, hit_player: int) -> void:
 	projectile_impact.emit(shot, at, hit_player)
 
 
-
 ## Takes back every slot that landed inside the level's own geometry.
 func _cull_blocked(ids: Array[int]) -> Array[int]:
 	if layout == null or layout.is_empty() or not is_authority:
@@ -1660,7 +1579,6 @@ func _sync_scores() -> void:
 
 func _on_respawn_due(key: String, _spawn: DotSpawnPoint, _tick_value: int) -> void:
 	spawn(int(key))
-
 
 
 ## Everything a player should be told about: pieces and food in their view.
@@ -1753,3 +1671,19 @@ func describe_lines() -> PackedStringArray:
 		])
 
 	return out
+
+
+## Adopts the authority's world size. Client side, from the hello.
+func adopt_world_size(size: Vector2) -> void:
+	if size.x <= 1.0 or size.y <= 1.0 or size.is_equal_approx(world_size):
+		return
+
+	world_size = size
+	arena.bounds = Rect2(-size * 0.5, size)
+
+	if arena.body != null:
+		arena.body.bounds = arena.bounds
+
+	field.set_bounds(arena.bounds)
+
+	DotLog.debug(CHANNEL, "adopted the authority's world size", {"size": size})
