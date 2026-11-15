@@ -51,11 +51,9 @@ const SCOPES := {
 	&"show_minimap": DotSettingsDef.Scope.ACCOUNT,
 }
 
-## Stock keys nothing here could apply, left out so no row is a switch that does nothing:
-## the world is 2D (no 3D render scale, no field of view), the mouse is a pointer and not a
-## look (no sensitivity, no invert). The voice settings (talk mode, microphone, voice volume)
-## are declared: `HungryVoice` publishes its manager as `dot_voice_client`, which dot-menu's
-## applier binds by that name. The talk key is a row of the table.
+## Stock keys nothing here could apply, left out so no row is a switch that does nothing: the world is 2D (no 3D render scale, no field of view), the mouse
+## is a pointer and not a look (no sensitivity, no invert). The voice settings (talk mode, microphone, voice volume) are declared: `HungryVoice` publishes
+## its manager as `dot_voice_client`, which dot-menu's applier binds by that name. The talk key is a row of the table.
 const NOT_APPLIED: Array[StringName] = [
 	&"render_scale", &"field_of_view", &"sensitivity", &"invert_mouse",
 ]

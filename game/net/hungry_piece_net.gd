@@ -49,10 +49,9 @@ func _register_net_vars() -> void:
 		var declaration: DotNetVar = null
 
 		if bool(spec["custom"]):
-			# Position and velocity are two components, not three. dot-net's quantised
-			# vector types are Vector3, and a 2D game paying for a Z that is always zero
-			# wastes 40% of its position bandwidth — which on a world with a hundred
-			# visible pieces is the difference between fitting in a packet and not.
+			# Position and velocity are two components, not three. dot-net's quantised vector types are Vector3, and a 2D game paying for a Z
+			# that is always zero wastes 40% of its position bandwidth, which on a world with a hundred visible pieces is the difference
+			# between fitting in a packet and not.
 			if property == &"net_position":
 				declaration = replicate_custom(
 					property,

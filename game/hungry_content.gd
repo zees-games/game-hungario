@@ -235,10 +235,9 @@ static func mass_rules() -> Dot2DMassRules:
 	rules.decay_per_second = 0.002
 	rules.decay_floor = 260.0
 
-	# Sixteen, not eight: a pepper bursts a monster into five and a burst piece can be
-	# burst again, so a ceiling of eight would make the second pepper do nothing and
-	# look like it had failed.
-	# 0 = unlimited. Dot2DMassRules has no unlimited (can_split is `pieces < max_pieces`), so the largest int stands in.
+	# Sixteen, not eight: a pepper bursts a monster into five and a burst piece can be burst again, so a ceiling of eight would make the
+	# second pepper do nothing and look like it had failed. A setting of 0 means unlimited; Dot2DMassRules has no unlimited (can_split
+	# is `pieces < max_pieces`), so the largest int stands in.
 	var piece_cap := HungryTuning.settings().max_pieces
 	rules.max_pieces = piece_cap if piece_cap > 0 else 9223372036854775807
 	rules.min_split_mass = 40.0

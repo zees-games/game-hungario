@@ -32,7 +32,7 @@ game/client/hungry_sound.gd::history	1
 game/client/hungry_sound.gd::long_block	6
 game/client/hungry_sound_sink.gd::history	1
 game/client/hungry_sound_sink.gd::long_block	6
-game/client/hungry_touch.gd::long_block	5
+game/client/hungry_touch.gd::long_block	1
 game/client/hungry_voice.gd::long_block	4
 game/hungry_bot.gd::long_block	3
 game/hungry_combat.gd::long_block	5
@@ -46,17 +46,16 @@ game/hungry_hunter_brain.gd::banner	2
 game/hungry_hunter_brain.gd::history	1
 game/hungry_hunter_brain.gd::long_block	8
 game/hungry_mod_tools.gd::long_block	2
-game/hungry_module.gd::long_block	10
+game/hungry_module.gd::long_block	5
 game/hungry_monster.gd::banner	3
 game/hungry_monster.gd::long_block	13
 game/hungry_party.gd::long_block	1
-game/hungry_paths.gd::long_block	4
 game/hungry_piece.gd::long_block	4
 game/hungry_progress.gd::banner	4
 game/hungry_progress.gd::long_block	7
 game/hungry_projectile.gd::long_block	2
 game/hungry_rules.gd::long_block	2
-game/hungry_spectate.gd::long_block	5
+game/hungry_spectate.gd::long_block	2
 game/hungry_workshop.gd::long_block	1
 game/modes/hungry_mode.gd::long_block	3
 game/net/hungry_event.gd::history	1
@@ -77,5 +76,5 @@ tools/loudness_pilot.gd::long_block	1
 tools/publish_avatars.gd::long_block	2
 tools/screenshot_map.gd::history	4
 tools/screenshot_map.gd::long_block	13
-tools/screenshot_menus.gd::long_block	2
+tools/screenshot_menus.gd::long_block	1
 tools/soak.gd::long_block	1
