@@ -46,7 +46,7 @@ game/hungry_hunter_brain.gd::banner	2
 game/hungry_hunter_brain.gd::history	1
 game/hungry_hunter_brain.gd::long_block	8
 game/hungry_mod_tools.gd::long_block	2
-game/hungry_module.gd::long_block	5
+game/hungry_module.gd::long_block	4
 game/hungry_monster.gd::banner	3
 game/hungry_monster.gd::long_block	13
 game/hungry_party.gd::long_block	1

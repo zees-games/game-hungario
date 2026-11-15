@@ -198,24 +198,7 @@ func _module_game_changed(content_key: String) -> void:
 	# harmed, and one that never re-covers is released after the roster's grace.
 	mark_reloading()
 
-	# Everything that holds a world holds the new one. A layer left pointing at a freed
-	# scene is a use-after-free on the next tick, and the ones that hold *placements*
-	# rather than nodes have to be told to forget them — the arena is a different shape
-	# now and a rock from the last mode would be a rock in the wall.
-	if hunters != null:
-		hunters.world = world
-		hunters.spawner.clear_all()
-
-	if hazards != null:
-		hazards.world = world
-		hazards.clear_all()
-		_scatter_hazards_at_load()
-
-	if hservices != null:
-		hservices.world = world
-
-	_hand_spawn_overrides(world)
-	_watch_spawns(world)
+	_hand_world_to_layers()
 
 	# The moderator's return history goes too, for everybody. Every position in it is a point
 	# in the arena that was just freed, so `return <player>` after a change put them where
@@ -250,6 +233,26 @@ func _module_game_changed(content_key: String) -> void:
 	log_info("rebound onto a new world", {
 		"preset": String(world.preset.id), "content_key": content_key
 	})
+
+## Everything that holds a world holds the new one: a layer left pointing at a freed scene is a use-after-free on the next tick.
+## The ones that hold *placements* rather than nodes forget them, because the arena is a different shape now
+## and a rock from the last mode would be a rock in the wall.
+func _hand_world_to_layers() -> void:
+	if hunters != null:
+		hunters.world = world
+		hunters.spawner.clear_all()
+
+	if hazards != null:
+		hazards.world = world
+		hazards.clear_all()
+		_scatter_hazards_at_load()
+
+	if hservices != null:
+		hservices.world = world
+
+	_hand_spawn_overrides(world)
+	_watch_spawns(world)
+
 
 func _build_mod_tools() -> void:
 	var world_fn := func() -> HungryWorld: return world
