@@ -54,10 +54,10 @@ On a phone, drag to steer. There are buttons for split and throw.
 
 ## Getting started
 
-You need [Godot 4.7](https://godotengine.org/download). The game uses many Dot addons, each in its own repository. The easiest way to get everything is [dot-bootstrap](https://github.com/modcommunity/dot-bootstrap), which clones each project and links the addons into it:
+You need [Godot 4.7](https://godotengine.org/download). The game uses many Dot addons, each in its own repository. The easiest way to get everything is [dot-bootstrap](https://github.com/gamespice-platform/bootstrap), which clones each project and links the addons into it:
 
 ```bash
-git clone https://github.com/modcommunity/dot-bootstrap.git
+git clone https://github.com/gamespice-platform/bootstrap.git
 cd dot-bootstrap
 ./bootstrap.sh
 cd projects/game-hungario
@@ -76,7 +76,7 @@ On Windows, run `bootstrap.ps1` instead and open the project in Godot.
 | `./game.sh test` | Check every script and run every test suite. |
 | `./game.sh help` | List all options. |
 
-`online` and `server` use [dot-server-deploy](https://github.com/modcommunity/dot-server-deploy), which bootstrap clones next to this project. Run its `./setup.sh` once first.
+`online` and `server` use [dot-server-deploy](https://github.com/gamespice-platform/server-deploy), which bootstrap clones next to this project. Run its `./setup.sh` once first.
 
 ## Running a server
 
@@ -127,11 +127,11 @@ A mode's top speed and merge delay stay in code. The client predicts movement wi
 | `changegame hungry_frenzy` | Switch mode without dropping anybody. |
 | `votemap hungry_frenzy` | Let the players vote on a mode. |
 
-Admin commands come from [dot-moderation](https://github.com/modcommunity/dot-moderation); `modtools` lists what this game supports. `blind <player> [on|off|seconds]` blacks out a player's screen, and `beacon <player> [on|off]` rings their monster on every screen. Both last through being eaten.
+Admin commands come from [dot-moderation](https://github.com/gamespice-platform/moderation); `modtools` lists what this game supports. `blind <player> [on|off|seconds]` blacks out a player's screen, and `beacon <player> [on|off]` rings their monster on every screen. Both last through being eaten.
 
 ### The mode vote
 
-Players vote on the next mode with [dot-vote](https://github.com/modcommunity/dot-vote). The defaults are in `game/hungry_maps.gd`. To change them, put a file at `user://cfg/hungry_vote.json`, or use `DOT_VOTE_*` environment variables or `--vote-*` arguments:
+Players vote on the next mode with [dot-vote](https://github.com/gamespice-platform/vote). The defaults are in `game/hungry_maps.gd`. To change them, put a file at `user://cfg/hungry_vote.json`, or use `DOT_VOTE_*` environment variables or `--vote-*` arguments:
 
 ```json
 { "end_vote": true, "vote_lead_sec": 120, "include_extend": true, "extend_seconds": 300, "max_extends": 2 }
