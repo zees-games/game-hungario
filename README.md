@@ -6,7 +6,7 @@ Hungario is a 2D multiplayer game about growing. You start as a small monster an
 
 [Play on the test server](https://moddingcommunity.com/hungario/s/hungario01/play). It runs in a browser, on a phone, or on your computer.
 
-Everything in this repository is open source under the MIT license. The only closed part is the website back-end it can sign in through. If you do not want to use [TMC's platform](https://moddingcommunity.com/play), you can plug in your own sign-in back-end.
+Everything in this repository is open source under the MIT license. The only closed part is the website back-end it can sign in through. If you do not want to use [Gamespice](https://gamespice.net), you can plug in your own sign-in back-end.
 
 The game was built with Claude Code. It has a full automated test suite, but few real players have tried it yet, so expect rough edges. Please report what you find.
 
@@ -54,7 +54,7 @@ On a phone, drag to steer. There are buttons for split and throw.
 
 ## Getting started
 
-You need [Godot 4.7](https://godotengine.org/download). The game uses many Dot addons, each in its own repository. The easiest way to get everything is [dot-bootstrap](https://github.com/gamespice-platform/bootstrap), which clones each project and links the addons into it:
+You need [Godot 4.7](https://godotengine.org/download). The game uses many Gamespice addons, each in its own repository. The easiest way to get everything is [dot-bootstrap](https://github.com/gamespice-platform/bootstrap), which clones each project and links the addons into it:
 
 ```bash
 git clone https://github.com/gamespice-platform/bootstrap.git
