@@ -4,7 +4,7 @@ extends "dedicated_vote.gd"
 ## [code]godot --headless --path . res://examples/dedicated.tscn[/code], plus `-- --serve` to run one.
 ## It connects no client ([code]sandbox[/code] does); the point is the WebSocket listener browsers need.
 
-const CHECKS := 273
+const CHECKS := 274
 
 
 func _ready() -> void:
@@ -58,7 +58,7 @@ func _run() -> void:
 		_test_combat()
 		_test_hunters()
 		_test_hunters_hunt()
-		_test_hazards()
+		await _test_hazards()
 		await _test_progress()
 		_test_query()
 		_test_stats_report()

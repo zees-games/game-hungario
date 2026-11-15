@@ -751,4 +751,28 @@ func _test_hazards() -> void:
 
 	hazards.clear_all()
 	_check(hazards.count() == 0, "a clear empties it")
+
+	# hungry_hazards_count rocks are scattered when a world loads.
+	var count_cvar: DotConVar = _server.console.find_cvar("hungry_hazards_count")
+	count_cvar.set_value("5")
+	var old_world_id := _world().get_instance_id()
+	await _server.games.change_game(HungryModule.GAME_FRENZY, "test")
+	await _until(func() -> bool:
+		var now := _world()
+		return now != null and now.get_instance_id() != old_world_id
+	)
+	_check(
+		_module().hazards.count() == 5,
+		"hungry_hazards_count scatters its rocks at load (%d)" % _module().hazards.count()
+	)
+	count_cvar.set_value("0")
+	_module().hazards.clear_all()
+
+	# Back to the mode the game-change section expects to start from.
+	var frenzy_id := _world().get_instance_id()
+	await _server.games.change_game(HungryModule.GAME_CLASSIC, "test")
+	await _until(func() -> bool:
+		var now := _world()
+		return now != null and now.get_instance_id() != frenzy_id
+	)
 	_done()

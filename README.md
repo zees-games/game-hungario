@@ -89,7 +89,7 @@ Settings are console variables ("cvars"). Set them in the server's config files,
 | `bot_quota_mode` | `fill` | `fill`, `fixed` (that many bots), `per_player` (that many per person) or `off`. |
 | `bot_difficulty` | `medium` | `easy`, `medium`, `hard` or `nightmare`. |
 | `hungry_hunters_on` | 0 | 1 releases NPC hunters into the world. |
-| `hungry_hazards_count` | 0 | Rocks scattered into the world at load. Any value. |
+| `hungry_hazards_count` | 0 | Rocks scattered into the world at each map load, within the two budgets below. Any value. |
 | `hungry_hazards_per_owner` | 24 | Rocks one owner (an admin, the director) may have out at once. Any value, 0 = unlimited. |
 | `hungry_hazards_world_budget` | 64 | Rocks in the world at once, from everybody. Any value, 0 = unlimited. |
 | `hungry_outgrown` | empty | What happens to a monster stuck in a refuge it outgrew: `accept`, `cap` or `eject`. Empty uses the mode's own rule. |

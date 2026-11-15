@@ -209,6 +209,7 @@ func _module_game_changed(content_key: String) -> void:
 	if hazards != null:
 		hazards.world = world
 		hazards.clear_all()
+		_scatter_hazards_at_load()
 
 	if hservices != null:
 		hservices.world = world
@@ -325,6 +326,22 @@ func _build_combat() -> DotResult:
 
 	return DotResult.success(null)
 
+## Lays out `hungry_hazards_count` rocks for the world that just loaded (0 = none). The count is the
+## map's value, because the map config is applied by report_map before this runs. The world budget
+## and per-owner budget still apply (0 = unlimited), and a shortfall is logged rather than silent.
+func _scatter_hazards_at_load() -> void:
+	if hazards == null or world == null or _cv_hazards == null:
+		return
+	var want := _cv_hazards.get_int()
+	if want <= 0 or world.field == null:
+		return
+	var made := hazards.scatter(&"rock", want, world.field.seed_value())
+	if made < want:
+		log_warn("fewer rocks scattered than hungry_hazards_count asked for", {
+			"wanted": want, "placed": made,
+		})
+
+
 func _build_hunters() -> DotResult:
 	hunters = HungryHunters.new()
 	hunters.name = "Hunters"
@@ -346,6 +363,7 @@ func _build_hunters() -> DotResult:
 		return placed.wrap("The hazards could not be set up")
 
 	hunters.set_enabled(_cv_hunters != null and _cv_hunters.get_int() != 0)
+	_scatter_hazards_at_load()
 	hunters.hunter_changed.connect(_on_hunter_changed)
 	hunters.piece_hunted.connect(_on_piece_hunted)
 	hazards.placed.connect(_on_hazard_placed)
