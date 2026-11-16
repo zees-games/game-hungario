@@ -9,7 +9,7 @@ const HungryMapConfig := preload("../game/hungry_map_config.gd")
 ## godot --headless --path . res://examples/headless_mapcfg.tscn
 ## [/codeblock]
 
-const CHECKS := 8
+const CHECKS := 9
 const SECTIONS := 1
 
 
@@ -39,6 +39,11 @@ func _run() -> void:
 	cfg.config_dir = root.path_join("cfg")
 
 	var got := cfg.apply("warrens")
+	var capped := []
+	for k: String in HungryMapConfig.KEYS:
+		if (HungryMapConfig.KEYS[k] as Dictionary).has("max"):
+			capped.append(k)
+	_check(capped == ["hungry_hunters_on"], "only the 0/1 switch keeps a max (%s)" % [capped])
 	_check(got.size() == 3, "warrens applies its three whitelisted keys (%s)" % [got])
 	_check(console.find_cvar("hungry_hazards_count").get_int() == 6, "hazards count is 6 on warrens")
 	_check(console.find_cvar("hungry_warrens_corners").get_string() == "quartered", "corners are quartered on warrens")
