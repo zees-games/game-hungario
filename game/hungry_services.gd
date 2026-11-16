@@ -247,7 +247,7 @@ func _build_relay() -> DotResult:
 		backbone = DotRegistry.get_service(&"dot_backbone_client")
 
 	if backbone == null:
-		# Info and success, not a failure: a fleet-wide `DOT_CHAT_RELAY_ENABLED=1` with a credential for only some hosts is ordinary, and a red line on every boot of the others stops real ones being read.
+		# Info and success, not a failure: a fleet-wide `GS_CHAT_RELAY_ENABLED=1` with a credential for only some hosts is ordinary, and a red line on every boot of the others stops real ones being read.
 		# The line names what to do.
 		DotLog.info(
 			CHANNEL,

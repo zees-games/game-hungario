@@ -152,7 +152,7 @@ func _test_query() -> void:
 	)
 
 	# The client half's other source: the site's listing, off unless a site is named.
-	var env_key := "DOT_BROWSER_BACKBONE_URL"
+	var env_key := "GS_BROWSER_BACKBONE_URL"
 	var had := OS.get_environment(env_key)
 	OS.unset_environment(env_key)
 	var off: DotResult = HungryBrowser.site_listing()

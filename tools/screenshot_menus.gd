@@ -82,7 +82,7 @@ func _build_presentation() -> void:
 		var _l := _menu.add_page(HungryMenus.loadout_page(null).page, &"general")
 
 
-## Frame sequence after each still (DOT_SHOT_FRAMES); see DotShotSeq.
+## Frame sequence after each still (GS_SHOT_FRAMES); see DotShotSeq.
 var _seq := DotShotSeq.new()
 var _seq_active := false
 

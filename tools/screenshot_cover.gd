@@ -26,7 +26,7 @@ func _save(name: String) -> void:
 	_seq_begin(path)
 
 
-## Frame sequence after each still (DOT_SHOT_FRAMES, set by the .sh); see DotShotSeq. The state machine holds still while it records, and `_seq_end` defers the quit until it is done.
+## Frame sequence after each still (GS_SHOT_FRAMES, set by the .sh); see DotShotSeq. The state machine holds still while it records, and `_seq_end` defers the quit until it is done.
 var _seq := DotShotSeq.new()
 var _seq_active := false
 var _seq_end := false

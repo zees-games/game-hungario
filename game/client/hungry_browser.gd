@@ -18,7 +18,7 @@ const HungryModule := preload("../hungry_module.gd")
 ## [b]Three sources, and only one needs a website.[/b] The servers this person has visited,
 ## whatever they type, and — when a site is configured — the site's listing of this game's
 ## servers ([DotBrowserSourceBackbone], website-city's `/api/content/server/list`). The
-## listing is off unless `--browser-backbone-url` / `DOT_BROWSER_BACKBONE_URL` names a site:
+## listing is off unless `--browser-backbone-url` / `GS_BROWSER_BACKBONE_URL` names a site:
 ## a LAN game, a test or a fork must not reach out to a website the moment the list opens.
 ## It lists addresses only; every row is still asked what it is, like any other.
 ##
@@ -210,7 +210,7 @@ func _add_site_listing() -> void:
 
 
 ## The site a deploy bakes in for native builds. Empty means a native client lists no site
-## unless `--browser-backbone-url` / `DOT_BROWSER_BACKBONE_URL` names one. Not a constant
+## unless `--browser-backbone-url` / `GS_BROWSER_BACKBONE_URL` names one. Not a constant
 ## public origin on purpose: no canonical public API origin exists in the family yet, and a
 ## guess here would ship a LAN build that phones a website. A deploy sets it before the
 ## browser opens.
@@ -239,7 +239,7 @@ static func resolve_default_site(probe: Dictionary = {}) -> String:
 
 
 ## This game's site listing from the layered config, or [code]success(null)[/code] when no
-## site is configured. Order: [code]--browser-backbone-url[/code] > [code]DOT_BROWSER_BACKBONE_URL[/code]
+## site is configured. Order: [code]--browser-backbone-url[/code] > [code]GS_BROWSER_BACKBONE_URL[/code]
 ## > [method resolve_default_site] (web: [code]?backbone=[/code] > page origin; native: the
 ## exported default). Static so a suite can ask without building the window.
 static func site_listing(probe: Dictionary = {}) -> DotResult:
