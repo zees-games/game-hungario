@@ -17,6 +17,7 @@ Read the family [CLAUDE.md](../../CLAUDE.md) first; this file is only what is sp
 | [docs/npc-and-hazards.md](docs/npc-and-hazards.md) | hunters, their navigation and spawn points, the director, hazards |
 | [docs/services.md](docs/services.md) | chat, voice, moderation, stats, the vote, the browser, the backbone |
 | [docs/client.md](docs/client.md) | the rider, sound, settings, presentation, effects, screens, chat box, renderer |
+| `tools/visual_qa.gd` (run `tools/visual_qa_shot.sh`, dot-game `docs/visual-qa.md`) | changing a rider or hunter look or clips: one item per look, three 2D cameras, 60 fps; read the sheets, ask "does this look like a real game?" |
 | [docs/testing.md](docs/testing.md) | adding a check, or believing a green run |
 | [docs/history.md](docs/history.md) | a bug that "cannot be happening"; what this game found and how it looked |
 | [docs/soak.md](docs/soak.md) | running the bot soak and reading its stuck findings |
