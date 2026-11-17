@@ -68,7 +68,7 @@ The slalom treated the rock cull as a permanent loss and raised its target from 
 
 None of these was reachable from the other project's own suite. Details in [bugs-found.md](../../../docs/bugs-found.md).
 
-- game-arena's bridge reconciled twice (correction rate 0.500 against 0.032).
+- game-fatal-contact's bridge reconciled twice (correction rate 0.500 against 0.032).
 - `client_spawn` carries `userid`, not `peer_id`; a module looking a session up by `peer_id` adds nobody.
 - `Dot2DScatter` could not be mirrored until it gained `adopt`: a receiving peer must take the index it was given.
 - dot-server could not serve a game shipped inside its own build: the fallback to the server's absolute scene path was refused by `DotClientLink`.

@@ -300,7 +300,7 @@ func _build_mod_tools() -> void:
 ## which it re-applies through the same handlers). Without this an admin's
 ## noclip would ride a monster through its death into the next life — the bits live on
 ## [HungryMonster], which outlives its pieces — where every other game starts a new body
-## clean. Arena does this from its own spawn path; this game's spawn path is
+## clean. Fatal Contact does this from its own spawn path; this game's spawn path is
 ## [signal HungryWorld.player_spawned].
 func _watch_spawns(target: HungryWorld) -> void:
 	if target == null or mod_tools == null:
