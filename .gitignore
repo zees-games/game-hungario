@@ -13,6 +13,7 @@
 # bootstrap-natives: dot-net v0.1.30 native/bin
 /addons/dot_net
 # dot-sim: optional native library (snapshot codec); without its built library the GDScript twins run.
+# bootstrap-natives: dot-sim v0.2.8
 /addons/dot_sim
 /addons/dot_server
 /addons/dot_match
