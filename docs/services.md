@@ -1,6 +1,6 @@
 # Server services: chat, voice, moderation, stats, the vote, the browser
 
-`HungryServices` wires chat, moderation and voice to this arena's people and wire. It is this game's own copy, not dot-game's `DotGameServices`: hungario has not been converted to dot-game yet (dot-game's CLAUDE.md lists it with arena and g2gfast, and says to convert arena first).
+`HungryServices` wires chat, moderation and voice to this arena's people and wire. It is this game's own copy, not dot-game's `DotGameServices`: hungario has not been converted to dot-game yet (dot-game's CLAUDE.md lists it with arena and Airdrift, and says to convert arena first).
 
 ## Chat
 
