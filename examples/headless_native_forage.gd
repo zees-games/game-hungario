@@ -43,6 +43,16 @@ func _ready() -> void:
 func _run() -> void:
 	print("Hungario native bot forage")
 	print("")
+	if not _section_library():
+		return
+	_section_presets()
+	_section_lockstep()
+	_section_verify()
+	_section_cost()
+	_report_sections(_entered, _finished, SECTIONS, CHECKS)
+
+
+func _section_library() -> bool:
 	_entered += 1
 	print("the library has the grid")
 	if not DotSim.has(&"grid2d"):
@@ -51,13 +61,16 @@ func _run() -> void:
 		_check(not required, "the library is loaded (GS_SIM_REQUIRE_NATIVE=1)")
 		_finished += 1
 		_report_sections(_entered, _finished, 1, 1)
-		return
+		return false
 	_check(HungryBot.native_forage, "HungryBot.native_forage is on without the game turning it on")
 	var probe := _world(&"classic")
 	_check(probe.arena.grid is HungryGrid, "the world builds a HungryGrid")
 	_drop(probe)
 	_finished += 1
+	return true
 
+
+func _section_presets() -> void:
 	_entered += 1
 	print("every preset mid-round: heads and seeded origins, native against the script")
 	var asked := 0
@@ -108,6 +121,8 @@ func _run() -> void:
 	print("  %d asks, %d with a snack, %d with an enemy" % [asked, snacks, pieces])
 	_finished += 1
 
+
+func _section_lockstep() -> void:
 	_entered += 1
 	print("native_forage off steers the same, tick for tick")
 	var on_world := _world(&"frenzy")
@@ -131,6 +146,8 @@ func _run() -> void:
 	_drop(off_world)
 	_finished += 1
 
+
+func _section_verify() -> void:
 	_entered += 1
 	print("a bot round with forage_verify: the script beside every live ask")
 	HungryBot.forage_checked = 0
@@ -146,6 +163,8 @@ func _run() -> void:
 	print("  %d live asks checked, %d differed" % [HungryBot.forage_checked, HungryBot.forage_differ])
 	_finished += 1
 
+
+func _section_cost() -> void:
 	_entered += 1
 	print("the cost: every bot's command each tick, script and native on the same state, alternated")
 	var bench := _world(&"classic")
@@ -167,7 +186,6 @@ func _run() -> void:
 	_check(spent["native"] > 0 and spent["script"] > 0, "both ways were timed")
 	_finished += 1
 
-	_report_sections(_entered, _finished, SECTIONS, CHECKS)
 
 
 ## Native and script grid agree: size, cells, and seeded rect queries id for id.

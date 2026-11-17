@@ -1,7 +1,6 @@
 @tool
 extends "hungry_world_adopt.gd"
 
-const HungryGrid := preload("hungry_grid.gd")
 const HungryMonster := preload("hungry_monster.gd")
 const HungryNetCommand := preload("net/hungry_net_command.gd")
 const HungryPiece := preload("hungry_piece.gd")
@@ -203,11 +202,7 @@ func setup() -> DotResult:
 	_build_player_stack()
 
 	if register_service:
-		_registered_name = (
-			DotRegistry.scoped_name(SERVICE, service_scope)
-			if service_scope != &""
-			else SERVICE
-		)
+		_registered_name = DotRegistry.scoped_name(SERVICE, service_scope) if service_scope != &"" else SERVICE
 		DotRegistry.register(_registered_name, self)
 
 	return DotResult.success(null)
@@ -222,19 +217,9 @@ func _build_arena() -> void:
 	arena.cell_size = HungryContent.CELL_SIZE
 	arena.interest_extent = Vector2(1180.0, 760.0)
 	arena.interest_scales_with_size = true
-	# With dot-sim's grid2d the bots' neighbour loop runs natively over a copy of the grid
-	# (HungryGrid, made on the first bot ask); without it, dot-2d's own grid.
-	if DotSim.has(&"grid2d"):
-		var grid := HungryGrid.new(HungryContent.CELL_SIZE)
-		grid.worth_of = _grid_worth
-		arena.grid = grid
+	_use_native_grid()
 	add_child(arena)
 	arena.setup()
-
-
-## What eating grid id [param grid_id] is worth, for [HungryGrid]'s native copy.
-func _grid_worth(grid_id: int) -> float:
-	return field.mass_of(grid_id) if field != null else 0.0
 
 
 ## Stands up the player-facing addons and binds them to this world.
