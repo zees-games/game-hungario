@@ -202,7 +202,7 @@ func _release_piece_entity(piece_id: int, announce: bool) -> int:
 	if behaviour == null or behaviour.identity == null:
 		return 0
 
-	var net_id := behaviour.identity.net_id
+	var net_id: int = behaviour.identity.net_id
 	_piece_of_net.erase(net_id)
 
 	if announce:
@@ -210,7 +210,7 @@ func _release_piece_entity(piece_id: int, announce: bool) -> int:
 
 	net.registry.unregister(net_id)
 
-	var node := behaviour.identity.entity
+	var node: Node = behaviour.identity.entity
 
 	if node != null and is_instance_valid(node):
 		node.queue_free()

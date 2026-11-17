@@ -318,7 +318,7 @@ func _apply_despawn(reader: DotNetReader) -> void:
 	net.registry.unregister(net_id)
 
 	if behaviour != null and behaviour.identity != null:
-		var node := behaviour.identity.entity
+		var node: Node = behaviour.identity.entity
 
 		if node != null and is_instance_valid(node):
 			node.queue_free()
