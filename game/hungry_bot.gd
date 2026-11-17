@@ -185,6 +185,10 @@ class Look:
 ## [HungryGrid]) for the neighbour loop when the library has it, to the script's bit
 ## (`headless_native_forage`); off, or with no library (the web), the script looks.
 static var native_forage := true
+## With [member native_forage], the native ask also judges the pieces it sees (`forage_judged`:
+## owner and mass read from [member HungryWorld._pieces] in the same call) instead of handing
+## each back to [method _judge]. Off, or with an older library, the script judges.
+static var native_judge := true
 ## With the native ask, re-runs the script beside every [method look_for] and counts any
 ## difference (an error each, the script's answer wins). The parity suite's live half;
 ## costly, not for play.
@@ -213,19 +217,34 @@ static func look_for(
 
 	var look := Look.new()
 	var rules := world.tunables.mass_rules
-	var seen: PackedFloat64Array = native.forage(
-		origin, sight, head.id, monster.carried.size() < HungryContent.MAX_CARRIED
-	)
-	look.snack_score = seen[0]
-	look.snack = Vector2(seen[1], seen[2])
+	var pickups_ok := monster.carried.size() < HungryContent.MAX_CARRIED
+	var seen: PackedFloat64Array
 
-	var at := 4
-	for _piece in range(int(seen[3])):
-		_judge(
-			look, world.piece_for(int(seen[at])), Vector2(seen[at + 1], seen[at + 2]),
-			seen[at + 3], head, monster, rules.eat_ratio
+	if native_judge and (grid as HungryGrid).judges:
+		seen = native.forage_judged(
+			origin, sight, head.id, pickups_ok, world._pieces, monster.id, head.mass(),
+			FEAR_RATIO, rules.eat_ratio
 		)
-		at += 4
+		look.snack_score = seen[0]
+		look.snack = Vector2(seen[1], seen[2])
+		look.threat_distance = seen[3]
+		look.threat = Vector2(seen[4], seen[5])
+		look.prey = world.piece_for(int(seen[6])) if seen[6] >= 0.0 else null
+		look.prey_distance = seen[7]
+		look.enemy = world.piece_for(int(seen[8])) if seen[8] >= 0.0 else null
+		look.enemy_distance = seen[9]
+	else:
+		seen = native.forage(origin, sight, head.id, pickups_ok)
+		look.snack_score = seen[0]
+		look.snack = Vector2(seen[1], seen[2])
+
+		var at := 4
+		for _piece in range(int(seen[3])):
+			_judge(
+				look, world.piece_for(int(seen[at])), Vector2(seen[at + 1], seen[at + 2]),
+				seen[at + 3], head, monster, rules.eat_ratio
+			)
+			at += 4
 
 	if forage_verify:
 		forage_checked += 1

@@ -9,12 +9,14 @@ const HungryWorld := preload("../game/hungry_world.gd")
 ## must answer as the script does: on every preset, mid-round with bots playing, every monster's head and seeded origins
 ## and sights give the same threat, prey, enemy and snack to the bit, and the native grid holds the same ids in the same
 ## query order; a world with [member HungryBot.native_forage] off steers its bots identically tick for tick; and a bot
-## round with [member HungryBot.forage_verify] on re-runs the script beside every live ask with no difference.
+## round with [member HungryBot.forage_verify] on re-runs the script beside every live ask with no difference. Where the
+## library also judges ([member HungryGrid.judges], `forage_judged`), every ask is held to the native forage with the
+## script's judge as well ([member HungryBot.native_judge] off).
 ## With no library the native half is skipped; [code]GS_SIM_REQUIRE_NATIVE=1[/code] (CI) fails instead.
 
 const PRESETS := [&"classic", &"frenzy", &"gauntlet", &"warrens", &"reef", &"shallows", &"famine", &"feast"]
 const SECTIONS := 5
-const CHECKS := 11
+const CHECKS := 13
 const TICK_RATE := 60
 const SEED := 9157
 const BOTS := 12
@@ -65,6 +67,8 @@ func _section_library() -> bool:
 	_check(HungryBot.native_forage, "HungryBot.native_forage is on without the game turning it on")
 	var probe := _world(&"classic")
 	_check(probe.arena.grid is HungryGrid, "the world builds a HungryGrid")
+	_check(HungryBot.native_judge, "HungryBot.native_judge is on without the game turning it on")
+	print("  the library judges in the same call: %s" % (probe.arena.grid as HungryGrid).native().has_method(&"forage_judged"))
 	_drop(probe)
 	_finished += 1
 	return true
@@ -77,6 +81,7 @@ func _section_presets() -> void:
 	var snacks := 0
 	var pieces := 0
 	var differ: Array[String] = []
+	var judged: Array[String] = []
 	var grids: Array[String] = []
 	var unbuilt: Array[String] = []
 	for id: StringName in PRESETS:
@@ -104,7 +109,12 @@ func _section_presets() -> void:
 						asks.append([head.position() + Vector2(rng.randf_range(-1500.0, 1500.0), rng.randf_range(-1500.0, 1500.0)), rng.randf_range(50.0, 1800.0)])
 				for ask: Array in asks:
 					var native := HungryBot.look_for(world, monster, head, ask[0], ask[1])
+					HungryBot.native_judge = false
+					var unjudged := HungryBot.look_for(world, monster, head, ask[0], ask[1])
+					HungryBot.native_judge = true
 					var script := HungryBot.look_script(world, monster, head, ask[0], ask[1])
+					if not native.same_as(unjudged) and judged.size() < 8:
+						judged.append("%s spell %d: judged %s; forage %s" % [id, spell, native.describe(), unjudged.describe()])
 					asked += 1
 					if script.snack_score > -INF:
 						snacks += 1
@@ -117,6 +127,7 @@ func _section_presets() -> void:
 	_check(unbuilt.is_empty(), "every preset's grid has a native copy", ", ".join(unbuilt))
 	_check(grids.is_empty(), "the native grid holds the script's ids in the script's order", "; ".join(grids))
 	_check(differ.is_empty(), "every ask sees the same", "; ".join(differ))
+	_check(judged.is_empty(), "the native judge sees what the script judge sees", "; ".join(judged))
 	_check(asked > 0 and snacks > asked / 4 and pieces > 0 and pieces < asked, "the asks saw food and monsters, and missed them", "%d asks, %d with a snack, %d with an enemy" % [asked, snacks, pieces])
 	print("  %d asks, %d with a snack, %d with an enemy" % [asked, snacks, pieces])
 	_finished += 1
@@ -169,20 +180,26 @@ func _section_cost() -> void:
 	print("the cost: every bot's command each tick, script and native on the same state, alternated")
 	var bench := _world(&"classic")
 	_play(bench, WARM_TICKS)
-	var spent := {"native": 0, "script": 0}
+	var spent := {"native": 0, "forage": 0, "script": 0}
+	var modes := ["native", "forage", "script"]
 	for tick in range(BENCH_TICKS):
 		var cmds := {}
-		for mode: String in (["native", "script"] if tick % 2 == 0 else ["script", "native"]):
-			HungryBot.native_forage = mode == "native"
+		for at in range(modes.size()):
+			var mode: String = modes[(at + tick) % modes.size()]
+			HungryBot.native_forage = mode != "script"
+			HungryBot.native_judge = mode == "native"
 			var start := Time.get_ticks_usec()
 			cmds = _commands(bench, tick)
 			spent[mode] += Time.get_ticks_usec() - start
 		HungryBot.native_forage = true
+		HungryBot.native_judge = true
 		bench.tick(cmds)
 	var grid_size: int = bench.arena.grid.size()
 	_drop(bench)
-	var per_tick := {"native": spent["native"] / 1000.0 / BENCH_TICKS, "script": spent["script"] / 1000.0 / BENCH_TICKS}
-	print("  %d bots, %d ids, %d ticks: script %.3f ms, native %.3f ms of bot commands per tick" % [BOTS, grid_size, BENCH_TICKS, per_tick["script"], per_tick["native"]])
+	var per_tick := {}
+	for mode: String in spent:
+		per_tick[mode] = spent[mode] / 1000.0 / BENCH_TICKS
+	print("  %d bots, %d ids, %d ticks: script %.3f ms, native forage %.3f ms, native forage and judge %.3f ms of bot commands per tick" % [BOTS, grid_size, BENCH_TICKS, per_tick["script"], per_tick["forage"], per_tick["native"]])
 	_check(spent["native"] > 0 and spent["script"] > 0, "both ways were timed")
 	_finished += 1
 

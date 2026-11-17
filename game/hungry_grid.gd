@@ -30,6 +30,9 @@ var worth_of: Callable = Callable()
 
 ## The native copy, null until a bot asks for it (or when it could not be made).
 var _native: Variant = null
+## Whether the native copy also judges the pieces it sees (`forage_judged`, dot-sim after 0.2.7);
+## an older library forages and the script judges.
+var judges := false
 
 
 func _init(p_cell_size: float = 128.0) -> void:
@@ -47,6 +50,7 @@ func native() -> Variant:
 ## Drops the native copy; the next [method native] makes a fresh one.
 func drop_native() -> void:
 	_native = null
+	judges = false
 
 
 func place(id: int, position: Vector2, radius: float = 0.0) -> void:
@@ -101,4 +105,5 @@ func _adopted() -> Variant:
 		push_error("HungryGrid: the native copy did not take the grid (%d ids, %d copied)" % [size(), copy.size()])
 		return null
 
+	judges = copy.has_method(&"forage_judged")
 	return copy
