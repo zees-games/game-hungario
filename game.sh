@@ -36,7 +36,7 @@
 GAME_NAME="Hungario"
 PACK="hungry_classic"
 EXTRA_PACKS=""
-SUITES="headless_config headless_workbench headless_mapcfg headless_round headless_touch headless_net headless_presentation headless_stack headless_workshop content sandbox dedicated"
+SUITES="headless_config headless_workbench headless_mapcfg headless_round headless_touch headless_net headless_presentation headless_stack headless_workshop content headless_native_forage sandbox dedicated"
 # --------------------------------------------------------------------------------
 
 set -uo pipefail

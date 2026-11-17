@@ -2,6 +2,7 @@ extends RefCounted
 
 const HungryContent := preload("hungry_content.gd")
 const HungryField := preload("hungry_field.gd")
+const HungryGrid := preload("hungry_grid.gd")
 const HungryMonster := preload("hungry_monster.gd")
 const HungryNetCommand := preload("net/hungry_net_command.gd")
 const HungryPiece := preload("hungry_piece.gd")
@@ -72,75 +73,24 @@ static func command_for(
 	var sight := SIGHT * skill.sight / _medium.sight
 	var rules := world.tunables.mass_rules
 
-	var threat := Vector2.ZERO
-	var threat_distance := INF
+	var look := look_for(world, monster, head, origin, sight)
 
-	var prey: HungryPiece = null
-	var prey_distance := INF
+	var threat := look.threat
+	var threat_distance := look.threat_distance
+
+	var prey := look.prey
+	var prey_distance := look.prey_distance
 
 	## The nearest piece belonging to anybody else, whatever its size.
 	##
 	## Separate from prey and from threat because a throwable is useful against both, and
 	## a pepper is [i]most[/i] useful against something too big to eat: bursting it is how
 	## a small monster turns an unwinnable fight into several winnable ones.
-	var enemy: HungryPiece = null
-	var enemy_distance := INF
+	var enemy := look.enemy
+	var enemy_distance := look.enemy_distance
 
-	var snack := Vector2.ZERO
-	var snack_score := -INF
-
-	for grid_id in world.arena.grid.query_rect(
-		Rect2(origin - Vector2(sight, sight), Vector2(sight, sight) * 2.0), head.id
-	):
-		var at := world.arena.grid.position_of(grid_id)
-		var distance := origin.distance_to(at)
-
-		if distance <= 0.001:
-			continue
-
-		if grid_id < HungryField.PIECE_ID_LIMIT:
-			var other := world.piece_for(grid_id)
-
-			if other == null or other.owner_id == monster.id:
-				continue
-
-			if distance < enemy_distance:
-				enemy_distance = distance
-				enemy = other
-
-			if other.mass() >= head.mass() * FEAR_RATIO:
-				if distance < threat_distance:
-					threat_distance = distance
-					threat = at
-			elif head.mass() >= other.mass() * rules.eat_ratio:
-				if distance < prey_distance:
-					prey_distance = distance
-					prey = other
-
-			continue
-
-		if HungryField.kind_of(grid_id) == HungryField.Kind.ITEM:
-			# A full bot cannot take it; steering at it parks the bot on the drop for good.
-			if monster.carried.size() >= HungryContent.MAX_CARRIED:
-				continue
-
-			# Item drops are worth a detour even though they are worth no mass: a bot
-			# that never picked one up would never exercise throwing.
-			var item_score := 220.0 / (distance + 40.0)
-
-			if item_score > snack_score:
-				snack_score = item_score
-				snack = at
-
-			continue
-
-		# Mass over distance, so a haunch across the map loses to a crumb underfoot but
-		# beats a crumb on the far side of one.
-		var score := world.field.mass_of(grid_id) / (distance + 40.0)
-
-		if score > snack_score:
-			snack_score = score
-			snack = at
+	var snack := look.snack
+	var snack_score := look.snack_score
 
 	var target := origin
 	var deciding := true
@@ -203,6 +153,171 @@ static func command_for(
 	command.reach = minf(offset.length(), HungryNetCommand.MAX_REACH)
 
 	return command
+
+
+## What a bot sees around its head: the best snack, and the nearest threat, prey and enemy piece.
+class Look:
+	var threat := Vector2.ZERO
+	var threat_distance := INF
+	var prey: HungryPiece = null
+	var prey_distance := INF
+	var enemy: HungryPiece = null
+	var enemy_distance := INF
+	var snack := Vector2.ZERO
+	var snack_score := -INF
+
+	func same_as(other: Look) -> bool:
+		return threat == other.threat and threat_distance == other.threat_distance \
+				and prey == other.prey and prey_distance == other.prey_distance \
+				and enemy == other.enemy and enemy_distance == other.enemy_distance \
+				and snack == other.snack and snack_score == other.snack_score
+
+	func describe() -> String:
+		return "threat %s@%s prey %s@%s enemy %s@%s snack %s@%s" % [
+			threat, threat_distance, _id(prey), prey_distance, _id(enemy), enemy_distance, snack, snack_score
+		]
+
+	static func _id(piece: HungryPiece) -> String:
+		return "-" if piece == null else str(piece.id)
+
+
+## [method look_for] asks dot-sim's `DotSimGrid2D` (kept beside the world's grid by
+## [HungryGrid]) for the neighbour loop when the library has it, to the script's bit
+## (`headless_native_forage`); off, or with no library (the web), the script looks.
+static var native_forage := true
+## With the native ask, re-runs the script beside every [method look_for] and counts any
+## difference (an error each, the script's answer wins). The parity suite's live half;
+## costly, not for play.
+static var forage_verify := false
+## Asks checked and asks that differed under [member forage_verify].
+static var forage_checked := 0
+static var forage_differ := 0
+
+
+## What [param monster]'s [param head] sees within [param sight] of [param origin].
+static func look_for(
+	world: HungryWorld,
+	monster: HungryMonster,
+	head: HungryPiece,
+	origin: Vector2,
+	sight: float
+) -> Look:
+	var grid := world.arena.grid
+	var native: Variant = null
+
+	if native_forage and grid is HungryGrid:
+		native = (grid as HungryGrid).native()
+
+	if native == null:
+		return look_script(world, monster, head, origin, sight)
+
+	var look := Look.new()
+	var rules := world.tunables.mass_rules
+	var seen: PackedFloat64Array = native.forage(
+		origin, sight, head.id, monster.carried.size() < HungryContent.MAX_CARRIED
+	)
+	look.snack_score = seen[0]
+	look.snack = Vector2(seen[1], seen[2])
+
+	var at := 4
+	for _piece in range(int(seen[3])):
+		_judge(
+			look, world.piece_for(int(seen[at])), Vector2(seen[at + 1], seen[at + 2]),
+			seen[at + 3], head, monster, rules.eat_ratio
+		)
+		at += 4
+
+	if forage_verify:
+		forage_checked += 1
+		var want := look_script(world, monster, head, origin, sight)
+
+		if not look.same_as(want):
+			forage_differ += 1
+			push_error("HungryBot.look_for: native %s, script %s (head %d at %s, sight %s)" % [
+				look.describe(), want.describe(), head.id, origin, sight
+			])
+			return want
+
+	return look
+
+
+## [method look_for] in script: the fallback, and what the native ask is held to.
+static func look_script(
+	world: HungryWorld,
+	monster: HungryMonster,
+	head: HungryPiece,
+	origin: Vector2,
+	sight: float
+) -> Look:
+	var look := Look.new()
+	var eat_ratio := world.tunables.mass_rules.eat_ratio
+	var grid := world.arena.grid
+
+	for grid_id in grid.query_rect(
+		Rect2(origin - Vector2(sight, sight), Vector2(sight, sight) * 2.0), head.id
+	):
+		var at := grid.position_of(grid_id)
+		var distance := origin.distance_to(at)
+
+		if distance <= HungryGrid.NEAR:
+			continue
+
+		if grid_id < HungryField.PIECE_ID_LIMIT:
+			_judge(look, world.piece_for(grid_id), at, distance, head, monster, eat_ratio)
+			continue
+
+		if HungryField.kind_of(grid_id) == HungryField.Kind.ITEM:
+			# A full bot cannot take it; steering at it parks the bot on the drop for good.
+			if monster.carried.size() >= HungryContent.MAX_CARRIED:
+				continue
+
+			# Item drops are worth a detour even though they are worth no mass: a bot
+			# that never picked one up would never exercise throwing.
+			var item_score := HungryGrid.PICKUP_WORTH / (distance + HungryGrid.DISTANCE_BIAS)
+
+			if item_score > look.snack_score:
+				look.snack_score = item_score
+				look.snack = at
+
+			continue
+
+		# Mass over distance, so a haunch across the map loses to a crumb underfoot but
+		# beats a crumb on the far side of one.
+		var score := world.field.mass_of(grid_id) / (distance + HungryGrid.DISTANCE_BIAS)
+
+		if score > look.snack_score:
+			look.snack_score = score
+			look.snack = at
+
+	return look
+
+
+## Another monster's piece seen at [param at], [param distance] away: the nearest enemy,
+## the nearest that can eat the head ([constant FEAR_RATIO]) and the nearest it can eat.
+static func _judge(
+	look: Look,
+	other: HungryPiece,
+	at: Vector2,
+	distance: float,
+	head: HungryPiece,
+	monster: HungryMonster,
+	eat_ratio: float
+) -> void:
+	if other == null or other.owner_id == monster.id:
+		return
+
+	if distance < look.enemy_distance:
+		look.enemy_distance = distance
+		look.enemy = other
+
+	if other.mass() >= head.mass() * FEAR_RATIO:
+		if distance < look.threat_distance:
+			look.threat_distance = distance
+			look.threat = at
+	elif head.mass() >= other.mass() * eat_ratio:
+		if distance < look.prey_distance:
+			look.prey_distance = distance
+			look.prey = other
 
 
 ## Pulls a target away from the arena edge.
