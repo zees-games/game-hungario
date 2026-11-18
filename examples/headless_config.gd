@@ -8,6 +8,7 @@ extends DotGameCheckSuite
 
 const HungryCombat := preload("../game/hungry_combat.gd")
 const HungryContent := preload("../game/hungry_content.gd")
+const HungryModule := preload("../game/hungry_module.gd")
 const HungryModes := preload("../game/hungry_modes.gd")
 const HungryServerConfig := preload("../game/hungry_server_config.gd")
 const HungryTuning := preload("../game/hungry_tuning.gd")
@@ -16,8 +17,8 @@ const HungryTuning := preload("../game/hungry_tuning.gd")
 const ROOT_ARG := "--cfgroot="
 var ROOT := _root()
 const GAME := "game-hungario"
-const CHECKS := 50
-const SECTIONS := 6
+const CHECKS := 62
+const SECTIONS := 7
 
 
 func _ready() -> void:
@@ -43,7 +44,25 @@ func _run() -> void:
 	_workbench()
 	_layers()
 	_templates()
+	_delivered_modes()
 	_report_sections(SECTIONS, SECTIONS, SECTIONS, CHECKS)
+
+
+## A delivered pack's modes carry a content key: bundled (empty key) would let the vote pick one and send the client no content sync.
+func _delivered_modes() -> void:
+	var built_in := HungryModule.game_descriptors("res://")
+	_check(built_in.size() == 8, "built in there are eight modes")
+	for d in built_in:
+		_check(not d.needs_delivered_content() and d.content_key() == "", "%s is bundled built in" % d.game_id)
+	var mounted := HungryModule.game_descriptors("res://dot_cloud/gamemann/game-hungario/0.3.1+r2")
+	_check(mounted.size() == 8, "mounted there are eight modes")
+	var ok := true
+	for d in mounted:
+		ok = ok and d.needs_delivered_content() and d.content_key() == "gamemann/game-hungario@0.3.1+r2" \
+			and d.client_scene_or_scene() == "game/client/hungry_client.tscn" \
+			and d.resolve_scene_path().begins_with("res://dot_cloud/gamemann/game-hungario/0.3.1+r2/game/modes/")
+	_check(ok, "every mounted mode is delivered under the pack's content key, with a relative client scene")
+	_check(HungryModule._mount_of("res://dot_cloud/x").is_empty() and HungryModule._mount_of("res://").is_empty(), "a path that is not a mount names no content")
 
 
 func _server_config() -> void:

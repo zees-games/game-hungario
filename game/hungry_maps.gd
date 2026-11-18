@@ -134,7 +134,7 @@ static func _map(descriptor: DotGameDescriptor, min_players: int) -> DotMapDef:
 	out.min_players = min_players
 	out.max_players = descriptor.max_players
 	# The same scene dot-server loads, read from the same declaration.
-	out.scene_path = descriptor.scene
+	out.scene_path = descriptor.resolve_scene_path()
 	out.meta = {"vote": {"display": descriptor.display_name}}
 	return out
 

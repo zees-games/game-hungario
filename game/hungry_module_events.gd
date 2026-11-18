@@ -313,31 +313,54 @@ static func game_id_of(preset_id: StringName) -> StringName:
 ## The modes, so `changegame` and a vote have something to change to.
 ## Both ship inside the build, so [member DotGameDescriptor.manifest_url] is empty; a game whose
 ## content lives on a CDN sets it instead.
-static func game_descriptors() -> Array[DotGameDescriptor]:
+##
+## [b]Delivered, the modes carry a content key.[/b] Mounted at [code]res://dot_cloud/<id>/<version>/[/code] the rebased scene paths are absolute, which [method DotGameDescriptor.needs_delivered_content] reads as "bundled": the vote could pick a mode and send no content sync, and a web shell that ships no games fails ("sent no content"). So when [param here] is a mount, each mode gets the pack's content id and version and a scene relative to the mount, as its own [code]game.yml[/code] says. Built in, nothing changes. [param here] is a parameter so a suite can test the mounted case.
+static func game_descriptors(here: String = "") -> Array[DotGameDescriptor]:
 	var out: Array[DotGameDescriptor] = []
+	var mount := _mount_of(here if here != "" else HungryPaths.root())
 
 	for row in [
-		[GAME_CLASSIC, "Hungario: Classic", HungryPaths.rebase("res://game/modes/classic.tscn")],
-		[GAME_FRENZY, "Hungario: Frenzy", HungryPaths.rebase("res://game/modes/frenzy.tscn")],
-		[GAME_GAUNTLET, "Hungario: Gauntlet", HungryPaths.rebase("res://game/modes/gauntlet.tscn")],
-		[GAME_WARRENS, "Hungario: Warrens", HungryPaths.rebase("res://game/modes/warrens.tscn")],
-		[GAME_REEF, "Hungario: Reef", HungryPaths.rebase("res://game/modes/reef.tscn")],
-		[GAME_SHALLOWS, "Hungario: Shallows", HungryPaths.rebase("res://game/modes/shallows.tscn")],
-		[GAME_FAMINE, "Hungario: Famine", HungryPaths.rebase("res://game/modes/famine.tscn")],
-		[GAME_FEAST, "Hungario: Feast", HungryPaths.rebase("res://game/modes/feast.tscn")],
+		[GAME_CLASSIC, "Hungario: Classic", "res://game/modes/classic.tscn"],
+		[GAME_FRENZY, "Hungario: Frenzy", "res://game/modes/frenzy.tscn"],
+		[GAME_GAUNTLET, "Hungario: Gauntlet", "res://game/modes/gauntlet.tscn"],
+		[GAME_WARRENS, "Hungario: Warrens", "res://game/modes/warrens.tscn"],
+		[GAME_REEF, "Hungario: Reef", "res://game/modes/reef.tscn"],
+		[GAME_SHALLOWS, "Hungario: Shallows", "res://game/modes/shallows.tscn"],
+		[GAME_FAMINE, "Hungario: Famine", "res://game/modes/famine.tscn"],
+		[GAME_FEAST, "Hungario: Feast", "res://game/modes/feast.tscn"],
 	]:
 		var descriptor := DotGameDescriptor.new()
 		descriptor.game_id = String(row[0])
 		descriptor.display_name = String(row[1])
 		descriptor.scene = String(row[2])
+		if not mount.is_empty():
+			descriptor.scene = String(row[2]).trim_prefix("res://")
+			descriptor.content_id = mount.content_id
+			descriptor.version = mount.version
 				# Deliberately empty: [DotClientLink] refuses an absolute scene path outside dot-cloud's mount
 				# prefix, and this game ships inside the build, so the client owns its scene ([HungryClient]).
 				# A game delivered through dot-cloud sets a relative path here.
-		descriptor.client_scene = ""
+		descriptor.client_scene = "game/client/hungry_client.tscn" if not mount.is_empty() else ""
 		descriptor.min_players = 0
 		out.append(descriptor)
 
 	return out
+
+## The content id and version of a pack mounted at [param root] ([code]res://dot_cloud/<id>/<version>[/code], the id may hold a slash), or an empty dictionary built in.
+static func _mount_of(root: String) -> Dictionary:
+	var prefix := "res://dot_cloud/"
+
+	if not root.begins_with(prefix):
+		return {}
+
+	var rest := root.trim_prefix(prefix).trim_suffix("/")
+	var cut := rest.rfind("/")
+
+	if cut <= 0 or cut == rest.length() - 1:
+		return {}
+
+	return {"content_id": rest.substr(0, cut), "version": rest.substr(cut + 1)}
+
 
 ## Registers both modes, unless the host already did.
 ## A host wanting one as [member DotGameManager.initial_game] adds them before the server boots, so
