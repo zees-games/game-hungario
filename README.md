@@ -1,3 +1,5 @@
+![Hungario banner](https://raw.githubusercontent.com/zees-games/game-hungario/main/docs/banner.png)
+
 Hungario is a 2D multiplayer game about growing. You start as a small monster and get bigger by eating food and other players. Press Space to split in two and throw half of yourself at someone. It is inspired by the cell-eating browser games.
 
 ![Preview](https://github.com/zees-games/game-hungario/blob/main/images/preview.gif?raw=true)
