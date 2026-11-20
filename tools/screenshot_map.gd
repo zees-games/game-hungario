@@ -203,7 +203,7 @@ func _boot() -> void:
 	# added was the reset, and it respawned them at a safe spawn. Every `--at` and every
 	# default player's-view frame until 2026-09-24 was wherever that spawn liked (found
 	# framing the warrens' den: `--at=640,0` and the default came out identical).
-	_world.add_player(1, "Screenshot")
+	_world.add_player(1, "Chomp")
 
 	for _i in range(_world.tick_rate * 5):
 		if _world.match_node.is_live():
@@ -576,5 +576,5 @@ func _ballot() -> void:
 			{"id": "__keep__", "label": "Keep this mode", "votes": 0},
 		],
 		"voters": {"1": 0, "2": 0, "3": 1, "4": 3},
-		"people": {"1": {"name": "Screenshot"}, "2": {"name": "Gulp"}, "3": {"name": "Nibbler"}, "4": {"name": "Maw"}},
+		"people": {"1": {"name": "Chomp"}, "2": {"name": "Gulp"}, "3": {"name": "Nibbler"}, "4": {"name": "Maw"}},
 	})
