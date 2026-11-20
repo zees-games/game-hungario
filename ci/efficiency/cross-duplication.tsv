@@ -1,0 +1,12 @@
+# duplication (cross-game)
+# Baselines only shrink: scripts/<gate> --update lowers or drops entries and refuses to add.
+examples/dedicated.gd	33
+examples/dedicated_vote.gd	52
+examples/exit_probe.gd	41
+examples/headless_presentation.gd	32
+game/client/hungry_browser.gd	96
+game/client/hungry_voice.gd	75
+game/hungry_party.gd	34
+game/hungry_services.gd	53
+game/net/hungry_events.gd	33
+game/net/hungry_net_link.gd	57
