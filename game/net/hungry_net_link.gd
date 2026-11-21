@@ -1,5 +1,7 @@
 extends Node
 
+const _Perf := preload("res://addons/dot_game/runtime/dot_game_profiler.gd")
+
 const HungryNetBridge := preload("hungry_net_bridge.gd")
 const HungryNetLink := preload("hungry_net_link.gd")
 
@@ -137,6 +139,7 @@ func send_snapshot(peer_id: int, payload: PackedByteArray) -> void:
 		return
 
 	snapshots_sent += 1
+	_Perf.net_cost(&"snapshot", 1, payload.size())
 
 	if loopback.is_valid():
 		loopback.call(&"snapshot", peer_id, payload)
@@ -151,6 +154,7 @@ func send_event(peer_id: int, payload: PackedByteArray) -> void:
 		return
 
 	events_sent += 1
+	_Perf.net_cost(&"event", 1, payload.size())
 
 	if loopback.is_valid():
 		loopback.call(&"event", peer_id, payload)
@@ -165,6 +169,7 @@ func send_input(payload: PackedByteArray) -> void:
 		return
 
 	inputs_sent += 1
+	_Perf.net_cost(&"input", 1, payload.size())
 
 	if loopback.is_valid():
 		loopback.call(&"input", 1, payload)
@@ -189,6 +194,7 @@ func send_voice(peer_id: int, payload: PackedByteArray) -> void:
 		return
 
 	voice_sent += 1
+	_Perf.net_cost(&"voice", 1, payload.size())
 
 	if loopback.is_valid():
 		loopback.call(&"voice", peer_id if is_server else 1, payload)
@@ -204,6 +210,7 @@ func send_request(payload: PackedByteArray) -> void:
 		return
 
 	requests_sent += 1
+	_Perf.net_cost(&"request", 1, payload.size())
 
 	if loopback.is_valid():
 		loopback.call(&"request", 1, payload)
@@ -218,6 +225,7 @@ func send_request(payload: PackedByteArray) -> void:
 @rpc("authority", "unreliable", "call_remote", CHANNEL_STATE)
 func _net_snapshot(payload: PackedByteArray) -> void:
 	snapshots_received += 1
+	_Perf.net_cost(&"snapshot", 0, payload.size())
 
 	if bridge != null:
 		bridge.receive_snapshot(payload)
@@ -227,6 +235,7 @@ func _net_snapshot(payload: PackedByteArray) -> void:
 @rpc("authority", "reliable", "call_remote", CHANNEL_STATE)
 func _net_event(payload: PackedByteArray) -> void:
 	events_received += 1
+	_Perf.net_cost(&"event", 0, payload.size())
 
 	if bridge != null:
 		bridge.receive_event(payload)
@@ -237,6 +246,7 @@ func _net_event(payload: PackedByteArray) -> void:
 @rpc("any_peer", "unreliable", "call_remote", CHANNEL_STATE)
 func _net_client_input(payload: PackedByteArray) -> void:
 	inputs_received += 1
+	_Perf.net_cost(&"input", 0, payload.size())
 
 	if bridge != null:
 		# The sender comes from the transport, never from inside the payload. A peer id in
@@ -248,6 +258,7 @@ func _net_client_input(payload: PackedByteArray) -> void:
 @rpc("any_peer", "reliable", "call_remote", CHANNEL_STATE)
 func _net_request(payload: PackedByteArray) -> void:
 	requests_received += 1
+	_Perf.net_cost(&"request", 0, payload.size())
 
 	if bridge != null:
 		bridge.receive_request(multiplayer.get_remote_sender_id(), payload)
@@ -267,6 +278,7 @@ func _net_request(payload: PackedByteArray) -> void:
 @rpc("any_peer", "unreliable", "call_remote", CHANNEL_VOICE)
 func _net_voice(payload: PackedByteArray) -> void:
 	voice_received += 1
+	_Perf.net_cost(&"voice", 0, payload.size())
 
 	if bridge != null:
 		bridge.receive_voice(multiplayer.get_remote_sender_id(), payload)
@@ -279,18 +291,23 @@ func deliver(method: StringName, from_peer_id: int, payload: PackedByteArray) ->
 	match method:
 		&"snapshot":
 			snapshots_received += 1
+			_Perf.net_cost(&"snapshot", 0, payload.size())
 			bridge.receive_snapshot(payload)
 		&"event":
 			events_received += 1
+			_Perf.net_cost(&"event", 0, payload.size())
 			bridge.receive_event(payload)
 		&"input":
 			inputs_received += 1
+			_Perf.net_cost(&"input", 0, payload.size())
 			bridge.receive_input(from_peer_id, payload)
 		&"request":
 			requests_received += 1
+			_Perf.net_cost(&"request", 0, payload.size())
 			bridge.receive_request(from_peer_id, payload)
 		&"voice":
 			voice_received += 1
+			_Perf.net_cost(&"voice", 0, payload.size())
 			bridge.receive_voice(from_peer_id, payload)
 
 
