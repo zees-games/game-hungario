@@ -8,7 +8,7 @@ const HungryWorld := preload("../hungry_world.gd")
 
 ## One mode of the game, as a scene a [GSGameManager] can load and unload.
 ##
-## [b]This is the unit dot-server switches between.[/b] `changegame frenzy` fires a
+## [b]This is the unit gs-server switches between.[/b] `changegame frenzy` fires a
 ## cancellable event, tells every client to fetch the new content, waits for them, frees
 ## this scene and instantiates the next one — with the players still connected the whole
 ## time. For that to work the world has to live [i]inside[/i] the scene rather than beside
@@ -39,7 +39,7 @@ const CHANNEL := "hungry.mode"
 ## Whether to start the match as soon as the scene is ready.
 ##
 ## Off when a host drives ticks itself — which is every netted deployment, because the
-## world's tick has to happen inside dot-net's.
+## world's tick has to happen inside gs-net's.
 @export var auto_start: bool = false
 
 var world: HungryWorld = null

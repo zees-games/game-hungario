@@ -8,9 +8,9 @@ var _client: HungryClient = null
 var _link: GSClientLink = null
 ## Chat lines the client received.
 var _heard: Array[GSChatMessage] = []
-## Anything that came back through dot-server's own chat signal.
+## Anything that came back through gs-server's own chat signal.
 var _legacy_heard: Array[Dictionary] = []
-## The one thing dot-server's chat signal legitimately carries here.
+## The one thing gs-server's chat signal legitimately carries here.
 var _chat_state: Array[Dictionary] = []
 ## Sections entered, and sections that ran to their last line.
 var _entered := 0
@@ -96,7 +96,7 @@ func _test_chat() -> void:
 	_done()
 
 
-## The one payload that legitimately comes down dot-server's chat signal, and the legacy path beside the router.
+## The one payload that legitimately comes down gs-server's chat signal, and the legacy path beside the router.
 func _chat_legacy_path() -> void:
 	_check(
 		_chat_state.size() >= 1,
@@ -109,13 +109,13 @@ func _chat_legacy_path() -> void:
 
 	_check(
 		_legacy_heard.is_empty(),
-		"and dot-server's own chat delivered nothing beside it (%d)"
+		"and gs-server's own chat delivered nothing beside it (%d)"
 			% _legacy_heard.size(),
 		"two paths for one message is two sets of rules, and the one that skipped the "
 		+ "filter would be the one that leaked admin chat"
 	)
 
-	# A browser shell's chat box goes through dot-server and cannot name a channel; the module forwards it.
+	# A browser shell's chat box goes through gs-server and cannot name a channel; the module forwards it.
 	var forwarded_before := _heard.size()
 	_link.send_chat("said the old way", false)
 
@@ -124,7 +124,7 @@ func _chat_legacy_path() -> void:
 	)
 	_check(
 		forwarded,
-		"a line sent through dot-server's own chat is forwarded onto this game's wire"
+		"a line sent through gs-server's own chat is forwarded onto this game's wire"
 	)
 
 

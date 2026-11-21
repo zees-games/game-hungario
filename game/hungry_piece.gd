@@ -75,7 +75,7 @@ var drawn_two_back: Vector2 = Vector2(NAN, NAN)
 
 ## Where a frame [param alpha] of the way through this piece's last tick draws it, for a piece
 ## this machine simulates: between the last two ticks, on along the last step past 1 and
-## between the two before below 0 (a connected client's alpha is dot-net's
+## between the two before below 0 (a connected client's alpha is gs-net's
 ## `GSNetClock.render_alpha`, -1 to 2 for a moment after a physics frame that ran no tick or
 ## two). The tick's own position when nothing has been recorded.
 ##
@@ -98,7 +98,7 @@ func drawn_position(alpha: float) -> Vector2:
 	return drawn_from.lerp(state.position, alpha)
 
 
-## How far through its tick a frame drawn now is: [param clock]'s `render_alpha()` (dot-net's
+## How far through its tick a frame drawn now is: [param clock]'s `render_alpha()` (gs-net's
 ## `GSNetClock`, asked by name so a shell older than it draws at the engine's fraction), else
 ## the engine's physics fraction, which is exact offline where every physics frame is a tick.
 static func frame_alpha(clock: Object) -> float:

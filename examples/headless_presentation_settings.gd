@@ -1,10 +1,10 @@
 extends "headless_presentation_checks.gd"
 ## The settings checks of the presentation suite: the schema read from HungryConfig, and the one-time
-## migration of the files dot-ui's screens wrote. Split out of headless_presentation.gd, which extends this.
+## migration of the files gs-ui's screens wrote. Split out of headless_presentation.gd, which extends this.
 
 
 func _test_schema_is_the_config() -> void:
-	_section("The schema is HungryConfig, read rather than repeated, beside dot-menu's stock")
+	_section("The schema is HungryConfig, read rather than repeated, beside gs-menu's stock")
 
 	var config := HungryConfig.new()
 	var schema := HungrySettings.schema_for()
@@ -31,7 +31,7 @@ func _test_schema_is_the_config() -> void:
 		"and a camera follow time stays with the machine, because it is about this screen"
 	)
 	_check(schema.has(&"master_volume") and schema.has(&"ui_theme") and schema.has(&"window_mode"),
-		"the stock settings are dot-menu's: the volumes, the theme, the window")
+		"the stock settings are gs-menu's: the volumes, the theme, the window")
 	var applied_to_nothing := PackedStringArray()
 	for key in HungrySettings.NOT_APPLIED:
 		if schema.has(key):
@@ -43,16 +43,16 @@ func _test_schema_is_the_config() -> void:
 	p.settings.set_value(&"follow_sec", 0.3)
 	_check(
 		is_equal_approx(p.config.follow_sec, 0.3),
-		"a setting written through dot-settings reaches the config the game actually reads"
+		"a setting written through gs-settings reaches the config the game actually reads"
 	)
 	p.settings.set_value(&"master_volume", 0.25)
 	_check(
 		is_equal_approx(p.audio.mixer.master, 0.25),
-		"and the master volume reaches dot-audio's mixer, which is the value a player can hear"
+		"and the master volume reaches gs-audio's mixer, which is the value a player can hear"
 	)
 	p.queue_free()
 
-	# The voice settings are the stock ones and reach the player's voice: the client's HungryVoice publishes its manager as dot_voice_client and dot-menu's applier binds it by that name.
+	# The voice settings are the stock ones and reach the player's voice: the client's HungryVoice publishes its manager as gs_voice_client and gs-menu's applier binds it by that name.
 	# Armed: drop the publish and the mode never reaches the manager.
 	_check(schema.has(&"voice_mode") and schema.has(&"voice_input_device") and schema.has(&"voice_volume"),
 		"the stock voice settings are declared: talk mode, microphone, voice volume")
@@ -73,7 +73,7 @@ func _test_schema_is_the_config() -> void:
 	_done()
 
 
-## The files dot-ui's screens wrote are migrated into the document once, so nobody's settings
+## The files gs-ui's screens wrote are migrated into the document once, so nobody's settings
 ## or keys go back to the defaults; and never again.
 func _test_migration() -> void:
 	_section("The old settings and keys are migrated once, and nothing is lost")

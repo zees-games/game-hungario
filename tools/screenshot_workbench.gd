@@ -1,6 +1,6 @@
 extends SceneTree
 
-## Renders dot-workbench's F9 panel over the server settings and the modes, solo, to screenshots/workbench_panel.png.
+## Renders gs-workbench's F9 panel over the server settings and the modes, solo, to screenshots/workbench_panel.png.
 ## Through tools/screenshot_workbench.sh: a null renderer saves an empty image.
 
 const OUT_DIR := "res://screenshots"

@@ -3,15 +3,15 @@ extends GSMenuGameSettings
 const HungryBindings := preload("hungry_bindings.gd")
 const HungryConfig := preload("../hungry_config.gd")
 
-## A player's settings and the Escape menu that changes them: dot-menu's, as in every game of
-## the family, over one dot-settings document.
+## A player's settings and the Escape menu that changes them: gs-menu's, as in every game of
+## the family, over one gs-settings document.
 ##
 ## [codeblock]
 ## var settings := HungrySettings.new()
 ## add_child(settings)
 ## settings.setup()                 # migrates once, loads, applies, builds the menu
-## settings.bind_audio(audio)       # dot-audio's mixer: the stock volumes
-## settings.bind_fx(fx)             # dot-fx: shake, flashes, effects quality
+## settings.bind_audio(audio)       # gs-audio's mixer: the stock volumes
+## settings.bind_fx(fx)             # gs-fx: shake, flashes, effects quality
 ## [/codeblock]
 ##
 ## [b]The document holds this game's own settings beside the stock ones.[/b] The camera and
@@ -19,26 +19,26 @@ const HungryConfig := preload("../hungry_config.gd")
 ## [method GSSettingsSchema.from_config], so a range tightened there tightens the slider and
 ## the console at once; the presentation layer writes each value back into the config the
 ## game reads. The keys are [HungryBindings]' table; help (H), the map menu (M) and Leave are
-## dot-menu's stock.
+## gs-menu's stock.
 ##
 ## [b]Where it is stored did not move[/b]: the same directory and namespace as the
-## dot-settings document this game kept since 2026-09 for the console, net_stat and the chat
-## keys, so all of that carries over untouched. What moved is everything dot-ui's screens
+## gs-settings document this game kept since 2026-09 for the console, net_stat and the chat
+## keys, so all of that carries over untouched. What moved is everything gs-ui's screens
 ## kept in files of their own until 2026-10-12, which [method migrate] reads once.
 
 ## This file's log channel. Not `CHANNEL`, which is GSMenuSettings' own ("menu.settings").
 const SETTINGS_CHANNEL := "hungry.settings"
 
 ## 2 is the first document that holds everything. A version-1 document (or none) is migrated
-## from the two files dot-ui's screens wrote; see [method migrate].
+## from the two files gs-ui's screens wrote; see [method migrate].
 const SCHEMA_VERSION := 2
 
 const SETTINGS_DIR := "user://hungry_settings"
 const APP_NAMESPACE := &"game_hungario"
 
-## What dot-ui's settings screen saved (`HungryConfig.save`, a flat JSON object).
+## What gs-ui's settings screen saved (`HungryConfig.save`, a flat JSON object).
 const LEGACY_CONFIG_PATH := "user://cfg/hungry.json"
-## What dot-ui's Controls screen saved (`GSBindingsPanel.save`, `{bindings: {action: [event]}}`).
+## What gs-ui's Controls screen saved (`GSBindingsPanel.save`, `{bindings: {action: [event]}}`).
 const LEGACY_BINDINGS_PATH := "user://cfg/bindings.json"
 
 ## Which of the config's keys follow the person rather than the machine: the one thing
@@ -53,7 +53,7 @@ const SCOPES := {
 
 ## Stock keys nothing here could apply, left out so no row is a switch that does nothing: the world is 2D (no 3D render scale, no field of view), the mouse
 ## is a pointer and not a look (no sensitivity, no invert). The voice settings (talk mode, microphone, voice volume) are declared: `HungryVoice` publishes
-## its manager as `dot_voice_client`, which dot-menu's applier binds by that name. The talk key is a row of the table.
+## its manager as `gs_voice_client`, which gs-menu's applier binds by that name. The talk key is a row of the table.
 const NOT_APPLIED: Array[StringName] = [
 	&"render_scale", &"field_of_view", &"sensitivity", &"invert_mouse",
 ]
@@ -91,7 +91,7 @@ func _init() -> void:
 
 ## The game's settings as data. Its camera and interface keys come out of [HungryConfig], net_stat is in the top left, then
 ## the stock settings it applies. The pointer is the control in this game and the client keeps it visible (the spec's
-## `manage_pointer` stays off). M is the mode list (dot-menu's map menu, on by default): `HungryClient._build_ui` hands it
+## `manage_pointer` stays off). M is the mode list (gs-menu's map menu, on by default): `HungryClient._build_ui` hands it
 ## the six modes and the change. The help hint and the touch Menu button sit top left: the top right is the leaderboard's,
 ## the bottom corners the minimap's and the mass bar's.
 static func spec_for() -> GSMenuGameSpec:
@@ -111,7 +111,7 @@ static func spec_for() -> GSMenuGameSpec:
 	s.help_hint = &"top_left"
 	s.menu_button_corner = &"top_left"
 	s.config_settings = {"master_volume": {"default": DEFAULT_MASTER}}
-	# Migrates the old files into the document first, then dot-menu's setup.
+	# Migrates the old files into the document first, then gs-menu's setup.
 	s.before_setup = func(node: GSMenuGameSettings, p_store: GSSettingsStore) -> GSSettingsStore:
 		var where: GSSettingsStore = p_store if p_store != null else node.get(&"store")
 		if where == null:
@@ -168,7 +168,7 @@ static func migrate_store(
 		GSLog.warn(SETTINGS_CHANNEL, "the migrated settings were not saved; they are migrated again next start",
 			{"why": saved.error.message})
 	else:
-		GSLog.info(SETTINGS_CHANNEL, "settings migrated to dot-menu's document", {"carried": ", ".join(carried)})
+		GSLog.info(SETTINGS_CHANNEL, "settings migrated to gs-menu's document", {"carried": ", ".join(carried)})
 	return carried
 
 
@@ -220,7 +220,7 @@ static func migrate(body: Dictionary, legacy_config: Dictionary, legacy_keys: Di
 	return {"values": values, "carried": carried}
 
 
-## dot-ui's own encoding of one event (`GSBindingsPanel._encode`), read back.
+## gs-ui's own encoding of one event (`GSBindingsPanel._encode`), read back.
 static func _decode(data: Variant) -> InputEvent:
 	if not (data is Dictionary):
 		return null

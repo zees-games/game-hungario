@@ -106,7 +106,7 @@ static func _add(
 	def.hearing_range = sight * 0.4
 	# Off, as it has to be for a 2D NPC: there is no 3D physics world to cast through and this arena has no walls.
 	def.require_line_of_sight = false
-	# `skill` names the hunter's character — dot-npc-ai's brain reads it from here. Until
+	# `skill` names the hunter's character — gs-npc-ai's brain reads it from here. Until
 	# this was added no hunter had one, so `has_reacted()` answered true on the tick a
 	# hunter first saw somebody: the reaction time this file's header promised was zero.
 	def.meta = {"mass": mass, "speed": speed, "skill": skill}
@@ -169,13 +169,13 @@ func setup(p_authoritative: bool, p_world: HungryWorld) -> GSResult:
 	limits.world_budget = 40
 	limits.per_kind_cap = 12
 	limits.spawn_interval = 0.0
-	# No navigable-spawn requirement: this arena has no navigation graph, and "no navigation" is not "off the navigation" to dot-npc.
+	# No navigable-spawn requirement: this arena has no navigation graph, and "no navigation" is not "off the navigation" to gs-npc.
 	# Requiring a graph would refuse every spawn.
 	limits.require_navigable_spawn = false
 	# Longer than the addon's default, because being chased across an arena is the
 	# experience and a hunter reclaimed after six seconds of it is a hunter that gives up.
 	limits.reclaim_grace = 25.0
-	# The path's snap in world units: dot-npc's default of 4 is metres, and a snap that found no grid point would mean a path that is never found.
+	# The path's snap in world units: gs-npc's default of 4 is metres, and a snap that found no grid point would mean a path that is never found.
 	limits.spawn_snap_radius = 100.0
 
 	var problem := limits.validate()
@@ -191,7 +191,7 @@ func setup(p_authoritative: bool, p_world: HungryWorld) -> GSResult:
 	# One flag says this spawner serves a 2D world; `spawn_group` and the director both
 	# read it, so neither needs a 2D twin.
 	spawner.two_dimensional = true
-	# A target moves every tick and dot-npc's default drift is 2.5 metres, which would repath every tick for every hunter.
+	# A target moves every tick and gs-npc's default drift is 2.5 metres, which would repath every tick for every hunter.
 	# Three grid steps and at most once a second: a whole-map search costs 15-40 ms in GDScript.
 	spawner.repath_drift = NAV_SPACING * 3.0
 	spawner.repath_interval = 1.0
@@ -467,7 +467,7 @@ func _keep_out_of_the_level() -> void:
 			body.global_position = clear
 
 
-## Everybody a hunter might notice, as dot-npc's candidates.
+## Everybody a hunter might notice, as gs-npc's candidates.
 func _candidates() -> Array:
 	var out: Array = []
 
@@ -579,7 +579,7 @@ func _on_spawned(npc: GSNpcInstance) -> void:
 	var wire_id := _next_wire_id
 	_next_wire_id += 1
 
-	# The brain reaches this object through `meta`, which is dot-npc's documented hook for
+	# The brain reaches this object through `meta`, which is gs-npc's documented hook for
 	# "anything the game keeps with an NPC". A brain that named [HungryHunters] directly
 	# would be a brain that cannot be delivered in a pack.
 	npc.meta["hunters"] = self
@@ -708,7 +708,7 @@ func eat_ratio() -> float:
 	return world.tunables.mass_rules.eat_ratio
 
 
-## Where a candidate is, in dot-npc's plane. `Vector3.INF` when it has gone.
+## Where a candidate is, in gs-npc's plane. `Vector3.INF` when it has gone.
 func position_of(candidate_id: StringName) -> Vector3:
 	var monster := _monster_for(candidate_id)
 

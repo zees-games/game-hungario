@@ -26,8 +26,8 @@ const HungryWorld := preload("../hungry_world.gd")
 ## that grid is for. Drawing the whole field and letting the renderer clip it would draw a
 ## thousand circles to show fifty.
 ##
-## No art. dot-2d ships none, dot-ui ships none, and neither does this: shapes, colours
-## and a font. What a real deployment adds is content, through dot-cloud, and the seam for
+## No art. gs-2d ships none, gs-ui ships none, and neither does this: shapes, colours
+## and a font. What a real deployment adds is content, through gs-cloud, and the seam for
 ## that is [HungryRider].
 
 # No CHANNEL: a drawer. It reads the world every frame and has nothing to report that a frame does not show.
@@ -47,13 +47,13 @@ const CULL_MARGIN := 120.0
 ## The camera, for the cull rectangle. Any [Camera2D] will do.
 @export var camera: Camera2D = null
 
-## The clock this machine's own monster is predicted on (dot-net's `GSNetClock`), for its
+## The clock this machine's own monster is predicted on (gs-net's `GSNetClock`), for its
 ## render alpha; null offline. See [method HungryPiece.frame_alpha].
 var render_clock: Object = null
 
 ## Whether every monster is simulated on this machine (offline: the bots too), so every one
 ## is drawn between its ticks. Connected, only your own is: everybody else's pieces are moved
-## once a frame by dot-net's interpolator.
+## once a frame by gs-net's interpolator.
 var all_simulated_here: bool = false
 
 ## This frame's alpha through the tick, read once in [method _draw].
@@ -170,7 +170,7 @@ func _process(delta: float) -> void:
 
 ## Moves every beacon's ripple on, starts one for a monster that has just been beaconed and
 ## drops one whose monster is not any more — or is not alive: the flag outlives a death
-## (dot-moderation re-applies it on the respawn), but a ring round a monster that is not in
+## (gs-moderation re-applies it on the respawn), but a ring round a monster that is not in
 ## the arena marks nothing, and a pointer at where it died points everybody at empty floor.
 ##
 ## Returns how many pinged this frame. Public so a check can step it.
@@ -234,7 +234,7 @@ func _view() -> Rect2:
 	# everything past 400 of them culled. Nothing drawn past that point, on a black
 	# background, reads as an empty arena rather than as a rendering fault.
 	#
-	# Found by rendering a frame of a level and looking at it. dot-2d's own camera rig had
+	# Found by rendering a frame of a level and looking at it. gs-2d's own camera rig had
 	# the same inversion in `visible_rect` and `_clamp`, which is what interest management
 	# is measured against.
 	return _visible().grow(CULL_MARGIN)
@@ -762,7 +762,7 @@ func _schema() -> GSAvatarSchema:
 
 ## One catalogue for everybody, because it caches resolutions.
 ##
-## A catalogue per rider would ask dot-cloud for the same hat once per player wearing it,
+## A catalogue per rider would ask gs-cloud for the same hat once per player wearing it,
 ## and `ResourceLoader.exists` on a path that is not there is not free.
 ##
 ## Its resolver is [HungryContentSource], which prefers a mounted pack over the build and

@@ -1,6 +1,6 @@
 extends RefCounted
 
-## Where this game's own files are, wherever this copy of it happens to live. The logic is dot-game's [GSGamePaths]; this keeps the game's name for it. Hold paths in a `static var`, not a `const`.
+## Where this game's own files are, wherever this copy of it happens to live. The logic is gs-game's [GSGamePaths]; this keeps the game's name for it. Hold paths in a `static var`, not a `const`.
 
 const _SELF := preload("hungry_paths.gd")
 

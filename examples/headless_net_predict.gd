@@ -358,7 +358,7 @@ func _admin_freeze(freeze: Callable, command: GS2DCommand) -> void:
 		"worst %.2f" % float(still["worst"])
 	)
 
-	# Naive: the server alone refuses to move anybody. dot-net rewinds a predicted entity to the server's
+	# Naive: the server alone refuses to move anybody. gs-net rewinds a predicted entity to the server's
 	# whole state, so this is an ordinary rubber band: the client leads, every snapshot pulls it back.
 	var _thaw: GSResult = freeze.call(&"7", {"on": false})
 	var speed := _server_world.tunables.max_speed

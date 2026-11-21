@@ -5,10 +5,10 @@ const HungryRider := preload("hungry_rider.gd")
 
 ## The avatar sitting on top of a monster.
 ##
-## [b]This is the join between dot-user-avatar and dot-cloud, and it is the whole reason
+## [b]This is the join between gs-user-avatar and gs-cloud, and it is the whole reason
 ## an avatar is a document of ids.[/b] The server validated this player's rider without
 ## holding any art; the client turns the same ids into something to look at, through
-## [GSAvatarCatalogue], which asks dot-cloud when there is a dot-cloud and falls back to
+## [GSAvatarCatalogue], which asks gs-cloud when there is a gs-cloud and falls back to
 ## the build when there is not.
 ##
 ## [b]Two paths, and both are real.[/b] [method GSAvatarBuilder.plan] works out which
@@ -16,7 +16,7 @@ const HungryRider := preload("hungry_rider.gd")
 ## pure logic over ids, no scene touched, so it is the same answer on a headless server as
 ## in a browser. Where that plan names a scene this instantiates it. Where it does not,
 ## the part is [i]drawn[/i] from its id and its colours: this project ships no art, the
-## same way dot-ui ships none, and a dev-textured rider that always appears beats a real
+## same way gs-ui ships none, and a dev-textured rider that always appears beats a real
 ## one that appears only once a CDN is configured.
 ##
 ## A player you cannot see is a competitive advantage, so the placeholder is not optional.

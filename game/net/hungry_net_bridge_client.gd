@@ -379,7 +379,7 @@ func ask_for_world() -> void:
 	net.send(HungryRequest.new(HungryEvents.Ask.READY, PackedByteArray()), 0)
 
 ## Publishes this client's chosen loadout. Client side.
-## It takes effect on the next spawn (dot-loadout's rule), so nobody swaps trait mid-fight.
+## It takes effect on the next spawn (gs-loadout's rule), so nobody swaps trait mid-fight.
 func publish_loadout(loadout: GSLoadout) -> void:
 	if net == null or net.is_server or loadout == null:
 		return

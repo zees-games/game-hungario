@@ -51,7 +51,7 @@ func _test_module() -> void:
 	var kinds: GSResult = module.workbench.api.handle(GSGameWorkbench.LOCAL_ACTOR, {"op": "list"})
 	var listed_kinds: Array = (kinds.value as Dictionary).get("kinds", []) if kinds.ok else []
 	var spawn_set_listed: bool = listed_kinds.has(GSSpawnOverrides.KIND)
-	_check(spawn_set_listed, "dot-spawn's per-preset override set is a workbench kind", "" if kinds.ok else kinds.error.message)
+	_check(spawn_set_listed, "gs-spawn's per-preset override set is a workbench kind", "" if kinds.ok else kinds.error.message)
 	_check(_world().player_stack != null and _world().player_stack.spawn_overrides == module.spawn_overrides, "and the live player stack applies the same set the workbench edits")
 	var _amb_back := _server.console.set_cvar("hungry_ambient_volume", "0.3")
 	var respawn := _server.console.find_cvar("hungry_respawn_delay_sec")
@@ -117,7 +117,7 @@ func _test_commands() -> void:
 
 
 ## What the module counts and for whom: that world signals reach a tracker keyed by the SCOPED
-## id, and that an account id can never be what a stat is filed under (dot-stats has its own
+## id, and that an account id can never be what a stat is filed under (gs-stats has its own
 ## suite).
 func _test_stats() -> void:
 	_section("statistics")
@@ -167,7 +167,7 @@ func _test_stats() -> void:
 
 
 func _test_stats_wiring(module: HungryModule) -> void:
-	# The wiring, driven directly. Ids are past any real player and POSITIVE: dot-net's varint
+	# The wiring, driven directly. Ids are past any real player and POSITIVE: gs-net's varint
 	# writer refuses a negative id.
 	const ME := 900001
 	const THEM := 900002
@@ -209,7 +209,7 @@ func _test_stats_wiring(module: HungryModule) -> void:
 	_check(life == 10.0, "a stored lifetime baseline (10 pieces) is what the published rank is built on", str(life))
 	module.rank.forget(&"rank-probe")
 
-	# THE check. `_begin_stats` asks dot-platform for a SCOPED key and files
+	# THE check. `_begin_stats` asks gs-platform for a SCOPED key and files
 	# nothing without one; the account id the identity carries must never be what
 	# a figure is filed under, and the reporter refuses one as a second line.
 	_check(
@@ -264,7 +264,7 @@ func _test_bots() -> void:
 		if world.monster_for(id) != null and id >= HungryModule.BOT_ID_BASE:
 			names.append(world.monster_for(id).display_name)
 	_check(not names.is_empty() and names.all(func(n: String) -> bool: return GSBotNames.POOL.has(n)),
-		"bots are named from dot-bot's pool, never numbered", str(names))
+		"bots are named from gs-bot's pool, never numbered", str(names))
 	var difficulty := _server.console.execute("bot_difficulty hard")
 	var reached := GSBotSettings.of(world).difficulty() == "hard"
 	var _back := _server.console.execute("bot_difficulty medium")
@@ -430,7 +430,7 @@ func _test_loadouts_bots() -> void:
 
 
 ## What this server tells its site listing: the shape of the report, and that an unconfigured
-## server stays silent. Nothing is sent from here; the transport is dot-auth's.
+## server stays silent. Nothing is sent from here; the transport is gs-auth's.
 func _test_reporting() -> void:
 	_section("what the listing is told")
 
@@ -453,7 +453,7 @@ func _test_reporting() -> void:
 		"with a slot count (%d)" % int(report.get("maxUsers", 0))
 	)
 
-	# dot-server's own report says bots: 0 unconditionally, because dot-server has no bots
+	# gs-server's own report says bots: 0 unconditionally, because gs-server has no bots
 	# and no way to know a game has any. A listing that shows eight players on a server
 	# holding one human is a listing that stops being trusted.
 	_check(

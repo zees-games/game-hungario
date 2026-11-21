@@ -9,7 +9,7 @@ const HungryPieceNet := preload("hungry_piece_net.gd")
 ## never sent cannot be drawn on a wallhack, and in this game the thing a cheat most wants
 ## is a map of everybody's mass.
 ##
-## dot-net's built-in distance strategy would nearly do, and does not, for two reasons
+## gs-net's built-in distance strategy would nearly do, and does not, for two reasons
 ## that are both about a monster being a set:
 ##
 ## - [b]The observer is not one entity.[/b] [method GSNetManager._observer_for] hands a
@@ -37,7 +37,7 @@ var bridge: HungryNetBridge = null
 func _init() -> void:
 	strategy_name = "hungry"
 
-	# [b]No cache.[/b] dot-net's default is to hold an answer for a quarter of a second,
+	# [b]No cache.[/b] gs-net's default is to hold an answer for a quarter of a second,
 	# which is right for a world whose membership changes slowly — and this one's changes
 	# every time anybody splits, bursts, merges, dies or respawns, which at eight players
 	# is several times a second.

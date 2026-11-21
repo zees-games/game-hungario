@@ -41,7 +41,7 @@ var position_source: Callable = Callable()
 ## toward it; feeding it a position directly would mean reimplementing the smoothing.
 var _anchor: Node2D = null
 
-## The clock the followed monster is predicted on (dot-net's `GSNetClock`), null offline: the
+## The clock the followed monster is predicted on (gs-net's `GSNetClock`), null offline: the
 ## camera follows the monster as it is drawn this frame (`HungryMonster.drawn_centre`), not
 ## where its last tick left it, which stepped under the drawn pieces.
 var render_clock: Object = null

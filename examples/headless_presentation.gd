@@ -57,11 +57,11 @@ func _run() -> void:
 
 
 func _test_sound_is_still_the_bank() -> void:
-	_section("dot-audio's sink is the bank this game already had")
+	_section("gs-audio's sink is the bank this game already had")
 
 	var p := _make()
 	var sink := p.audio.sink as HungrySoundSink
-	_check(sink != null, "the sink is this game's, not dot-audio's own")
+	_check(sink != null, "the sink is this game's, not gs-audio's own")
 	if sink == null:
 		p.queue_free()
 		_done()
@@ -73,7 +73,7 @@ func _test_sound_is_still_the_bank() -> void:
 		"and it says so, because a sink that lies about what it is makes a log useless"
 	)
 
-	# Every id in the catalogue has to have a cue, or it is a sound dot-audio decided
+	# Every id in the catalogue has to have a cue, or it is a sound gs-audio decided
 	# should be heard and nothing can make.
 	var missing := PackedStringArray()
 	for id in p.audio.catalogue.ids():
@@ -110,7 +110,7 @@ func _test_limits_the_bank_never_had() -> void:
 	)
 
 	# The pitch is information -- bigger is lower -- and it has to survive the trip
-	# through dot-audio rather than being played around it.
+	# through gs-audio rather than being played around it.
 	OS.delay_msec(60)
 	sink.forget()
 	p.on_food_eaten(Vector2(5, 5), 0)
@@ -274,7 +274,7 @@ func _test_console_stops_the_keys() -> void:
 	client.platform = p.platform
 	p.platform.input_blocked_changed.connect(client._suspend_input)
 
-	# Offline bots: named from dot-bot's pool, and their difficulty at this console.
+	# Offline bots: named from gs-bot's pool, and their difficulty at this console.
 	var solo := HungryWorld.new()
 	solo.name = "SoloWorld"
 	solo.preset = HungryPreset.classic()
@@ -289,7 +289,7 @@ func _test_console_stops_the_keys() -> void:
 		if id >= 100:
 			solo_names.append(solo.monster_for(id).display_name)
 	_check(solo_names.size() == 3 and solo_names.all(func(n: String) -> bool: return GSBotNames.POOL.has(n)),
-		"offline bots are named from dot-bot's pool", str(solo_names))
+		"offline bots are named from gs-bot's pool", str(solo_names))
 	var typed := p.console.submit("bot_difficulty nightmare")
 	_check(typed.ok and GSBotSettings.of(solo).difficulty() == "nightmare", "and bot_difficulty at the console sets how they play")
 	client.world = null
@@ -570,10 +570,10 @@ func _test_cover() -> void:
 ## The family's Escape menu: H opens help, Escape the menu with Help & commands and Leave, the
 ## keys are a table whose rows rebind, and nothing but help is on H (or but the map menu on M).
 func _test_help() -> void:
-	_section("Escape is dot-menu's menu: help on H, Help and Leave, keys that rebind")
+	_section("Escape is gs-menu's menu: help on H, Help and Leave, keys that rebind")
 	var p := _make()
 	var menu := p.menu_settings.menu
-	_check(menu != null, "the presentation layer builds dot-menu's menu")
+	_check(menu != null, "the presentation layer builds gs-menu's menu")
 	if menu == null:
 		p.queue_free()
 		_done()
@@ -691,7 +691,7 @@ func _test_chat_box() -> void:
 	_done()
 
 
-## The family's rule: M opens the mode list, and solo a choice starts that mode now as a fresh client on its preset. The server's half is dot-vote's map menu (dot-vote's suite, and `dedicated`).
+## The family's rule: M opens the mode list, and solo a choice starts that mode now as a fresh client on its preset. The server's half is gs-vote's map menu (gs-vote's suite, and `dedicated`).
 ## Run last: built late, the fresh client's match once collected spawn points that were not its own and crashed the engine when they were freed.
 func _test_the_mode_list() -> void:
 	_section("M opens the mode list, and solo a choice starts that mode")
@@ -806,7 +806,7 @@ func _test_the_vote_is_heard() -> void:
 	_done()
 
 
-## The leaderboard under a ballot: something in dot-ui's `dot_hud_cover` group over the
+## The leaderboard under a ballot: something in gs-ui's `gs_hud_cover` group over the
 ## board's corner shrinks it to the rows above that, and the corner comes back when it goes.
 func _test_board_makes_room() -> void:
 	_section("The leaderboard makes room for a ballot over its corner")
@@ -843,7 +843,7 @@ func _test_board_makes_room() -> void:
 	layer.layer = 20
 	add_child(layer)
 	var ballot := Control.new()
-	ballot.add_to_group(&"dot_hud_cover")
+	ballot.add_to_group(&"gs_hud_cover")
 	ballot.position = Vector2(904.0, 110.0)
 	ballot.size = Vector2(360.0, 250.0)
 	layer.add_child(ballot)
@@ -953,7 +953,7 @@ func _test_a_fall() -> void:
 			GSPlayerDeathReactions.SOUND_SLUMP, GSPlayerDeathReactions.SOUND_WHOOSH]:
 		if not sink_ids.has(String(id)) or catalogued.find(id) == null:
 			missing.append(String(id))
-	_check(missing.is_empty(), "dot-player-char's four death sounds are in the catalogue and the bank", ", ".join(missing))
+	_check(missing.is_empty(), "gs-player-char's four death sounds are in the catalogue and the bank", ", ".join(missing))
 	falls.queue_free()
 	_done()
 

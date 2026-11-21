@@ -5,12 +5,12 @@ const HungryContent := preload("hungry_content.gd")
 
 ## A round ends when someone gets big enough, or when the clock runs out.
 ##
-## [b]dot-match's own score limit counts kills, and this game is not scored in
+## [b]gs-match's own score limit counts kills, and this game is not scored in
 ## kills.[/b] A player who eats six hundred crumbs and never touches anybody is winning;
 ## a player with four kills and no mass is not. Overriding [method _round_outcome] is the
 ## documented seam for exactly this, and it is four lines.
 ##
-## The mass itself comes from a [Callable] rather than from a lookup, because dot-match
+## The mass itself comes from a [Callable] rather than from a lookup, because gs-match
 ## does not know what a monster is and must not have to.
 
 ## Mass that ends the round.

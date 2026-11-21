@@ -130,7 +130,7 @@ func _test_roster_and_traits() -> void:
 	)
 	_check(
 		_stack().team_index_of("999") == 0,
-		"and 0 for a stranger, which dot-spectate reads as 'no team'"
+		"and 0 for a stranger, which gs-spectate reads as 'no team'"
 	)
 
 	var def := _stack().classes.def_of("1")
@@ -237,7 +237,7 @@ func _test_spawn_director() -> void:
 	_check(all_2d, "every site is still 2D after the overrides pass")
 	_check(
 		String(overrides.rel_path) == GSSpawnOverrides.KIND and overrides.game == "game-hungario",
-		"the set is dot-spawn's `spawn` kind under this game, where the workbench writes it"
+		"the set is gs-spawn's `spawn` kind under this game, where the workbench writes it"
 	)
 
 	_world.queue_free()

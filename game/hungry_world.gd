@@ -87,12 +87,12 @@ const WEDGED_DEPTH := 1.0
 var match_node: GSMatch = null
 
 ## What an eaten monster does on every screen, and which death reactions the server allows:
-## dot-player-char's `sv_ragdoll*` set. The module hands this world its own (bound to the
+## gs-player-char's `sv_ragdoll*` set. The module hands this world its own (bound to the
 ## cvars, which outlive a mode change); offline it is the stock set. See [method decide_death].
 var ragdoll_rules: GSPlayerRagdollRules = GSPlayerRagdollRules.new()
 var motor: GS2DMotor = null
 
-## The throwables a monster may carry. dot-loadout's, so the server can check one
+## The throwables a monster may carry. gs-loadout's, so the server can check one
 ## without loading anything.
 var items: GSItemCatalogue = null
 
@@ -246,7 +246,7 @@ func _build_match() -> GSResult:
 	var rules := HungryContent.rules(tick_rate)
 	rules.mass_to_win = preset.win_mass
 	rules.time_limit_sec = preset.time_limit_sec
-	# The win condition is mass, and dot-match cannot know what mass is. This is the
+	# The win condition is mass, and gs-match cannot know what mass is. This is the
 	# whole of that bridge.
 	rules.mass_fn = func(key: String) -> float:
 		var monster := monster_for(int(key))
@@ -258,7 +258,7 @@ func _build_match() -> GSResult:
 	match_node.register_service = false
 	# Its own point only. Left to look for itself the match collects every spawn point under
 	# the current scene, and a solo mode change has the old client's world in the tree beside
-	# this one, freed a moment later (dot-match's history: it crashed the engine).
+	# this one, freed a moment later (gs-match's history: it crashed the engine).
 	match_node.spawns_ref = GSNodeRef.of_self()
 
 	var config := GSMatchConfig.new()
@@ -288,7 +288,7 @@ func _build_match() -> GSResult:
 	return GSResult.success(null)
 
 
-## Gives dot-match one spawn point, which this game then ignores.
+## Gives gs-match one spawn point, which this game then ignores.
 func _add_spawn_point() -> void:
 	var point := GSSpawnPoint.new()
 	point.name = "Nominal"
@@ -338,7 +338,7 @@ func reset_world() -> void:
 func _chosen_layout_variant() -> String:
 	if layout_variant != "":
 		return layout_variant
-	var console: Object = GSRegistry.get_service(&"dot_console")
+	var console: Object = GSRegistry.get_service(&"gs_console")
 	if console != null and console.has_method("get_string"):
 		var operator := str(console.call("get_string", "hungry_warrens_corners", "")).strip_edges().to_lower()
 		if HungryLayout.CORNER_VARIANTS.has(operator):
@@ -406,7 +406,7 @@ func remove_player(id: int) -> void:
 		_destroy_piece(piece)
 
 	if player_stack != null:
-		# Before dot-match forgets them: the stack reads the match for the records it
+		# Before gs-match forgets them: the stack reads the match for the records it
 		# files, and after `remove_player` there is nothing there to read.
 		player_stack.drop_player(id)
 
@@ -1139,7 +1139,7 @@ func _absorb(eater: HungryPiece, victim: HungryPiece, rules: GS2DMassRules) -> v
 		if eater_monster != null:
 			eater_monster.players_eaten += 1
 
-		# The victim's last piece. dot-match records the kill, the death and the respawn
+		# The victim's last piece. gs-match records the kill, the death and the respawn
 		# timer; the world only says it happened.
 		match_node.report_kill(
 			str(eater.owner_id), str(victim.owner_id), &"devoured", _tick
@@ -1151,7 +1151,7 @@ func _absorb(eater: HungryPiece, victim: HungryPiece, rules: GS2DMassRules) -> v
 
 
 ## Eaten by something at least this many times your mass: swallowed whole, which is this
-## game's headshot (dot-player-char's `needs_headshot`: the headshot launch).
+## game's headshot (gs-player-char's `needs_headshot`: the headshot launch).
 const SWALLOWED_WHOLE := 4.0
 
 ## The mass ratio a [code]death_power[/code] of 0 and of 1 stand for. A power launch needs 0.5,
@@ -1165,7 +1165,7 @@ static func power_of(ratio: float) -> float:
 	return clampf((ratio - POWER_FROM_RATIO) / (POWER_FULL_RATIO - POWER_FROM_RATIO), 0.0, 1.0)
 
 
-## The fall an eaten monster gets: dot-player-char's reaction rule over `sv_ragdoll_reactions`, seeded from the player and tick so every client draws the same one.
+## The fall an eaten monster gets: gs-player-char's reaction rule over `sv_ragdoll_reactions`, seeded from the player and tick so every client draws the same one.
 ## [param mass] is the damage, [param away] the push on the plane. Authority only; a client draws the one that came on DIED.
 func decide_death(player_id: int, swallowed: bool, power: float, mass: float, away: Vector2) -> GSPlayerDeath:
 	return GSPlayerDeath.decide(
@@ -1257,7 +1257,7 @@ func burst(monster: HungryMonster, by_player: int, into: int = 0) -> int:
 			continue
 
 		var room := rules.max_pieces - monster.piece_count() + 1
-		# How many pieces; zero means "the usual". [HungryCombat] turns a resolved damage amount into it, so falloff stays dot-combat's.
+		# How many pieces; zero means "the usual". [HungryCombat] turns a resolved damage amount into it, so falloff stays gs-combat's.
 		# Zero rather than a default so a caller with no opinion says so.
 		var wanted := into if into >= 2 else HungryContent.PEPPER_PIECES
 		var pieces := mini(wanted, room)

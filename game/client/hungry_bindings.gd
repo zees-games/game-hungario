@@ -1,12 +1,12 @@
 extends RefCounted
 
-## Every key this game reads, as one dot-menu [GSMenuBindings] table: the action, the setting
+## Every key this game reads, as one gs-menu [GSMenuBindings] table: the action, the setting
 ## that stores it, the words a player sees, the default, and the card it goes on.
 ##
 ## [b]A table, because four things read it:[/b] [HungryInput] and the client match events
 ## against the actions, the settings document stores one binding per row, the menu's Controls
 ## page draws a key per row, and the help screen (H) lists them with the key each is on now.
-## Until 2026-10-12 the keys were dot-ui's rebinder over every `hungry_*` action and stored in
+## Until 2026-10-12 the keys were gs-ui's rebinder over every `hungry_*` action and stored in
 ## its own file, so help (H) was not rebindable here; [HungrySettings] migrates that file.
 ##
 ## [b]The mouse buttons are rows of their own.[/b] A row puts ONE input on its action
@@ -15,7 +15,7 @@ extends RefCounted
 ## left button away with it. So the button is a second action that [HungryInput] reads beside
 ## the key, and both are rebindable.
 ##
-## H is help and M the map menu in every game of the family (dot-menu adds both rows), so
+## H is help and M the map menu in every game of the family (gs-menu adds both rows), so
 ## nothing here may default to either; `headless_presentation` holds the table to it.
 
 const SPLIT := &"hungry_split"
@@ -25,7 +25,7 @@ const THROW_CLICK := &"hungry_throw_click"
 const BOOST := &"hungry_boost"
 const EJECT := &"hungry_eject"
 const SCOREBOARD := &"hungry_scoreboard"
-## dot-ui's chat window's actions, as `HungryPresentation._build_chat` names them.
+## gs-ui's chat window's actions, as `HungryPresentation._build_chat` names them.
 const CHAT := &"hungry_chat"
 const CHAT_NEAR := &"hungry_chat_near"
 
@@ -46,7 +46,7 @@ static func make() -> GSMenuBindings:
 	keys.add(CHAT, CHAT_SETTING, "Chat", "Y", "Communication", GSSettingsDef.Scope.ACCOUNT)
 	keys.add(CHAT_NEAR, CHAT_NEAR_SETTING, "Chat with nearby players", "U", "Communication",
 		GSSettingsDef.Scope.ACCOUNT)
-	# Push to talk: dot-voice's own action, which `HungryVoice` gates on. Added here, in the
+	# Push to talk: gs-voice's own action, which `HungryVoice` gates on. Added here, in the
 	# Communication group beside the chat keys, so `GSMenuSettings` finds the row and does not
 	# add its own.
 	keys.add_voice("Communication")

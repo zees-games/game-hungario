@@ -49,7 +49,7 @@ func attach(
 	net.interest = interest
 
 	# Snapshots and messages both leave through `send_fn`, and the only thing that
-	# distinguishes them there is the delivery: dot-net sends state unreliably and
+	# distinguishes them there is the delivery: gs-net sends state unreliably and
 	# nothing else, and every message this game defines is reliable. Routing on that is
 	# exact rather than a heuristic, and it is why neither message type may ever be
 	# declared unreliable.

@@ -30,7 +30,7 @@ enum Kind {
 	## Somebody was burst.
 	BURST,
 	## Somebody was devoured: a pair (victim, eater), then how the last piece goes down
-	## (dot-player-char's [GSPlayerDeath], the server's pick), last and optional. See
+	## (gs-player-char's [GSPlayerDeath], the server's pick), last and optional. See
 	## [method write_died].
 	DIED,
 	## The leaderboard.
@@ -535,7 +535,7 @@ const CHAT_KEY_BYTES := 48
 const CHAT_KIND_BITS := 4
 
 
-## Whether every [enum GSChatMessage.Kind] fits in [constant CHAT_KIND_BITS]. dot-chat owns
+## Whether every [enum GSChatMessage.Kind] fits in [constant CHAT_KIND_BITS]. gs-chat owns
 ## that enum, so it can grow under this game; headless_net reads this.
 static func chat_kinds_fit() -> bool:
 	return GSChatMessage.KIND_NAMES.size() <= (1 << CHAT_KIND_BITS)

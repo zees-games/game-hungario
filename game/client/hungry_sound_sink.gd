@@ -3,24 +3,24 @@ extends GSAudioSink
 const HungrySound := preload("hungry_sound.gd")
 const HungryEvents := preload("../net/hungry_events.gd")
 
-## dot-audio's sink, backed by the sound this game already generates for itself.
+## gs-audio's sink, backed by the sound this game already generates for itself.
 ##
 ## [b]This is the whole shape of hungario's audio integration, and it is deliberately not
-## "replace `HungrySound` with dot-audio".[/b] This game bakes its entire bank
+## "replace `HungrySound` with gs-audio".[/b] This game bakes its entire bank
 ## arithmetically at boot — fifteen cues, 22 kHz, no files — and that is the best thing about
 ## its audio: it ships nothing, it works on every platform, and it is the only game in the
 ## family that makes a noise today. Throwing it away for an addon that names files would
 ## be a strict downgrade.
 ##
-## What `HungrySound` does not have is the half dot-audio is: a catalogue a server can
+## What `HungrySound` does not have is the half gs-audio is: a catalogue a server can
 ## check, per-id concurrency caps, cooldowns, a distance cull, priorities, a mixer with a
 ## `linear_to_db` curve, and a manager that says **why** a sound was refused. So the two
 ## meet at the seam the addon was built around — [GSAudioSink] — and everything above it
-## is dot-audio's while the last four lines stay this game's.
+## is gs-audio's while the last four lines stay this game's.
 ##
 ## The seam exists because **`AudioServer` reports a working sound card when there is
 ## none**: in a headless run the mix rate, the device list and the latency are all
-## plausible and only `get_driver_name()` says "Dummy". dot-voice found that; this is the
+## plausible and only `get_driver_name()` says "Dummy". gs-voice found that; this is the
 ## third addon to be built around it.
 
 const CHANNEL := "hungry.sound"
@@ -49,7 +49,7 @@ const CUES := {
 	HungryEvents.CUE_VOTE_COUNT: HungrySound.Cue.VOTE_COUNT,
 	# An administrator's beacon. See `HungryPresentation.BEACON_SOUND`.
 	"beacon": HungrySound.Cue.BEACON,
-	# An eaten monster going down: dot-player-char's sound ids (GSPlayerDeathReactions.SOUND_*,
+	# An eaten monster going down: gs-player-char's sound ids (GSPlayerDeathReactions.SOUND_*,
 	# spelled out because this table's keys are Strings; headless_presentation checks they
 	# match), this bank's noises.
 	"ragdoll.thud": HungrySound.Cue.FALL_THUD,
@@ -79,7 +79,7 @@ func _init(p_sound: HungrySound = null) -> void:
 func play(request: Dictionary) -> int:
 	var id := str(request.get("id", ""))
 	if not CUES.has(id):
-		# An id with no cue behind it is silence, not an error. dot-audio has already
+		# An id with no cue behind it is silence, not an error. gs-audio has already
 		# decided this sound should be heard; whether this game has a noise for it is a
 		# separate question, and a red line per bite on a client whose bank has not
 		# finished baking is how a real error stops being read.
@@ -96,11 +96,11 @@ func play(request: Dictionary) -> int:
 		_log.remove_at(0)
 
 	if sound != null and is_instance_valid(sound):
-		# The pitch dot-audio rolled, not one this file picks. A pitch chosen down here
+		# The pitch gs-audio rolled, not one this file picks. A pitch chosen down here
 		# could not be reproduced from a seed, and an audio bug that cannot be reproduced
 		# is an audio bug nobody fixes.
 		#
-		# [b]And the volume dot-audio decided, which this line dropped until 2026-10-12.[/b]
+		# [b]And the volume gs-audio decided, which this line dropped until 2026-10-12.[/b]
 		# The request's volume_db is the def's gain and `loudness_trim_db` (and a caller's
 		# volume scale); every cue played at the bank's flat -8 dB whatever the catalogue
 		# said, and a measured trim reached nothing.
@@ -134,7 +134,7 @@ func is_playing(handle: int) -> bool:
 
 func move(_handle: int, _position: Vector3) -> void:
 	# Every voice is flat. `HungrySound` bakes mono blips into an `AudioStreamPlayer`, and
-	# the distance that matters in this game is already applied by dot-audio's cull --
+	# the distance that matters in this game is already applied by gs-audio's cull --
 	# which is the cheap half and the half that saves anything.
 	pass
 

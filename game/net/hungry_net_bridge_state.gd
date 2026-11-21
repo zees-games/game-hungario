@@ -26,13 +26,13 @@ const HungryRequest := preload("hungry_request.gd")
 
 const HungryWorld := preload("../hungry_world.gd")
 
-## How far a reconcile has to move the owning client's monster before dot-net counts a correction, in
+## How far a reconcile has to move the owning client's monster before gs-net counts a correction, in
 ## [b]pixels[/b]. The 0.01 default is below the 1/128 the wire quantises a position to, so every replay
 ## read as a correction; half a pixel is the least a screen shows. Every GSNetConfig here sets it.
 const RECONCILE_EPSILON := 0.5
 
 ## Joins a [HungryWorld] to a [GSNetManager]: the netcode seam, and the only file naming both.
-## dot-net ticks per entity but this game's tick order is whole-world; [method ensure_world_ticked]
+## gs-net ticks per entity but this game's tick order is whole-world; [method ensure_world_ticked]
 ## reconciles the two. Server drives `server_tick(tick)` instead of `world.tick()`, client `client_tick`.
 
 const CHANNEL := "hungry.net"
@@ -54,7 +54,7 @@ const BOARD_INTERVAL_TICKS := 30
 signal hello_received(player_id: int)
 
 ## A peer said it can receive, for the first time on this connection. Server side.
-## When a join's chat backlog, notice and standing hunters and hazards can be sent: dot-server's
+## When a join's chat backlog, notice and standing hunters and hazards can be sent: gs-server's
 ## `client_spawn` is too early, the client has no node to receive on until it says so.
 signal peer_admitted(peer_id: int, player_id: int)
 
@@ -116,7 +116,7 @@ var loadout_sink: Callable = Callable()
 var entitlement_source: Callable = Callable()
 
 ## Where this server's cosmetics live, as a manifest URL; empty means what the build shipped with.
-## Set on the server by [HungryModule] from a cvar and sent in the hello; a client without dot-cloud
+## Set on the server by [HungryModule] from a cvar and sent in the hello; a client without gs-cloud
 ## ignores it.
 var avatar_pack_url: String = ""
 

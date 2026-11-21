@@ -81,7 +81,7 @@ var settings: HungryConfig = null
 ## The connection, when there is one.
 var link: Node = null
 
-## dot-menu's Escape menu ([HungrySettings]): Loadout, Game, the stock pages, Controls,
+## gs-menu's Escape menu ([HungrySettings]): Loadout, Game, the stock pages, Controls,
 ## Help & commands on H, and Leave.
 var menu: GSMenu = null
 ## The menu's Loadout page.

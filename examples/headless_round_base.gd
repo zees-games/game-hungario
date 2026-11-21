@@ -81,7 +81,7 @@ func _run_ticks(world: HungryWorld, count: int, commands: Dictionary = {}) -> vo
 
 
 ## Ticks until the round is actually live, which resets the world: arrange after it.
-## Needs a player first (dot-match waits in warmup); giving up is a failure, recorded without adding to the total.
+## Needs a player first (gs-match waits in warmup); giving up is a failure, recorded without adding to the total.
 func _settle(world: HungryWorld) -> void:
 	# A client's round state arrives from the authority; its own match never advances,
 	# and nothing it holds is reset by a transition it does not run.

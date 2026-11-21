@@ -9,18 +9,18 @@ const HungryWorld := preload("hungry_world.gd")
 
 ## Things standing in the arena that nobody placed by hand: rocks, spikes and lures.
 ##
-## [b]dot-props is here for its book-keeping, which is the dimension-free half.[/b] A
+## [b]gs-props is here for its book-keeping, which is the dimension-free half.[/b] A
 ## catalogue, a world budget, a spawn interval, an undo stack, ownership and a cleanup when
 ## an owner leaves — none of which is about a rigid body, and all of which this game would
 ## otherwise have written again.
 ##
 ## [b]Everything is frozen the moment it lands.[/b] Rigid-body simulation is not
-## reproducible across machines — dot-props says so and every game here that networks props
+## reproducible across machines — gs-props says so and every game here that networks props
 ## repeats it — so a hazard that drifted would be somewhere different on every client with
 ## nothing erroring. A frozen body is a fixed obstacle, and both ends derive its size from
 ## the same replicated position and the same catalogue radius.
 ##
-## [b]What a hazard does is this game's, not the addon's.[/b] dot-props knows how to put a
+## [b]What a hazard does is this game's, not the addon's.[/b] gs-props knows how to put a
 ## thing in the world and how much of it a player may have; whether a rock blocks a monster
 ## or a spike bursts one is [method resolve], which runs inside the world's tick where
 ## everything else that moves a piece runs.
@@ -31,7 +31,7 @@ static var HAZARD_SCENE := HungryPaths.rebase("res://game/hungry_hazard_body.tsc
 
 ## How often one owner may place something, in seconds.
 ##
-## [b]Zero, and that is a decision rather than a default.[/b] dot-props' interval exists
+## [b]Zero, and that is a decision rather than a default.[/b] gs-props' interval exists
 ## because a *player* can hold a spawn key; nothing here is placed by a player — the
 ## director, an admin command and a map's own layout are the only owners, and every one of
 ## them places a whole arena at once. What still matters is the per-owner budget and the
@@ -62,7 +62,7 @@ var _obstacles: PackedVector3Array = PackedVector3Array()
 ## What can stand in the arena.
 ##
 ## Three fields of `meta` are the whole of what a hazard is: `radius`, `colour` and
-## `effect` — and `effect` is the only one this game reads that dot-props does not.
+## `effect` — and `effect` is the only one this game reads that gs-props does not.
 static func catalogue() -> GSPropCatalogue:
 	var out := GSPropCatalogue.new()
 
@@ -243,7 +243,7 @@ func place(owner_id: int, hazard_id: StringName, at: Vector2) -> GSResult:
 		)
 
 	# Frozen through the physics gun's own call rather than by assigning `freeze`, because
-	# that is the one place in dot-props that also zeroes the velocities — and a body
+	# that is the one place in gs-props that also zeroes the velocities — and a body
 	# frozen with a velocity applies it the instant anything thaws it.
 	GSPhysGun.set_frozen(instance, true)
 

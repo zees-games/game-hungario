@@ -1,15 +1,15 @@
-extends "res://addons/dot_npc_ai/runtime/dot_npc_ai_brain.gd"
+extends "res://addons/gs_npc_ai/runtime/gs_npc_ai_brain.gd"
 
 ## What a hunter does: wander, chase what it can eat, run from what can eat it.
 ##
 ## [b]Extended by PATH, not by `class_name`, and that is not a style choice.[/b] A brain is
-## named by [member GSNpcDef.brain_script_path], and a script inside a mounted dot-cloud
+## named by [member GSNpcDef.brain_script_path], and a script inside a mounted gs-cloud
 ## pack cannot resolve a `class_name` — measured, and in game-dev/docs/bugs-found.md. A
 ## brain that named a class could therefore only ever ship inside a build. This game's
 ## hunters do ship inside its build; they are written the way a delivered one would have to
 ## be, because a path that stopped working would stop working here first.
 ##
-## [b]A state machine rather than a tree.[/b] dot-npc-ai ships both and says which is
+## [b]A state machine rather than a tree.[/b] gs-npc-ai ships both and says which is
 ## which: a tree is for an NPC whose decision is a priority list with reactive conditions,
 ## and a machine is for the many NPCs a tree is overkill for. A hunter has three states and
 ## the transitions between them are the whole design — WANDER when there is nobody,
@@ -117,7 +117,7 @@ func _chase(ctx: GSNpcAiContext) -> void:
 	# `steer_with_spacing` rather than `steer_toward`: twelve hunters converging on one
 	# player climb each other, and the one on top has a horizontal offset of nothing from
 	# the one below — so it chases perfectly at a dead stop with every number about it
-	# correct. dot-npc-ai found that and the separation is why this call exists.
+	# correct. gs-npc-ai found that and the separation is why this call exists.
 	steer_with_spacing(goal, speed, ctx.delta, 90.0)
 
 
@@ -187,7 +187,7 @@ func _target_mass() -> float:
 
 ## [HungryHunters], read on first use rather than in [method _build].
 ##
-## [b]It was read in `_build`, and `_build` runs before it is there.[/b] dot-npc attaches
+## [b]It was read in `_build`, and `_build` runs before it is there.[/b] gs-npc attaches
 ## the brain inside the spawn and emits `spawned` after it, and `spawned` is where
 ## [HungryHunters] puts itself in the NPC's `meta` — so every hunter ever spawned held a
 ## null here, never saw anybody as prey or predator (both need a mass, and the mass came

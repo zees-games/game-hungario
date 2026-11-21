@@ -12,11 +12,11 @@ const HungryClient := preload("../game/client/hungry_client.gd")
 ## godot --headless --path . -- --seconds 3        # exit on its own, for a sweep
 ## [/codeblock]
 ##
-## [b]This is the application, and the client is a scene it loads.[/b] dot-server's signon
+## [b]This is the application, and the client is a scene it loads.[/b] gs-server's signon
 ## refuses an absolute scene path a server names — a server that could name one could ask
 ## every client to load any scene in their build — so a game that ships inside its own
 ## build cannot be handed its client scene by the server. It loads its own, and this is
-## the file that does it. A game delivered through dot-cloud puts a relative path in
+## the file that does it. A game delivered through gs-cloud puts a relative path in
 ## [member GSGameDescriptor.client_scene] instead and never writes this.
 ##
 ## In a browser the address comes from the query string, so one export serves every
@@ -283,7 +283,7 @@ func _follow(playing: HungryClient) -> void:
 ## sweep stalls here and the scene is therefore opened by nothing. That is the state a
 ## load-time regression hides in — a renamed node or a moved resource breaks it and no
 ## suite in the repository notices. Bounding it is what makes it sweepable, the same
-## way dot-auth's issuer example is.
+## way gs-auth's issuer example is.
 ##
 ## Not a self-test: reaching the timeout only proves the scene loaded and ran frames.
 ## It exits 0 for exactly that claim and no larger one.

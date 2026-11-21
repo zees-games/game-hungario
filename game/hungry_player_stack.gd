@@ -24,7 +24,7 @@ var teams: GSTeamRoster = null
 var classes: GSPlayerClassManager = null
 var characters: GSPlayerCharCatalogue = null
 var spawns: GSSpawnDirector = null
-## Per-preset spawn edits (`cfg/game/game-hungario/dot_spawn/spawn/<preset>.yml`); the module hands
+## Per-preset spawn edits (`cfg/game/game-hungario/gs_spawn/spawn/<preset>.yml`); the module hands
 ## in the set its workbench shows, so an edit there and the grid here read the same object.
 var spawn_overrides: GSProfileSet = null
 
@@ -77,7 +77,7 @@ func _build_physics() -> GSResult:
 	physics = GSPhysicsWorld.new()
 	physics.name = "Physics"
 
-	# The project's own numbers with only the tick rate changed: this game does not use Godot's physics for anything that matters (dot-2d integrates over a spatial hash, the field is arithmetic).
+	# The project's own numbers with only the tick rate changed: this game does not use Godot's physics for anything that matters (gs-2d integrates over a spatial hash, the field is arithmetic).
 	physics.profile = GSPhysicsProfile.from_project()
 	physics.profile.tick_rate = world.tick_rate
 
@@ -138,7 +138,7 @@ func _build_teams() -> void:
 
 
 func _build_characters() -> void:
-	# In pixels, not metres: dot-player-char's metrics are unit-agnostic, and a monster's "height" is a radius on a screen.
+	# In pixels, not metres: gs-player-char's metrics are unit-agnostic, and a monster's "height" is a radius on a screen.
 	characters = GSPlayerCharCatalogue.sprite_2d(HungryContent.CELL_SIZE)
 	var res := characters.build()
 
@@ -204,14 +204,14 @@ func _build_spawns() -> void:
 	spawns.register_service = false
 	spawns.rules = GSSpawnRules.deathmatch()
 	spawns.rules.seed_value = 0x4E55
-	# Free-for-all: draw across the whole grid (dot-spawn's scatter), not the safest cell every time.
+	# Free-for-all: draw across the whole grid (gs-spawn's scatter), not the safest cell every time.
 	spawns.rules.strategy = "scatter,map"
 	# [b]Distance from EVERY other monster, because in hungario everybody is dangerous
 	# to somebody.[/b] There are no sides, so the enemy list is the whole field — which
 	# is the honest answer here and is why the selector is asked for distance at all.
 	spawns.enemies_fn = _other_positions
 	# The rule `_safe_spawn` applied by hand: what kills a new monster is somebody near and bigger, a mass ratio the scoring cannot express,
-	# so it is a veto rather than a penalty, as dot-spawn's docs say a distance that is death should be.
+	# so it is a veto rather than a penalty, as gs-spawn's docs say a distance that is death should be.
 	var safety := SiteIsNotDeadly.new()
 	safety.danger_fn = _bigger_monster_near
 	spawns.conditions = [safety]
@@ -366,7 +366,7 @@ func character() -> GSPlayerCharDef:
 
 
 
-## The dot-spectate team number for [param key], derived from the side they are on.
+## The gs-spectate team number for [param key], derived from the side they are on.
 func team_index_of(key: String) -> int:
 	if teams == null:
 		return 0

@@ -2,7 +2,7 @@ extends GS2DGrid
 
 const HungryField := preload("hungry_field.gd")
 
-## The world's [GS2DGrid], with dot-sim's `GSSimGrid2D` kept beside it for the bots.
+## The world's [GS2DGrid], with gs-sim's `GSSimGrid2D` kept beside it for the bots.
 ##
 ## [b]Only built where the library has the `grid2d` module[/b] ([method HungryWorld._build_arena]);
 ## everywhere else the world keeps a plain [GS2DGrid] and nothing here runs. The native copy
@@ -30,7 +30,7 @@ var worth_of: Callable = Callable()
 
 ## The native copy, null until a bot asks for it (or when it could not be made).
 var _native: Variant = null
-## Whether the native copy also judges the pieces it sees (`forage_judged`, dot-sim after 0.2.7);
+## Whether the native copy also judges the pieces it sees (`forage_judged`, gs-sim after 0.2.7);
 ## an older library forages and the script judges.
 var judges := false
 

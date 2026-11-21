@@ -64,8 +64,8 @@ func drop_projectile(shot_id: int) -> void:
 	_shots.erase(shot_id)
 
 
-## With dot-sim's grid2d the bots' neighbour loop runs natively over a copy of the arena's grid
-## (HungryGrid, made on the first bot ask); without it, dot-2d's own grid.
+## With gs-sim's grid2d the bots' neighbour loop runs natively over a copy of the arena's grid
+## (HungryGrid, made on the first bot ask); without it, gs-2d's own grid.
 func _use_native_grid() -> void:
 	if not GSSim.has(&"grid2d"):
 		return

@@ -1,6 +1,6 @@
 extends GSGameVisualQaCapture
 
-## Hungario's visual QA capture (the loop is dot-game's docs/visual-qa.md). Hungario is a 2D game, so the three views are
+## Hungario's visual QA capture (the loop is gs-game's docs/visual-qa.md). Hungario is a 2D game, so the three views are
 ## three 2D cameras over the real renderer, not a person with a first-person camera and two outside ones. Every frame of
 ## every clip is saved at --fps in three views (the file prefixes are the harness's):
 ##   f  the player's own view: the game's real camera (HungryCamera, zoom following the monster's size), the window.

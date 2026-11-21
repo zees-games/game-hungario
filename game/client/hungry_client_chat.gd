@@ -22,13 +22,13 @@ func _wire_chat_window() -> void:
 			voice.release()
 	)
 
-	var client_link := GSRegistry.get_service(&"dot_client_link")
+	var client_link := GSRegistry.get_service(&"gs_client_link")
 
 	if client_link != null and client_link.has_signal("chat_received"):
 		client_link.connect("chat_received", _on_server_chat_state)
 
 
-## dot-server's chat payload: what is carrying the conversation, and the server's own lines.
+## gs-server's chat payload: what is carrying the conversation, and the server's own lines.
 func _on_server_chat_state(payload: Dictionary) -> void:
 	var kind := str(payload.get("kind", ""))
 

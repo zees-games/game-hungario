@@ -113,7 +113,7 @@ func _game_load() -> GSResult:
 
 	return GSResult.success(null)
 
-## Bridge and chat signals, mod tools, and the pre-hook that keeps dot-chat's rules authoritative.
+## Bridge and chat signals, mod tools, and the pre-hook that keeps gs-chat's rules authoritative.
 func _wire_services() -> void:
 	hbridge.peer_admitted.connect(_on_peer_admitted)
 	hbridge.say_requested.connect(_on_say_requested)
@@ -124,11 +124,11 @@ func _wire_services() -> void:
 	hservices.chat.message_accepted.connect(_on_chat_accepted)
 	_build_mod_tools()
 
-	# dot-server's own chat is cancelled in a pre-hook: dot-chat has the rules, and two paths
+	# gs-server's own chat is cancelled in a pre-hook: gs-chat has the rules, and two paths
 	# would let the one that skipped the filter leak admin chat.
 	hook_pre("player_chat", _on_player_chat)
 
-	# dot-chat makes the join and leave notices now.
+	# gs-chat makes the join and leave notices now.
 	if server.chat != null:
 		server.chat.announce_joins = false
 
@@ -295,7 +295,7 @@ func _build_mod_tools() -> void:
 	mod_commands.items_fn = func() -> PackedStringArray:
 		return HungryModTools.item_ids(world_fn)
 
-## A spawn is a new body, and dot-moderation has to be told: it switches noclip and freeze
+## A spawn is a new body, and gs-moderation has to be told: it switches noclip and freeze
 ## off through the handlers and keeps what persists (god, buddha, and here blind and beacon,
 ## which it re-applies through the same handlers). Without this an admin's
 ## noclip would ride a monster through its death into the next life — the bits live on
@@ -323,7 +323,7 @@ func _build_combat() -> GSResult:
 	if not ready.ok:
 		return ready.wrap("The combat rules could not be set up")
 
-	# The world asks and dot-combat answers. Unset — which is what every deployment
+	# The world asks and gs-combat answers. Unset — which is what every deployment
 	# without this addon has — leaves the constants this game has always used.
 	world.damage_gate = combat.gate
 

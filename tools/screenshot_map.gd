@@ -151,7 +151,7 @@ func _plan_shots(wanted: StringName, tag: String, preset: HungryPreset, fx: bool
 	# are all in one picture; the blind frame is this player's own screen, blacked out
 	# under the HUD, which is the one frame where "the blind covers the viewport" means
 	# anything at all — a headless viewport is 64 x 64.
-	# Both of dot-fx's effects, through the real presentation layer: a burst beside the
+	# Both of gs-fx's effects, through the real presentation layer: a burst beside the
 	# player and a few mouthfuls round it. See [method _fx].
 	# Before the grown frame, which feeds the player and does not give it back: a pop is
 	# sized for a starting monster's mouthful.
@@ -252,7 +252,7 @@ func _boot() -> void:
 	_world.start(0)
 
 	# A player in it, THEN live, then put where the frame wants them. A world that has not
-	# reached LIVE throws the arrangement away at the transition — and dot-match stays in
+	# reached LIVE throws the arrangement away at the transition — and gs-match stays in
 	# warmup until somebody has joined, so the loop that used to run first, with nobody in
 	# the world, ran out its five seconds still in warmup; the tick after the player was
 	# added was the reset, and it respawned them at a safe spawn. Every `--at` and every
@@ -294,7 +294,7 @@ func _boot() -> void:
 	_hud.visible = false
 
 	if _touch:
-		# The real dot-menu in touch mode: only a frame says whether its Menu button shares a corner.
+		# The real gs-menu in touch mode: only a frame says whether its Menu button shares a corner.
 		var menu := GSMenu.new()
 		menu.name = "GameMenu"
 		var settings := HungrySettings.new()
@@ -604,7 +604,7 @@ func _beacon_two() -> void:
 
 
 ## Five more monsters and an open mode ballot over the HUD: see the `ballot` frame in
-## [method _initialize]. The state is the shape dot-vote's ballot view sends, written out,
+## [method _initialize]. The state is the shape gs-vote's ballot view sends, written out,
 ## because a real one needs a server's director and this frame is about the layout.
 func _ballot() -> void:
 	for id in range(2, 7):

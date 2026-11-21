@@ -2,7 +2,7 @@ extends Node
 
 const HungryContentSource := preload("../game/client/hungry_content_source.gd")
 
-## Packages this game's avatar parts into a signed dot-cloud pack.
+## Packages this game's avatar parts into a signed gs-cloud pack.
 ##
 ## [codeblock]
 ## godot --headless --path . res://tools/publish_avatars.tscn
@@ -76,7 +76,7 @@ func _run() -> void:
 	print("  signed           %s" % ("yes" if bool(result.get("signed", false)) else "NO"))
 	print("  manifest         %s" % str(result.get("manifest_path", "")))
 	print("")
-	print("  mounts at        res://dot_cloud/%s/%s/" % [
+	print("  mounts at        res://gs_cloud/%s/%s/" % [
 		HungryContentSource.PACK_ID, version
 	])
 	print("")

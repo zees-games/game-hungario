@@ -7,32 +7,32 @@ const HungryContent := preload("../hungry_content.gd")
 ## Where an avatar part's scene comes from: the cloud if there is one, the build if not.
 ##
 ## [b]This is the seam [GSAvatarCatalogue.resolver] exists for.[/b] The catalogue's two
-## built-in answers are "a path under a fixed prefix" and "ask dot-cloud", and this game is
+## built-in answers are "a path under a fixed prefix" and "ask gs-cloud", and this game is
 ## neither: it ships its cosmetics inside its own build [i]and[/i] can be handed a signed
 ## pack of better ones at runtime, and the mounted pack has to win when it is there.
 ##
 ## The order is deliberate:
 ##
 ## [codeblock]
-## 1. a mounted dot-cloud pack   <- signed, hash-verified, versioned
+## 1. a mounted gs-cloud pack   <- signed, hash-verified, versioned
 ## 2. res://content/avatars/     <- what shipped in the build
 ## 3. ""                         <- drawn by HungryRider instead
 ## [/codeblock]
 ##
-## [b]Nothing here imports dot-cloud.[/b] The client is found through [GSRegistry] and
+## [b]Nothing here imports gs-cloud.[/b] The client is found through [GSRegistry] and
 ## duck-typed, so a build without the addon takes step 2 and never notices — which is what
 ## a LAN server, a test and the browser export all do today.
 ##
 ## [b]A part is never resolved to a path a server chose.[/b] The pack's mount prefix comes
-## from the manifest dot-cloud has already verified, and the file name comes from the part
+## from the manifest gs-cloud has already verified, and the file name comes from the part
 ## id, which the avatar schema bounds to base64url characters. A server cannot make this
 ## return an arbitrary path; that is why the id is checked and the content id is not
 ## interpolated.
 
 const CHANNEL := "hungry.content"
 
-## Registry name dot-cloud publishes itself under.
-const CLOUD_SERVICE := &"dot_cloud_client"
+## Registry name gs-cloud publishes itself under.
+const CLOUD_SERVICE := &"gs_cloud_client"
 
 ## The content this game's cosmetics live in.
 const PACK_ID := "hungry_avatars"
@@ -88,7 +88,7 @@ func _cloud_client() -> Object:
 	_cloud = GSRegistry.get_service(CLOUD_SERVICE)
 
 	if _cloud != null:
-		GSLog.debug(CHANNEL, "avatar parts will be resolved through dot-cloud")
+		GSLog.debug(CHANNEL, "avatar parts will be resolved through gs-cloud")
 
 	return _cloud
 
@@ -163,7 +163,7 @@ static var SOURCE_DIR := HungryPaths.rebase("res://content/avatars")
 ## [b]The pack is data. The code that draws it ships in the build.[/b] `part.gd` is
 ## excluded, and that is a constraint rather than a preference: a `.tscn` references its
 ## script by an [i]absolute[/i] `res://` path, and a pack's own path contains its version
-## — `res://dot_cloud/hungry_avatars/1.0.0/`. A scene inside the pack therefore cannot
+## — `res://gs_cloud/hungry_avatars/1.0.0/`. A scene inside the pack therefore cannot
 ## name a script inside the same pack without being re-authored per version. So the parts
 ## are scenes with exported properties and the drawing lives in the game, which also means
 ## a pack published against a newer game degrades rather than breaks: an unknown

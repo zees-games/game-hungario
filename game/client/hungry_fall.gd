@@ -1,10 +1,10 @@
 extends Node2D
 
 ## One eaten monster going down, in 2D: the last piece and its rider doing what the server's
-## death reaction says (dot-player-char's [GSPlayerDeath] and [GSPlayerDeathReaction]),
+## death reaction says (gs-player-char's [GSPlayerDeath] and [GSPlayerDeathReaction]),
 ## drawn the way the renderer draws a living piece. Built by [HungryFalls]; client only.
 ##
-## [b]The 3D ragdoll does not apply, and its rule does.[/b] dot-player-char's bodies are rigid
+## [b]The 3D ragdoll does not apply, and its rule does.[/b] gs-player-char's bodies are rigid
 ## bodies under gravity, and this arena is seen from above with nothing to fall onto. What
 ## carries over is everything a viewer reads: which reaction (the server's pick, the same
 ## ids), which way (the push), how hard (the damage), the sounds and when they play, and that
@@ -92,7 +92,7 @@ func start(rules: GSPlayerRagdollRules) -> void:
 	radius = maxf(radius, MIN_RADIUS)
 	position = Vector2.ZERO
 
-	# The push, on the plane: a 2D world is dot-npc's XZ plane, so x is x and z is y. No
+	# The push, on the plane: a 2D world is gs-npc's XZ plane, so x is x and z is y. No
 	# direction (a hunter's bite) is a direction from the seed, so it is still everybody's.
 	var flat := Vector2(death.direction.x, death.direction.z) if death != null else Vector2.ZERO
 	_dir = flat.normalized() if flat.length_squared() > 0.0001 else Vector2.RIGHT.rotated(_rng.randf() * TAU)
@@ -300,7 +300,7 @@ func _draw() -> void:
 	var body := Color(colour.r, colour.g, colour.b, colour.a * a)
 	var rim := colour.darkened(0.45)
 	rim.a *= a
-	# The fade closes in on one point, as dot-player-char's does: the parts together.
+	# The fade closes in on one point, as gs-player-char's does: the parts together.
 	var closing := lerpf(1.0, 0.35, 1.0 - a) if expiring else 1.0
 
 	if style == GSPlayerRagdollRules.Style.TOPPLE:

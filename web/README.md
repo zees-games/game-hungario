@@ -1,12 +1,12 @@
 # Playing it in a browser
 
-The whole reason this game is 2D and this small: **a link is the lowest-friction way to get somebody into a game**, and everything in the dot-* family that is awkward is awkward because of the browser.
+The whole reason this game is 2D and this small: **a link is the lowest-friction way to get somebody into a game**, and everything in the gs-* family that is awkward is awkward because of the browser.
 
 This directory is what stands between "the headless suites pass" and "a stranger clicks a link and is playing".
 
 ## What the browser costs you
 
-Every one of these is already encoded somewhere in dot-core; they are collected here because they are what a deployment has to answer for.
+Every one of these is already encoded somewhere in gs-core; they are collected here because they are what a deployment has to answer for.
 
 | Constraint | What it means here |
 | --- | --- |
@@ -16,12 +16,12 @@ Every one of these is already encoded somewhere in dot-core; they are collected 
 | **`user://` is an IndexedDB mirror** needing explicit flushes | Every write path calls `GSWeb.sync_filesystem()`. Settings and key bindings go through `GSPaths`, which does it |
 | **Storage quota the user can refuse** | Nothing here caches anything large. The field is a seed, not a download |
 | **CORS, with `fetch()` refusing to say why it failed** | Serve the export and its assets from one origin, or set the headers below exactly |
-| **A mounted resource pack can never be unmounted** | dot-cloud namespaces content by `id/version`. The rider pack uses it: `res://dot_cloud/hungry_avatars/1.0.0/`, and a second version cannot shadow the first. The game itself still ships in the build |
+| **A mounted resource pack can never be unmounted** | gs-cloud namespaces content by `id/version`. The rider pack uses it: `res://gs_cloud/hungry_avatars/1.0.0/`, and a second version cannot shadow the first. The game itself still ships in the build |
 | **An HTTPS page may not open a `ws://` socket** | `embed.html` checks for it and says so, because the browser's own error does not mention mixed content |
 
 ## Delivery
 
-A player reaches this game through the client shell (`dot-server-deploy`) in a browser, which fetches the signed `game-hungario` dot-cloud pack from the CDN and mounts it; nothing is exported by hand for them. Publish with `dot-cloud/tools/publish_pack.sh --host-addons <addons.lock> --id game-hungario --version <next>`.
+A player reaches this game through the client shell (`gs-server-deploy`) in a browser, which fetches the signed `game-hungario` gs-cloud pack from the CDN and mounts it; nothing is exported by hand for them. Publish with `gs-cloud/tools/publish_pack.sh --host-addons <addons.lock> --id game-hungario --version <next>`.
 
 `embed.html` and a hand export remain for running the game standalone behind your own origin. Export the "Web" preset to `web/build/index.html` with Godot's `--export-release`. The preset is not committed (`export_presets.cfg` carries absolute paths). Use `res://examples/play.tscn` as the main scene, Compatibility as the renderer, and leave Extensions and Thread Support off (`GSPlatform.has_threads()` is the check the family makes). Drop `embed.html` beside the exported `index.js`, `index.wasm` and `index.pck`; it takes the server from `?server=wss://host:port`.
 
@@ -53,7 +53,7 @@ godot --headless --path . res://examples/dedicated.tscn -- --serve
 
 That listens on **WebSocket**, which is what a browser can reach. Put a TLS terminator in front of it and give the page `?server=wss://your-host:27081`; a page on HTTPS cannot reach `ws://` and browsers report that as a generic failure.
 
-`dotserve` from [dot-serve](https://github.com/gamespice-platform/serve) does the same thing with a `server.cfg`, a refusal to run on a guessable RCON password, and an address you can paste to a friend.
+`gsserve` from [gs-serve](https://github.com/gamespice-platform/serve) does the same thing with a `server.cfg`, a refusal to run on a guessable RCON password, and an address you can paste to a friend.
 
 ## Phones
 

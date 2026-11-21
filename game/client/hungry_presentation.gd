@@ -28,7 +28,7 @@ const CHAT_MARGIN_BOTTOM := 84.0
 ## [member menu_settings]' manager.
 var settings: GSSettingsManager = null
 
-## dot-menu's settings node: the document, what applies the stock keys, and the Escape menu
+## gs-menu's settings node: the document, what applies the stock keys, and the Escape menu
 ## (with help on H, the Controls page, Leave and net_stat). It is [member platform]'s, so the
 ## store and the migration's files are chosen on the node handed to the platform.
 var menu_settings: HungrySettings = null
@@ -39,12 +39,12 @@ var menu_settings: HungrySettings = null
 var platform: GSGameClient = null
 var audio: GSAudioManager = null
 
-## The arena's ambience bed: dot-audio's stock (generated, CC0; the addon's stock/CREDITS.md),
-## through a second manager on dot-audio's own Godot sink, because [HungrySoundSink] plays
+## The arena's ambience bed: gs-audio's stock (generated, CC0; the addon's stock/CREDITS.md),
+## through a second manager on gs-audio's own Godot sink, because [HungrySoundSink] plays
 ## this game's generated cues and nothing with a file. Nobody walks here, so no footsteps.
 var bed_audio: GSAudioManager = null
 var ambience: GSAudioAmbience = null
-## Quiet moods under the arena (dot-audio's stock set); the old bed plays only when none loaded.
+## Quiet moods under the arena (gs-audio's stock set); the old bed plays only when none loaded.
 var ambient: GSAmbienceDirector = null
 
 ## The bed under every mode: a wet, low room with something dripping, which is what a dish
@@ -55,7 +55,7 @@ var fx: GSFxManager = null
 var console: GSConsoleController = null
 var console_panel: GSConsolePanel = null
 
-## This client's own commands in the console, where the offline client adds dot-bot's
+## This client's own commands in the console, where the offline client adds gs-bot's
 ## `bot_difficulty` and `bot_*` variables.
 var local_console: GSConsoleLocal = null
 
@@ -107,7 +107,7 @@ func setup() -> GSResult:
 
 
 ## Pushes every current setting at whatever reads it: this game's keys here, the stock ones
-## through dot-menu's applier.
+## through gs-menu's applier.
 func apply_all() -> void:
 	for key in settings.schema.keys():
 		_on_setting_changed(key, settings.get_value(key), &"applied")
@@ -153,8 +153,8 @@ func _on_setting_changed(key: StringName, value: Variant, _why: StringName) -> v
 		else:
 			config.set(key, value)
 
-	# The keys (chat among them) are dot-menu's applier's, from the table; the volumes and
-	# the comfort settings too. The chat box's switch is left to the game (dot-menu's
+	# The keys (chat among them) are gs-menu's applier's, from the table; the volumes and
+	# the comfort settings too. The chat box's switch is left to the game (gs-menu's
 	# `LEFT_TO_THE_GAME`).
 	if key == &"chat_window":
 		_apply_chat_visibility()
@@ -236,7 +236,7 @@ static func _add_cue_sounds(c: GSAudioCatalogue) -> void:
 		cue.priority = 70
 		c.add(cue)
 
-	# An administrator's beacon: a ping once a second from the beaconed monster, positional so dot-audio's distance cull decides who hears it.
+	# An administrator's beacon: a ping once a second from the beaconed monster, positional so gs-audio's distance cull decides who hears it.
 	# Further than a fruit, because its job is to be found; under the three that change everything and under the vote.
 	var ping := GSAudioDef.new()
 	ping.id = BEACON_SOUND
@@ -248,7 +248,7 @@ static func _add_cue_sounds(c: GSAudioCatalogue) -> void:
 	ping.max_distance = 3200.0
 	c.add(ping)
 
-	# An eaten monster going down ([HungryFall]): dot-player-char's four sound ids, made by
+	# An eaten monster going down ([HungryFall]): gs-player-char's four sound ids, made by
 	# this game's bank like everything else. Placed, and no further than a fruit: a death on
 	# the other side of the arena is not yours. Under the three that change everything.
 	for id: StringName in [GSPlayerDeathReactions.SOUND_THUD, GSPlayerDeathReactions.SOUND_FACE_PLANT,
@@ -269,15 +269,15 @@ func _build_audio() -> GSResult:
 	audio = GSAudioManager.new()
 	audio.name = "Audio"
 	audio.catalogue = sound_catalogue()
-	# The volumes are the stock audio page's, set on this mixer by dot-menu's applier
+	# The volumes are the stock audio page's, set on this mixer by gs-menu's applier
 	# ([method HungrySettings.bind_audio]) in linear amplitude.
 	audio.mixer = GSAudioMixer.new()
 	audio.voices = HungrySound.VOICES
 	audio.apply_mixer_to_buses = false
-	# Measured toward the family's -17 LUFS (dot-audio docs/loudness.md) with tools/loudness_pilot.gd at this game's master default (0.4, Master -8 dB): three 40 s runs read -17.6, -17.1 and -17.6.
+	# Measured toward the family's -17 LUFS (gs-audio docs/loudness.md) with tools/loudness_pilot.gd at this game's master default (0.4, Master -8 dB): three 40 s runs read -17.6, -17.1 and -17.6.
 	# Large because the bank is baked at -8 dB under that master.
 	audio.loudness_trim_db = 19.0
-	# The seam. Everything above it is dot-audio's; the last four lines are this game's.
+	# The seam. Everything above it is gs-audio's; the last four lines are this game's.
 	audio.sink = HungrySoundSink.new(sound)
 	add_child(audio)
 
@@ -457,7 +457,7 @@ func _apply_chat_visibility() -> void:
 			chat_window.enabled = not _chat_relayed
 
 
-## dot-console's kit, built by the platform, plus this game's `quit` and `audio`, ahead of the server's console so a listen server's own `quit` is not the one that answers.
+## gs-console's kit, built by the platform, plus this game's `quit` and `audio`, ahead of the server's console so a listen server's own `quit` is not the one that answers.
 ## The panel is one of the Escape menu's overlays; the platform blocks the input while it is open.
 func _build_console() -> GSResult:
 	console = platform.console as GSConsoleController
@@ -512,7 +512,7 @@ func camera_shake() -> Vector2:
 
 
 func on_food_eaten(at: Vector2, tier: int) -> void:
-	# The pitch comes from the food's size (bigger is lower), passed to dot-audio as the caller's pitch so the manager's caps still apply.
+	# The pitch comes from the food's size (bigger is lower), passed to gs-audio as the caller's pitch so the manager's caps still apply.
 	audio.play_at_2d(&"eat", at, 1.0, HungrySound.food_pitch(tier))
 	fx.spawn_2d(&"eat_pop", at)
 
@@ -566,7 +566,7 @@ func on_died() -> void:
 
 
 ## A mode-vote cue from the server. Empty is silence, and an id this catalogue does not
-## have is dot-audio's silent refusal: a server with a sound set this client was not built
+## have is gs-audio's silent refusal: a server with a sound set this client was not built
 ## with should cost a noise, not a log line per second.
 func on_vote_cue(id: StringName) -> int:
 	if id == &"" or audio == null:
@@ -577,7 +577,7 @@ func on_vote_cue(id: StringName) -> int:
 
 ## A beacon's ripple went out from [param at]. `HungryRenderer.beacon_pulsed`, on every
 ## client, for every beaconed monster — the beaconed player's own included, who hears
-## their own. Returns dot-audio's handle, 0 when it was refused or culled.
+## their own. Returns gs-audio's handle, 0 when it was refused or culled.
 func on_beacon(at: Vector2) -> int:
 	if audio == null:
 		return 0

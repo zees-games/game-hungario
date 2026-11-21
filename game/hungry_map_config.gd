@@ -1,8 +1,8 @@
 extends RefCounted
 
-## Hungry's per-map settings: dot-game's [GSGameMapConfig] over the rule cvars a map may change.
+## Hungry's per-map settings: gs-game's [GSGameMapConfig] over the rule cvars a map may change.
 ##
-## The map id is the mode's preset id (`frenzy`, `warrens`). Files: `cfg/game/game-hungario/dot_map/map/<name>.yml` (a glob covers a class of maps), overridable from `cfg/server/...`. Only [constant KEYS] are accepted; this game has no imported BSP maps, so no starter files ship. A value under a key's `min` is refused (key and value in the warning), never clamped; the only `max` is `hungry_hunters_on` 0/1, a switch.
+## The map id is the mode's preset id (`frenzy`, `warrens`). Files: `cfg/game/game-hungario/gs_map/map/<name>.yml` (a glob covers a class of maps), overridable from `cfg/server/...`. Only [constant KEYS] are accepted; this game has no imported BSP maps, so no starter files ship. A value under a key's `min` is refused (key and value in the warning), never clamped; the only `max` is `hungry_hunters_on` 0/1, a switch.
 
 const GAME_ID := "game-hungario"
 

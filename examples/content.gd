@@ -70,7 +70,7 @@ func _run() -> void:
 ## [b]A check count is not coverage.[/b] A runtime error inside a section aborts that
 ## function and nothing says so: the checks that already ran still print ok, the ones
 ## after it never happen, and the total at the bottom cannot reveal a check that never
-## ran. dot-net's demo carries the same pair, reached from the other direction — there it
+## ran. gs-net's demo carries the same pair, reached from the other direction — there it
 ## was a suspending section called without `await`.
 var _entered := 0
 var _completed := 0
@@ -161,7 +161,7 @@ func _test_publish() -> bool:
 		"naming the pack this game looks for (%s)" % _manifest.content_id
 	)
 	_check(
-		_manifest.mount_prefix().trim_suffix("/") == "res://dot_cloud/%s/%s" % [
+		_manifest.mount_prefix().trim_suffix("/") == "res://gs_cloud/%s/%s" % [
 			HungryContentSource.PACK_ID, VERSION
 		],
 		"and mounting where the version puts it (%s)" % _manifest.mount_prefix()
@@ -208,7 +208,7 @@ func _test_signature() -> void:
 			"and so is a valid signature from the wrong key"
 		)
 
-	# The signature is over the bytes as received, never a re-serialisation. dot-cloud
+	# The signature is over the bytes as received, never a re-serialisation. gs-cloud
 	# signed a canonical re-serialisation once and wrote a pretty-printed file, so every
 	# signature it produced failed to verify.
 	_check(
@@ -236,7 +236,7 @@ func _test_acquire() -> bool:
 	# Empty, or start() layers a stale file over the settings above.
 	_client.config_file = ""
 	# On disk rather than over HTTP: what is being tested is the pack, not the transport,
-	# and dot-cloud's own suite covers HTTP and the in-band channel.
+	# and gs-cloud's own suite covers HTTP and the in-band channel.
 	_client.local_search_dirs = PackedStringArray([_publish_dir()])
 	_client.allow_netchan_fallback = false
 	add_child(_client)
@@ -354,7 +354,7 @@ func _test_resolution() -> void:
 	# so one cannot contain a separator, but this builds a path out of it and the check is
 	# where the path is built.
 	var hostile := GSAvatarPart.make(&"x", &"body", true)
-	hostile.id = StringName("../../../addons/dot_core/dot_core_plugin")
+	hostile.id = StringName("../../../addons/gs_core/gs_core_plugin")
 	_check(
 		source.resolve_part(hostile) == "",
 		"and a part id that is a path is refused"
@@ -494,7 +494,7 @@ func _test_refusals() -> void:
 	var escaped := GSCloudManifest.new()
 	escaped.content_id = HungryContentSource.PACK_ID
 	escaped.version = "../.."
-	escaped.mount_root = "dot_cloud"
+	escaped.mount_root = "gs_cloud"
 
 	_check(
 		not escaped.validate().ok,

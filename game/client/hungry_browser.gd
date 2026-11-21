@@ -4,14 +4,14 @@ const HungryModule := preload("../hungry_module.gd")
 
 ## The server list: what a person sees before they are in a game.
 ##
-## [b]dot-browser is the client half of dot-server's queries, and this is the screen over
+## [b]gs-browser is the client half of gs-server's queries, and this is the screen over
 ## it.[/b] The addon does the asking — DQP over UDP on a desktop, DQP as JSON over a
 ## WebSocket in a browser, and A2S for the twenty years of tooling that speaks nothing else
 ## — behind a list model with sources, filters, sorting, favourites and history. Nothing
 ## here re-implements any of that; what this decides is which sources this game has and
 ## what a row looks like.
 ##
-## [b]Filtering is local and always will be.[/b] dot-browser is explicit that a filter is
+## [b]Filtering is local and always will be.[/b] gs-browser is explicit that a filter is
 ## applied on the client rather than sent to the server, because a server that decided
 ## which of its own properties to report is a server that reports whatever gets it listed.
 ##
@@ -24,7 +24,7 @@ const HungryModule := preload("../hungry_module.gd")
 ##
 ## [b]The mode filter is the one thing here that is this game's.[/b] `hungry_gauntlet` and
 ## `hungry_classic` are different games in the way that matters to somebody choosing a
-## server, and dot-server reports the running game id in a query — so a person who only
+## server, and gs-server reports the running game id in a query — so a person who only
 ## wants the corridor can have only the corridor, without a server having to be asked.
 
 const CHANNEL := "hungry.browser"
@@ -66,7 +66,7 @@ func _ready() -> void:
 	# a rectangle follows its parent and change nothing until something resizes it, so a
 	# Control built in code keeps the zero size it was created with — and every child then
 	# lays out inside nothing while being, by every property, correctly configured. This
-	# family has shipped that twice and dot-ui had five of them.
+	# family has shipped that twice and gs-ui had five of them.
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_build()
 	_start()

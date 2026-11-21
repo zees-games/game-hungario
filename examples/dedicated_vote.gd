@@ -124,7 +124,7 @@ class CommandHost extends Node:
 		return null
 
 
-## `cfg/maps.yml`: which modes rotate. The format is dot-map's selftest's; this is what the
+## `cfg/maps.yml`: which modes rotate. The format is gs-map's selftest's; this is what the
 ## GAME does with it: a mode left out is installed and loadable and is never drawn, never on a
 ## ballot, never nominated; a switch of rotation takes effect; a renamed command answers.
 func _test_rotation_file() -> void:
@@ -230,7 +230,7 @@ func _test_rotation_file_switch(maps: Variant, ids: Array[StringName], keep_b: A
 	maps.apply_rotation()
 
 
-## Somebody leaves while somebody else stays. dot-net builds the stayer's snapshot from every
+## Somebody leaves while somebody else stays. gs-net builds the stayer's snapshot from every
 ## remaining entity and writes each int var through `int(value)`, a SCRIPT ERROR on a null while
 ## the suite stays green; so every var of every remaining entity is read as the snapshot does.
 func _test_disconnect() -> void:
@@ -298,7 +298,7 @@ func _test_vote() -> void:
 	_check(
 		maps.director != null and maps.director.source != null
 			and maps.director.source.is_usable(),
-		"and a vote source over dot-server's own games",
+		"and a vote source over gs-server's own games",
 		"what a vote applies has to be the thing that actually changes the game"
 	)
 
@@ -374,7 +374,7 @@ func _test_vote_menu(maps: HungryMaps, modes: int) -> void:
 
 func _test_vote_rock(maps: HungryMaps) -> void:
 	# Rocking the vote with one player, before `rtv_delay_sec` allows it, is refused; the refusal
-	# arriving is the check, since dot-vote once refused it for ever.
+	# arriving is the check, since gs-vote once refused it for ever.
 	var rocked := maps.director.rock_the_vote(&"1")
 	_check(
 		rocked != null,
@@ -396,7 +396,7 @@ func _test_vote_rock(maps: HungryMaps) -> void:
 		"the vote's clock is advanced once a tick, by the module, and not also by itself"
 	)
 
-	# dot-vote's commands. None existed: a chat `!rtv` reached a console with no `rtv`.
+	# gs-vote's commands. None existed: a chat `!rtv` reached a console with no `rtv`.
 	var absent := PackedStringArray()
 	for name in [
 		"rtv", "unrtv", "nominate", "vote", "timeleft", "nextmap",
@@ -404,7 +404,7 @@ func _test_vote_rock(maps: HungryMaps) -> void:
 	]:
 		if _server.console.find_command(name) == null:
 			absent.append(name)
-	_check(absent.is_empty(), "dot-vote's commands are on the console", ", ".join(absent))
+	_check(absent.is_empty(), "gs-vote's commands are on the console", ", ".join(absent))
 
 	# The cues and the countdown leave the vote for the wire. The ids are the wire's own,
 	# and nothing on the server had any to send before.
@@ -442,7 +442,7 @@ func _test_vote_score(maps: HungryMaps, rules: GSVoteRules) -> void:
 	rules.score_limit = top + 3
 	rules.vote_lead_score = 3
 	rules.min_players_to_vote = 0
-	# The guard (an automatic ballot needs two voters) is dot-vote's; this check is about the score.
+	# The guard (an automatic ballot needs two voters) is gs-vote's; this check is about the score.
 	rules.allow_single_voter_auto = true
 	maps.director.begin(maps.director.current_id())
 	maps.advance(0.0)
@@ -464,7 +464,7 @@ func _test_vote_score(maps: HungryMaps, rules: GSVoteRules) -> void:
 	_module().world.match_node.round_ended.emit(99, 0, GSMatchRules.Outcome.SCORE)
 	_check(
 		maps.director.clock.rounds_played == played + 1,
-		"and dot-match's round end reaches the director (%d -> %d)"
+		"and gs-match's round end reaches the director (%d -> %d)"
 			% [played, maps.director.clock.rounds_played]
 	)
 
@@ -532,7 +532,7 @@ func _test_finish_round_waits_for_a_live_round() -> void:
 
 
 ## A director under `time_up: finish_round` carrying [param hook], its clock run out with a
-## winner already decided: what dot-vote's own suite builds, with the game's answer in it.
+## winner already decided: what gs-vote's own suite builds, with the game's answer in it.
 func _finish_round_probe(hook: Callable, applied: Array) -> GSVoteDirector:
 	var source := GSVoteListSource.new()
 	var _a := source.add(GSVoteChoice.of(&"a", "A"))

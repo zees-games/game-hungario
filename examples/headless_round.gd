@@ -382,12 +382,12 @@ func _test_devouring() -> void:
 	)
 	_check(
 		world.match_node.scoreboard.find("1").kills == 1,
-		"and dot-match recorded the kill"
+		"and gs-match recorded the kill"
 	)
 
 	_check_devour_death_picks(world, small)
 
-	# Respawning is dot-match's, driven from a tick count rather than a timer.
+	# Respawning is gs-match's, driven from a tick count rather than a timer.
 	for _i in range(int(TICK_RATE * 5)):
 		world.tick({})
 
@@ -429,7 +429,7 @@ func _check_devour_death_picks(world: HungryWorld, small: HungryMonster) -> void
 		"the eaten monster's fall is the server's pick, with a push",
 		str(small.death.describe()) if small.death != null else "none"
 	)
-	# Launches are off unless sv_ragdoll_exaggerate is on (dot-player-char's default).
+	# Launches are off unless sv_ragdoll_exaggerate is on (gs-player-char's default).
 	world.ragdoll_rules.exaggerate = true
 	world.ragdoll_rules.reaction_weights = "limp=0,face_plant=0,crumple=0,headshot_launch=0"
 	var thrown := world.decide_death(5, false, HungryWorld.power_of(12.0), 30.0, Vector2.RIGHT)
@@ -519,7 +519,7 @@ func _test_spectating() -> void:
 		"and respawning puts them back in their own view"
 	)
 
-	# A client's world is a mirror and emits `player_died` too; dot-spectate refuses `on_death` there with a `push_error` that changes no exit code, so it is counted here.
+	# A client's world is a mirror and emits `player_died` too; gs-spectate refuses `on_death` there with a `push_error` that changes no exit code, so it is counted here.
 	# Armed: without the authority guard in `HungrySpectate._on_died` the second check fails.
 	var mirror := _make_world(null, SEED, false)
 	mirror.add_player(1, "Eaten")

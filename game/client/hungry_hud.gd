@@ -30,7 +30,7 @@ var mass_bar: GSStatBar = null
 var mass_label: Label = null
 var leaderboard: GSTableView = null
 var feed: GSFeedView = null
-## The round clock, dot-ui's: the time on its plate, or the match's state as the line under
+## The round clock, gs-ui's: the time on its plate, or the match's state as the line under
 ## it while there is no time to count. See [method piece_theme] for its colours.
 var strip: GSScoreStrip = null
 
@@ -52,7 +52,7 @@ const BLIND_FADE_SEC := 0.25
 
 const BLIND_COLOUR := Color(0.01, 0.01, 0.015)
 
-## The leaderboard makes room for a ballot: the shell draws ballots over the right-hand column, which the game cannot see, so it reads every visible Control in dot-ui's [code]dot_hud_cover[/code] group ([method covered_rect]).
+## The leaderboard makes room for a ballot: the shell draws ballots over the right-hand column, which the game cannot see, so it reads every visible Control in gs-ui's [code]gs_hud_cover[/code] group ([method covered_rect]).
 ## While one overlaps the board's corner the board keeps the corner and shrinks to the rows that fit, leader first and this player's own row last; not moved or faded, since who is winning decides the vote.
 
 ## The leaderboard's corner, in this HUD's own coordinates from the top-right.
@@ -276,7 +276,7 @@ func _build_board() -> void:
 	feed.outline_size = TEXT_OUTLINE
 	feed.outline_colour = TEXT_OUTLINE_COLOUR
 	feed.set_anchors_preset(Control.PRESET_TOP_LEFT)
-	# Under dot-menu's "H Help" plate or touch Menu button (to y 66), in this corner (HungrySettings); at 16 the
+	# Under gs-menu's "H Help" plate or touch Menu button (to y 66), in this corner (HungrySettings); at 16 the
 	# plate sat on the feed's first line.
 	feed.offset_left = 16.0
 	feed.offset_top = 72.0
@@ -371,7 +371,7 @@ func say_welcome(keys) -> void:
 	say(
 		"%s is the board, %s is chat, %s is help, %s the modes, Escape is the menu and your loadout." % [
 			keys.key_for(HungryBindings.SCOREBOARD), keys.key_for(HungryBindings.CHAT),
-			keys.key_for(GSMenuBindings.HELP_ACTION), GSInputBinding.describe_action(&"dot_menu_maps"),
+			keys.key_for(GSMenuBindings.HELP_ACTION), GSInputBinding.describe_action(&"gs_menu_maps"),
 		],
 		Color(0.62, 0.68, 0.78)
 	)
@@ -382,7 +382,7 @@ func say(text: String, colour: Color = Color(0.88, 0.90, 0.94)) -> void:
 		feed.add_text(text, colour)
 
 
-## A chat line as dot-server delivered it.
+## A chat line as gs-server delivered it.
 func chat(payload: Dictionary) -> void:
 	var who := String(payload.get("name", ""))
 	var text := String(payload.get("text", ""))
@@ -544,7 +544,7 @@ func board_room() -> int:
 
 
 ## A row's height and the gap between rows, measured from the board's own first row
-## (dot-ui keeps its rows container named `Grid` for exactly this kind of reader), so a theme
+## (gs-ui keeps its rows container named `Grid` for exactly this kind of reader), so a theme
 ## or an interface scale that changes the font changes how many rows fit.
 func _board_row_height() -> Vector2:
 	var grid := leaderboard.get_node_or_null(^"Grid") as Container
@@ -650,7 +650,7 @@ static func hud_theme() -> Theme:
 	return out
 
 
-## What `HungryClient` hands dot-menu's `follow_hud` with this HUD: the pieces' accent and the
+## What `HungryClient` hands gs-menu's `follow_hud` with this HUD: the pieces' accent and the
 ## Labels' outline width, laid over the theme the player picked, which then restyles the whole
 ## HUD live (Christian's first play test: a darker HUD a player can change in the menu).
 static func accent_theme() -> Theme:

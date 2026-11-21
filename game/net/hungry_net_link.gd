@@ -1,6 +1,6 @@
 extends Node
 
-const _Perf := preload("res://addons/dot_game/runtime/dot_game_profiler.gd")
+const _Perf := preload("res://addons/gs_game/runtime/gs_game_profiler.gd")
 
 const HungryNetBridge := preload("hungry_net_bridge.gd")
 const HungryNetLink := preload("hungry_net_link.gd")
@@ -10,7 +10,7 @@ const HungryNetLink := preload("hungry_net_link.gd")
 ## [b]Why one class rather than a server half and a client half.[/b] Godot refuses an RPC
 ## unless both ends declare the [i]same set[/i] of [code]@rpc[/code] methods — it compares
 ## a checksum over them — and it routes the call by the receiver's node path relative to
-## its [MultiplayerAPI] root. dot-server learned this the expensive way: putting chat's
+## its [MultiplayerAPI] root. gs-server learned this the expensive way: putting chat's
 ## two methods on [GSClientLink] instead of on a mirrored child broke the paths [i]and[/i]
 ## changed the checksum, so every RPC between client and server was refused, handshake
 ## included, with a timeout as the only symptom.
@@ -32,14 +32,14 @@ const CHANNEL := "hungry.link"
 ## The node name both ends must use. It is the routing, so it is a constant.
 const NODE_NAME := &"Hungry"
 
-## Everything here rides [constant GSTransport.Channel.STATE], which dot-server reserves
+## Everything here rides [constant GSTransport.Channel.STATE], which gs-server reserves
 ## for exactly this and uses for nothing itself. Sharing chat's channel would make a burst
 ## of snapshots delay a chat line, and vice versa.
 const CHANNEL_STATE := 1
 
 ## Voice, and only voice.
 ##
-## [constant GSTransport.Channel.EVENT] is what dot-server reserves for chat and events,
+## [constant GSTransport.Channel.EVENT] is what gs-server reserves for chat and events,
 ## and this game's chat has moved onto [GSChatRouter] and rides `event` on the state
 ## channel with everything else — so this one is free. Voice gets it to itself for the
 ## reason the state channel exists at all: fifty packets a second must not sit behind a

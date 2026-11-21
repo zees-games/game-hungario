@@ -3,7 +3,7 @@ extends Node2D
 const HungryFall := preload("hungry_fall.gd")
 const HungryPiece := preload("../hungry_piece.gd")
 
-## Where this client's eaten monsters go down: the 2D counterpart of dot-player-char's
+## Where this client's eaten monsters go down: the 2D counterpart of gs-player-char's
 ## [GSPlayerRagdolls]. It remembers the last piece each player lost (the eaten one is gone
 ## from the world before the death is announced), builds a [HungryFall] from it when the death
 ## arrives, keeps no more than the cap, and passes the sounds on.
@@ -32,7 +32,7 @@ var rules: GSPlayerRagdollRules = GSPlayerRagdollRules.new()
 ## The reactions a death's id is looked up in; only the poses and sounds matter here.
 var reactions: GSPlayerDeathReactions = GSPlayerDeathReactions.stock()
 
-## This machine's own limit: -1 for dot-player-char's default, 0 = unlimited.
+## This machine's own limit: -1 for gs-player-char's default, 0 = unlimited.
 var local_cap: int = -1
 
 ## [code]rider_fn.call(player_id) -> Node2D[/code]: the rider the renderer drew for them.
@@ -59,7 +59,7 @@ func note_piece(piece: HungryPiece) -> void:
 
 
 ## The cap in force: the server's and this machine's, the lower; 0 on either side is no limit
-## from that side, and 0 here is no limit at all (dot-player-char's [code]sv_ragdoll_max 0[/code]).
+## from that side, and 0 here is no limit at all (gs-player-char's [code]sv_ragdoll_max 0[/code]).
 func cap() -> int:
 	var server := rules.max_count if rules != null else 8
 	var mine := local_cap if local_cap >= 0 else GSPlayerRagdolls.default_local_cap()

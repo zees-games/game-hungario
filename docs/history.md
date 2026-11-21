@@ -18,29 +18,29 @@ Every one of these parsed cleanly and produced no error. Each is kept because th
 
 **A disconnect never left the netcode.** The disconnect handler took the peer off the ready set, and `remove_peer` was gated on that same set, so the manager kept sending a gone peer snapshots ("Attempt to call RPC with unknown peer ID") for the life of the server.
 
-**Nobody was ever welcomed.** `_welcome` was called from `client_spawn` and returned unless the peer was ready, which at `client_spawn` it never is; with dot-server's join line switched off for dot-chat's, nobody's arrival was announced. It runs from `peer_admitted`.
+**Nobody was ever welcomed.** `_welcome` was called from `client_spawn` and returned unless the peer was ready, which at `client_spawn` it never is; with gs-server's join line switched off for gs-chat's, nobody's arrival was announced. It runs from `peer_admitted`.
 
 **Every rider built from content was drawn under its own monster.** A part's `z_index` was relative to a renderer drawing the discs on another canvas. The drawn fallback was fine, so real content was the version nobody could see. Found by a rendered frame.
 
 **Split and eject were silent** although both voices were baked and catalogued, and a netted split played an eating blip. A netted client also heard every throw on the map as its own.
 
-**Every snapshot read as a correction (0.968)** (`[hungario-corrections-1]`, 2026-10-04). `_net_state_applied` moved the owner's node too, so the predictor measured the replay as the correction; dot-net's metre-scale epsilon was a hundredth of a pixel here; and `headless_net` stamped ticks over a clock it never advanced, so its earlier "0.032" had measured nothing. Also found: GDScript evaluates `d[f()] = g()` with `g()` first, so `client_at[_client_step(c)] = centre()` recorded the position before the step. Rules in [netcode.md](netcode.md#prediction-is-the-motor-and-deliberately-not-the-set).
+**Every snapshot read as a correction (0.968)** (`[hungario-corrections-1]`, 2026-10-04). `_net_state_applied` moved the owner's node too, so the predictor measured the replay as the correction; gs-net's metre-scale epsilon was a hundredth of a pixel here; and `headless_net` stamped ticks over a clock it never advanced, so its earlier "0.032" had measured nothing. Also found: GDScript evaluates `d[f()] = g()` with `g()` first, so `client_at[_client_step(c)] = centre()` recorded the position before the step. Rules in [netcode.md](netcode.md#prediction-is-the-motor-and-deliberately-not-the-set).
 
 **A saved volume never reached the sound bank.** Everything reacted to `changed`, and a value loaded from disk has not changed. `apply_all()`; the same call went into every other game.
 
-**No mouthful ever popped and no monster ever burst** (until 2026-09-27): `fx_catalogue()` named scenes in a `scenes/fx/` directory that did not exist, dot-fx refuses a missing scene at DEBUG only, and the effects section passed on the shake and the tint, which need no scene.
+**No mouthful ever popped and no monster ever burst** (until 2026-09-27): `fx_catalogue()` named scenes in a `scenes/fx/` directory that did not exist, gs-fx refuses a missing scene at DEBUG only, and the effects section passed on the shake and the tint, which need no scene.
 
-**The renderer culled most of the screen once a player grew.** `_view` and dot-2d's `GS2DCameraRig` multiplied the viewport by the zoom; `Camera2D.zoom` is a magnification. On a black background that reads as an empty arena. Every suite passed before and after; the third screenshot framing found it the night it was written.
+**The renderer culled most of the screen once a player grew.** `_view` and gs-2d's `GS2DCameraRig` multiplied the viewport by the zoom; `Camera2D.zoom` is a magnification. On a black background that reads as an empty arena. Every suite passed before and after; the third screenshot framing found it the night it was written.
 
 ### The vote
 
-The director was advanced by itself *and* by the module, so every vote clock ran double; there was no `rtv` console command, so the wire was the only way to vote; nothing called `note_score` or `note_round_end`; any player could extend the mode from the wire; and a descriptive `GSMapTimeLimit` kept the old limit after an extend. All found finishing the map-chooser work (2026-09-23/24). Current wiring in [services.md](services.md#the-vote-and-dot-map).
+The director was advanced by itself *and* by the module, so every vote clock ran double; there was no `rtv` console command, so the wire was the only way to vote; nothing called `note_score` or `note_round_end`; any player could extend the mode from the wire; and a descriptive `GSMapTimeLimit` kept the old limit after an extend. All found finishing the map-chooser work (2026-09-23/24). Current wiring in [services.md](services.md#the-vote-and-gs-map).
 
 ### The levels
 
 #### No level section had ever driven what it arranged
 
-`_settle` ticked until the round was live, and dot-match stays in warmup until somebody joins — so every level section, settling *before* adding its player, arranged a monster, ticked, and the first tick was the reset that respawned it at a safe spawn. Three checks passed only because of that: the reef's tight-channel crossing measured a respawned monster; the warrens' gate check had been rewritten to match the teleport (driven for real, dead on a rock's centre, a monster stays against the face; four degrees off it slides in); and the slalom drove with `command.move`, which the motor ignores, so the monster never moved. The gauntlet's crossing had twenty seconds for 6708 units at 130 a second. Found by the lagoon's drive, whose leader came out of a 2-tick settle 1700 units from where it was put. The screenshot tool had the same trap: its `--at` and default frames were the same picture.
+`_settle` ticked until the round was live, and gs-match stays in warmup until somebody joins — so every level section, settling *before* adding its player, arranged a monster, ticked, and the first tick was the reset that respawned it at a safe spawn. Three checks passed only because of that: the reef's tight-channel crossing measured a respawned monster; the warrens' gate check had been rewritten to match the teleport (driven for real, dead on a rock's centre, a monster stays against the face; four degrees off it slides in); and the slalom drove with `command.move`, which the motor ignores, so the monster never moved. The gauntlet's crossing had twenty seconds for 6708 units at 130 a second. Found by the lagoon's drive, whose leader came out of a 2-tick settle 1700 units from where it was put. The screenshot tool had the same trap: its `--at` and default frames were the same picture.
 
 #### The food arithmetic was backwards
 
@@ -54,7 +54,7 @@ The slalom treated the rock cull as a permanent loss and raised its target from 
 
 #### No hunter had ever chased anybody
 
-`HungryHunterBrain` read its link to `HungryHunters` from `npc.meta` in `_build`, and dot-npc builds the brain inside the spawn and sets `meta` after it. Every hunter held a null, could not weigh anybody as prey or predator, and wandered for its whole life. `dedicated` counted hunters and never watched one hunt. Found writing the navigation check (2026-09-25). Also: until 2026-10-05 no hunter kind had a character, so the reaction time was zero.
+`HungryHunterBrain` read its link to `HungryHunters` from `npc.meta` in `_build`, and gs-npc builds the brain inside the spawn and sets `meta` after it. Every hunter held a null, could not weigh anybody as prey or predator, and wandered for its whole life. `dedicated` counted hunters and never watched one hunt. Found writing the navigation check (2026-09-25). Also: until 2026-10-05 no hunter kind had a character, so the reaction time was zero.
 
 **The director's spawn points were seeded once**, from the world the server booted in, so after a game change hunters appeared on the last map's rings (frenzy's handed to the gauntlet left 12 of 36 outside the corridor) and nothing refused a point behind a fence.
 
@@ -71,13 +71,13 @@ None of these was reachable from the other project's own suite. Details in [bugs
 - game-fatal-contact's bridge reconciled twice (correction rate 0.500 against 0.032).
 - `client_spawn` carries `userid`, not `peer_id`; a module looking a session up by `peer_id` adds nobody.
 - `GS2DScatter` could not be mirrored until it gained `adopt`: a receiving peer must take the index it was given.
-- dot-server could not serve a game shipped inside its own build: the fallback to the server's absolute scene path was refused by `GSClientLink`.
+- gs-server could not serve a game shipped inside its own build: the fallback to the server's absolute scene path was refused by `GSClientLink`.
 - `GSCloudClient` never registered itself, so four call sites found null and every one treated that as a legitimate configuration.
-- dot-net's cached interest answer dropped what the observer owned, so a client did not receive its own newly spawned entity until the cache expired.
-- dot-net never pulled back a predicted entity whose server state stood still (fixed in f99fde3): an empty snapshot body was adopted as "you are right".
-- dot-ui's `GSTableView` honoured no column width and a column with no `width` collapsed to nothing: the mass, pieces, rank and ping had never been drawn.
-- dot-audio refused a sound with no file, until `GSAudioDef.generated`.
-- dot-match walked spawn points that had been freed: the solo mode change builds a fresh client beside the old one, the new match (no `spawns_ref`) collected every point under the current scene, and when the old world was freed the next round's `point.reset()` crashed the engine (signal 11). Seen only with the client built late in `headless_presentation`. dot-match forgets freed points (5689bc2); the world points the match at its own point (`spawns_ref`), and the section runs last on purpose.
+- gs-net's cached interest answer dropped what the observer owned, so a client did not receive its own newly spawned entity until the cache expired.
+- gs-net never pulled back a predicted entity whose server state stood still (fixed in f99fde3): an empty snapshot body was adopted as "you are right".
+- gs-ui's `GSTableView` honoured no column width and a column with no `width` collapsed to nothing: the mass, pieces, rank and ping had never been drawn.
+- gs-audio refused a sound with no file, until `GSAudioDef.generated`.
+- gs-match walked spawn points that had been freed: the solo mode change builds a fresh client beside the old one, the new match (no `spawns_ref`) collected every point under the current scene, and when the old world was freed the next round's `point.reset()` crashed the engine (signal 11). Seen only with the client built late in `headless_presentation`. gs-match forgets freed points (5689bc2); the world points the match at its own point (`spawns_ref`), and the section runs last on purpose.
 
 ## "Mode vote in 1…" under an open ballot
 
@@ -89,6 +89,6 @@ The Loadout page, the first version of `HungryMenus.LoadoutPage` (2026-10-12), g
 
 ## Every cue at one volume whatever the catalogue said
 
-`HungrySoundSink.play` handed `HungrySound` the cue and the pitch dot-audio had decided and dropped the request's `volume_db`, so every cue played at the bank's flat -8 dB: the def's gain and `loudness_trim_db` reached nothing but the bed (which has its own manager on dot-audio's Godot sink); only the bus volumes moved the cues. It hid because the bank was loud enough to hear and nothing measured it: dot-audio's capture recorded -26 LUFS, which read as "the stand-in did not play" until a pilot that eats food recorded the same number with fifty cues in it (2026-10-12). The sink now passes the volume through, and a trim is set from a measured run.
+`HungrySoundSink.play` handed `HungrySound` the cue and the pitch gs-audio had decided and dropped the request's `volume_db`, so every cue played at the bank's flat -8 dB: the def's gain and `loudness_trim_db` reached nothing but the bed (which has its own manager on gs-audio's Godot sink); only the bus volumes moved the cues. It hid because the bank was loud enough to hear and nothing measured it: gs-audio's capture recorded -26 LUFS, which read as "the stand-in did not play" until a pilot that eats food recorded the same number with fifty cues in it (2026-10-12). The sink now passes the volume through, and a trim is set from a measured run.
 
 - **A READY that overtook the seat was dropped (2026-10-12).** A client sends READY when its link says PLAYING, which the link decides itself after sending `loaded` on another ENet channel. Through a lossy link the READY can reach the server first; `_admit` found no player for the peer and returned, and nothing asked again, so that client never got a world. Loopback and WebSocket order the two, so no suite could see it until `headless_net` sent the READY before the seat.

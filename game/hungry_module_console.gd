@@ -64,7 +64,7 @@ func _register_commands() -> void:
 		"hungry_vote [open|status|next] — what plays next", GSAdminFlags.CHANGEMAP
 	).with_chat()
 	# MUTE rather than BAN: quieting somebody and removing them are different powers, and
-	# dot-server's own flags are what distinguish them.
+	# gs-server's own flags are what distinguish them.
 	add_command(
 		"hungry_gag", _cmd_gag,
 		"hungry_gag <who> <seconds> [reason]", GSAdminFlags.MUTE
@@ -75,11 +75,11 @@ func _register_commands() -> void:
 	).with_chat()
 
 func _register_bots() -> void:
-	# How many bots is dot-server's GSBotQuota, so bot_quota means the same on every server.
+	# How many bots is gs-server's GSBotQuota, so bot_quota means the same on every server.
 	# The fill default of six gives a lone player the game they get offline less one bot.
 	_quota = GSBotQuota.install(self, HungryTuning.settings().bot_fill)
 
-	# How well they play: dot-bot's `bot_difficulty` and its `bot_*` settings, on the world
+	# How well they play: gs-bot's `bot_difficulty` and its `bot_*` settings, on the world
 	# [HungryBot] reads them from (sight, reaction, throw aim).
 	var _bot_cvars := GSBotSettings.of(world).bind_cvars(add_cvar, GSConVar.FLAG_NOTIFY, add_command)
 
@@ -135,7 +135,7 @@ func _register_tuning() -> void:
 
 	# Where this server's rider cosmetics live. Empty means "whatever the client shipped
 	# with", which is every deployment that has not published a pack — and a client with
-	# no dot-cloud installed ignores it either way.
+	# no gs-cloud installed ignores it either way.
 	_cv_pack = HungryTuning.binder.cvar_for("avatar_pack")
 	_cv_pack.changed.connect(func(_old: String, _new: String) -> void: _sync_pack())
 	_sync_pack()
@@ -228,7 +228,7 @@ func _cmd_mute(ctx: GSCmdContext) -> void:
 	await _punish(ctx, GSPunishment.Kind.VOICE_MUTE, "muted")
 
 ## The shared half of gag and mute.
-## One function because dot-moderation models both as one record, and two copies would each need the
+## One function because gs-moderation models both as one record, and two copies would each need the
 ## duration parsing and the immunity.
 func _punish(ctx: GSCmdContext, kind: GSPunishment.Kind, verb: String) -> void:
 	if ctx.args.size() < 2:

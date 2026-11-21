@@ -5,7 +5,7 @@ extends "res://examples/headless_net_base.gd"
 func _test_the_remote_workbench() -> void:
 	_section("a flagged admin edits the server's profiles, and nobody else can")
 	if not GSGameWorkbench.available():
-		print("  dot-workbench is not linked: skipped")
+		print("  gs-workbench is not linked: skipped")
 		_passed += 16
 		_done()
 		return
@@ -344,7 +344,7 @@ func _event_wire_chat() -> void:
 	)
 
 	# [b]The kind travels as an index into one table, used in both directions.[/b] Every
-	# value of the enum, because dot-moderation's bug was exactly one value with no case.
+	# value of the enum, because gs-moderation's bug was exactly one value with no case.
 	var kinds_ok := true
 
 	for kind in GSChatMessage.Kind.values():

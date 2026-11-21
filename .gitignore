@@ -2,43 +2,43 @@
 .godot/
 /android/
 
-# Every dot-* addon is a separate repository. For local development, symlink them:
-#   ln -s ../../dot-core/addons/dot_core addons/dot_core
+# Every gs-* addon is a separate repository. For local development, symlink them:
+#   ln -s ../../gs-core/addons/gs_core addons/gs_core
 # A shipped build copies them in instead.
-/addons/dot_core
-/addons/dot_profile
-/addons/dot_profiler
-/addons/dot_2d
-# bootstrap fetches the release zip into addons/dot_net/native/bin and export copies it beside the exe (dot-bootstrap: bootstrap-natives).
-# bootstrap-natives: dot-net v0.1.30 native/bin
-/addons/dot_net
-# dot-sim: optional native library (snapshot codec); without its built library the GDScript twins run.
-# bootstrap-natives: dot-sim v0.2.10
-/addons/dot_sim
-/addons/dot_server
-/addons/dot_match
-/addons/dot_ui
-/addons/dot_input
-/addons/dot_user
-/addons/dot_user_avatar
-/addons/dot_auth
-/addons/dot_platform
-/addons/dot_cloud
-/addons/dot_loadout
-/addons/dot_stats
-/addons/dot_achievements
-/addons/dot_combat
-/addons/dot_map
-/addons/dot_leaderboard
-/addons/dot_npc
-/addons/dot_npc_ai
-/addons/dot_npc_ai_director
-/addons/dot_props
-/addons/dot_vote
-/addons/dot_browser
-/addons/dot_chat
-/addons/dot_moderation
-/addons/dot_voice
+/addons/gs_core
+/addons/gs_profile
+/addons/gs_profiler
+/addons/gs_2d
+# bootstrap fetches the release zip into addons/gs_net/native/bin and export copies it beside the exe (gs-bootstrap: bootstrap-natives).
+# bootstrap-natives: gs-net v0.1.30 native/bin
+/addons/gs_net
+# gs-sim: optional native library (snapshot codec); without its built library the GDScript twins run.
+# bootstrap-natives: gs-sim v0.2.10
+/addons/gs_sim
+/addons/gs_server
+/addons/gs_match
+/addons/gs_ui
+/addons/gs_input
+/addons/gs_user
+/addons/gs_user_avatar
+/addons/gs_auth
+/addons/gs_platform
+/addons/gs_cloud
+/addons/gs_loadout
+/addons/gs_stats
+/addons/gs_achievements
+/addons/gs_combat
+/addons/gs_map
+/addons/gs_leaderboard
+/addons/gs_npc
+/addons/gs_npc_ai
+/addons/gs_npc_ai_director
+/addons/gs_props
+/addons/gs_vote
+/addons/gs_browser
+/addons/gs_chat
+/addons/gs_moderation
+/addons/gs_voice
 
 # Exports
 build/
@@ -48,34 +48,34 @@ export_presets.cfg
 # OS
 .DS_Store
 Thumbs.db
-/addons/dot_spectate
-/addons/dot_settings
-/addons/dot_menu
-/addons/dot_audio
-/addons/dot_fx
-/addons/dot_console
-/addons/dot_peer_to_peer
+/addons/gs_spectate
+/addons/gs_settings
+/addons/gs_menu
+/addons/gs_audio
+/addons/gs_fx
+/addons/gs_console
+/addons/gs_peer_to_peer
 
 # Rendered by tools/screenshot_menus.sh, for looking at rather than for keeping.
 /screenshots/
-/addons/dot_physics
-/addons/dot_spawn
-/addons/dot_player
-/addons/dot_player_controller
-/addons/dot_player_char
-/addons/dot_animation
-/addons/dot_save
-/addons/dot_camera
-/addons/dot_player_class
-/addons/dot_team
-/addons/dot_server_query
-/addons/dot_bot
-/addons/dot_game
-/addons/dot_workbench
+/addons/gs_physics
+/addons/gs_spawn
+/addons/gs_player
+/addons/gs_player_controller
+/addons/gs_player_char
+/addons/gs_animation
+/addons/gs_save
+/addons/gs_camera
+/addons/gs_player_class
+/addons/gs_team
+/addons/gs_server_query
+/addons/gs_bot
+/addons/gs_game
+/addons/gs_workbench
 
-# Written by dot-cloud publish_pack.sh; per-developer, like the other games.
+# Written by gs-cloud publish_pack.sh; per-developer, like the other games.
 /content.lock.json
-/addons/dot_bot_record
-/addons/dot_sql
+/addons/gs_bot_record
+/addons/gs_sql
 /addons/godot-sqlite
-/addons/dot_weapon
+/addons/gs_weapon

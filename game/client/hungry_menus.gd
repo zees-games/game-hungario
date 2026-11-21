@@ -4,16 +4,16 @@ const HungryContent := preload("../hungry_content.gd")
 const HungryNetBridge := preload("../net/hungry_net_bridge.gd")
 const HungryWorld := preload("../hungry_world.gd")
 
-## What is on screen besides the HUD and dot-menu's Escape menu: the Tab scoreboard's
+## What is on screen besides the HUD and gs-menu's Escape menu: the Tab scoreboard's
 ## dressing and the menu's Loadout page.
 ##
-## [b]The Escape menu is dot-menu's[/b] ([HungrySettings]): Loadout, Game, the stock pages,
+## [b]The Escape menu is gs-menu's[/b] ([HungrySettings]): Loadout, Game, the stock pages,
 ## the Controls page over [HungryBindings], Help & commands and Leave, as in every game of
-## the family. Until 2026-10-12 this file built dot-ui's pause, settings, controls and
+## the family. Until 2026-10-12 this file built gs-ui's pause, settings, controls and
 ## loadout screens over a `GSConfig` and a bindings file of their own; the settings and keys
 ## moved into the menu's document, and [HungrySettings] migrated the files.
 
-## Dresses dot-menu's Tab board (the one [GSGameClient] holds on Tab) for this game: the
+## Dresses gs-menu's Tab board (the one [GSGameClient] holds on Tab) for this game: the
 ## columns, the world's own rank order, and the rows from the world. [param bridge] names the
 ## local player; null draws no "you".
 ##

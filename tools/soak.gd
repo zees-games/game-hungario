@@ -5,7 +5,7 @@ const HungryPreset := preload("../game/hungry_preset.gd")
 const HungryWorld := preload("../game/hungry_world.gd")
 
 ## Bot soak on the real simulation: N HungryBots play rounds back to back in one mode for M
-## simulated minutes through dot-bot's GSBotSoak, fed by dot-spawn's GSSpawnWatch.
+## simulated minutes through gs-bot's GSBotSoak, fed by gs-spawn's GSSpawnWatch.
 ##
 ## [codeblock]
 ## ./game.sh soak [mode] [minutes]

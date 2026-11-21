@@ -3,13 +3,13 @@ extends Node
 const HungryContent := preload("hungry_content.gd")
 const HungryTuning := preload("hungry_tuning.gd")
 
-## What a thrown item does to somebody, through dot-combat's rules rather than a constant.
+## What a thrown item does to somebody, through gs-combat's rules rather than a constant.
 ##
 ## [b]Eating is deliberately NOT here, and that has not changed.[/b] This project's own
 ## notes say health and damage are the wrong model for being devoured — it is a mass ratio,
 ## not a hit-point total — and forcing it through [GSDamageResolver] would be a worse
 ## version of both. What *is* damage is a **throwable**: somebody aimed something at
-## somebody else from a distance, and every question that raises is one dot-combat already
+## somebody else from a distance, and every question that raises is one gs-combat already
 ## answers.
 ##
 ## - **Self damage.** A pepper thrown at your own feet. Off by default here, because a
@@ -25,7 +25,7 @@ const HungryTuning := preload("hungry_tuning.gd")
 ## - **A hook.** `GSDamageResolver.adjust` is where the rind fruit could live if a server
 ##   wanted it to reduce a burst rather than eat one, without touching the world.
 ##
-## [b]The amount becomes a piece count, and that is the whole bridge.[/b] dot-combat's
+## [b]The amount becomes a piece count, and that is the whole bridge.[/b] gs-combat's
 ## output is a number of hit points and this game has none; what it has is "how far this
 ## scatters you". `pieces_for` is the one function that maps the first onto the second, and
 ## it is here rather than in [HungryWorld] because it is a combat decision rather than a
@@ -121,7 +121,7 @@ func setup() -> GSResult:
 ## What a throwable does to somebody, or a refusal.
 ##
 ## [b]Returns the [GSDamage] rather than acting.[/b] What "scattered" means is the
-## world's, exactly as dot-timer never moves a player — and the same object carries why it
+## world's, exactly as gs-timer never moves a player — and the same object carries why it
 ## was scaled, which is what makes a console able to explain a hit that did less than a
 ## player expected.
 func resolve_throw(

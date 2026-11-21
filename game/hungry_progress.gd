@@ -6,19 +6,19 @@ const HungryMonster := preload("hungry_monster.gd")
 ##
 ## [b]Neither addon is given a new source of truth, and that is the whole design.[/b]
 ## [HungryModule] already declares a [GSStatsSchema] and records against it —
-## `food`, `fruit`, `kills`, `deaths`, `mass_eaten`, `top_mass`. dot-achievements takes
+## `food`, `fruit`, `kills`, `deaths`, `mass_eaten`, `top_mass`. gs-achievements takes
 ## those readings through [GSAchievementStatsLink], which is a signal connection and
-## nothing else; dot-leaderboard takes the ones worth ordering people by. A second count of
+## nothing else; gs-leaderboard takes the ones worth ordering people by. A second count of
 ## how much food somebody ate would be a second number that can disagree with the first,
 ## and the one that is wrong is always the one nobody is looking at.
 ##
 ## [b]The merge rule is deliberately the same four kinds in both places.[/b]
-## `GSAchievementRule.Merge` is dot-stats' set again — dot-achievements' own docs/design.md
+## `GSAchievementRule.Merge` is gs-stats' set again — gs-achievements' own docs/design.md
 ## says so and says why: the two would otherwise disagree about what a new reading does to
 ## an old one, and that disagreement is a wrong number with nothing failing.
 ##
 ## [b]The player key is the scoped pseudonymous one, never an account id.[/b] That is
-## dot-user's whole design and dot-stats refuses an account id as a player key before it
+## gs-user's whole design and gs-stats refuses an account id as a player key before it
 ## leaves the server. A board is exactly the same kind of record.
 
 const CHANNEL := "hungry.progress"
@@ -55,7 +55,7 @@ var progress_dir: String = PROGRESS_DIR
 ## [b]Scoped, because a top mass in Frenzy and a top mass in Classic are not the same
 ## number.[/b] Frenzy's arena is smaller and its food denser; one board over both would be
 ## a board of who played Frenzy. [method GSLeaderboardDef.scoped] is the call, and it
-## round-trips through a dictionary — which is where dot-leaderboard found that
+## round-trips through a dictionary — which is where gs-leaderboard found that
 ## `to_dictionary()` handed out its own dictionary and every scoped board on a server ended
 ## up sharing one object.
 var mode_id: StringName = &"classic"
@@ -257,8 +257,8 @@ func _build_achievements() -> GSResult:
 	achievements.unlocked.connect(_on_unlocked)
 
 	# [b]The link is the whole integration and it is a signal connection.[/b]
-	# dot-achievements' own docs/design.md says the numbers should come from somewhere that
-	# already has them, and dot-stats already does. A tracker fed by hand from twenty call
+	# gs-achievements' own docs/design.md says the numbers should come from somewhere that
+	# already has them, and gs-stats already does. A tracker fed by hand from twenty call
 	# sites is twenty places to forget one.
 	link = GSAchievementStatsLink.new()
 	link.name = "StatsLink"

@@ -53,7 +53,7 @@ func setup(_server: Node = null, _game: Node = null, _link: Node = null) -> GSRe
 			GSError.CODE_STATE, "The services need a bridge and a world."
 		)
 
-	# Moderation first, because it is what registers `dot_mute_source` and
+	# Moderation first, because it is what registers `gs_mute_source` and
 	# [method GSChatRouter.start] warns once — and then never again — when there is
 	# nothing under that name.
 	var punished := _build_moderation()
@@ -79,7 +79,7 @@ func _build_moderation() -> GSResult:
 	moderation.name = "Moderation"
 	moderation.store = GSPunishmentStoreFile.new(punishments_path)
 	# No scope: the unconfigured case is the only case a single-server community is ever
-	# in, and it is the one dot-moderation shipped a bug about — a server with no scope
+	# in, and it is the one gs-moderation shipped a bug about — a server with no scope
 	# saw no scoped punishments and silently enforced nothing.
 	moderation.server_scope = ""
 	moderation.register_mute_source = true
@@ -244,7 +244,7 @@ func _build_relay() -> GSResult:
 
 	if backbone == null:
 		# Found, not handed over: a backbone client is built by whatever owns the server's credential, after or before this module loads, so `GSBackboneClient` publishes itself under this name.
-		backbone = GSRegistry.get_service(&"dot_backbone_client")
+		backbone = GSRegistry.get_service(&"gs_backbone_client")
 
 	if backbone == null:
 		# Info and success, not a failure: a fleet-wide `GS_CHAT_RELAY_ENABLED=1` with a credential for only some hosts is ordinary, and a red line on every boot of the others stops real ones being read.
@@ -400,7 +400,7 @@ func _key_of(peer_id: int) -> String:
 	return str(player_id) if player_id != 0 else ""
 
 
-## Where somebody is, as dot-chat and dot-voice both ask for it.
+## Where somebody is, as gs-chat and gs-voice both ask for it.
 func _position_of(peer_id: int) -> Vector3:
 	if world == null:
 		return Vector3.ZERO

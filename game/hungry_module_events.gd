@@ -69,7 +69,7 @@ func _welcome(session: GSClientSession) -> void:
 		return
 
 	if hservices != null:
-		# The backlog: what was said before they walked in. dot-chat computes it per peer,
+		# The backlog: what was said before they walked in. gs-chat computes it per peer,
 		# because a channel with `backlog = 0` — the proximity one — must not replay a
 		# line somebody said quietly in a corner to a stranger who was not there.
 		for line in hservices.chat.backlog_for(session.peer_id):
@@ -119,7 +119,7 @@ func _player_of_session(session: GSClientSession) -> int:
 	return hbridge.player_for_peer(session.peer_id) if hbridge != null else 0
 
 
-## Somebody said something through dot-server's own chat path.
+## Somebody said something through gs-server's own chat path.
 ## Taken and cancelled, not watched: [GSChatRouter] owns this game's rules, so cancelling keeps one
 ## path, and the line still reaches every player after sanitising, the gag check and hearing range.
 func _on_player_chat(event: GSEvent) -> void:
@@ -140,7 +140,7 @@ func _on_say_requested(peer_id: int, channel_id: StringName, text: String) -> vo
 	var said := hservices.chat.submit(peer_id, channel_id, text)
 
 	if not said.ok and said.error != null:
-		# Back to the sender and nowhere else. dot-chat is deliberate that a rate-limited
+		# Back to the sender and nowhere else. gs-chat is deliberate that a rate-limited
 		# or gagged player must not be able to measure the difference from outside, and a
 		# refusal broadcast to the room is exactly that measurement.
 		hservices.chat.notice(peer_id, said.error.message, channel_id)
@@ -159,7 +159,7 @@ func _on_chat_accepted(message: GSChatMessage, _recipients: PackedInt32Array) ->
 		_last_spoke = message.sender_name
 
 ## An unclaimed `!command` from chat.
-## Routed into dot-server's console with the player's permissions, not a second command table, so
+## Routed into gs-server's console with the player's permissions, not a second command table, so
 ## it is permission-checked and audited.
 func _on_chat_command(peer_id: int, command: String, args: PackedStringArray) -> void:
 	var session := server.session_of(peer_id)
@@ -248,7 +248,7 @@ func _on_vote_announced(line: String) -> void:
 	if hservices != null and hservices.chat != null:
 		hservices.chat.announce(line, HungryServices.CHANNEL_ALL)
 
-## The vote picked something. dot-server changes the game; nothing here does.
+## The vote picked something. gs-server changes the game; nothing here does.
 func _on_change_due(game_id: StringName) -> void:
 	if not maps.available(game_id):
 		log_warn("the vote picked a mode this head count cannot play", {
@@ -305,7 +305,7 @@ func _on_earned(player_key: String, id: StringName, title: String, points: int) 
 		return
 
 
-## The game id a preset is played under, which dot-server, the vote and the rotation call a mode.
+## The game id a preset is played under, which gs-server, the vote and the rotation call a mode.
 ## The preset id alone ("classic") is not one: the vote would not recognise the running mode.
 static func game_id_of(preset_id: StringName) -> StringName:
 	return StringName("hungry_%s" % preset_id)
@@ -314,7 +314,7 @@ static func game_id_of(preset_id: StringName) -> StringName:
 ## Both ship inside the build, so [member GSGameDescriptor.manifest_url] is empty; a game whose
 ## content lives on a CDN sets it instead.
 ##
-## [b]Delivered, the modes carry a content key.[/b] Mounted at [code]res://dot_cloud/<id>/<version>/[/code] the rebased scene paths are absolute, which [method GSGameDescriptor.needs_delivered_content] reads as "bundled": the vote could pick a mode and send no content sync, and a web shell that ships no games fails ("sent no content"). So when [param here] is a mount, each mode gets the pack's content id and version and a scene relative to the mount, as its own [code]game.yml[/code] says. Built in, nothing changes. [param here] is a parameter so a suite can test the mounted case.
+## [b]Delivered, the modes carry a content key.[/b] Mounted at [code]res://gs_cloud/<id>/<version>/[/code] the rebased scene paths are absolute, which [method GSGameDescriptor.needs_delivered_content] reads as "bundled": the vote could pick a mode and send no content sync, and a web shell that ships no games fails ("sent no content"). So when [param here] is a mount, each mode gets the pack's content id and version and a scene relative to the mount, as its own [code]game.yml[/code] says. Built in, nothing changes. [param here] is a parameter so a suite can test the mounted case.
 static func game_descriptors(here: String = "") -> Array[GSGameDescriptor]:
 	var out: Array[GSGameDescriptor] = []
 	var mount := _mount_of(here if here != "" else HungryPaths.root())
@@ -337,18 +337,18 @@ static func game_descriptors(here: String = "") -> Array[GSGameDescriptor]:
 			descriptor.scene = String(row[2]).trim_prefix("res://")
 			descriptor.content_id = mount.content_id
 			descriptor.version = mount.version
-				# Deliberately empty: [GSClientLink] refuses an absolute scene path outside dot-cloud's mount
+				# Deliberately empty: [GSClientLink] refuses an absolute scene path outside gs-cloud's mount
 				# prefix, and this game ships inside the build, so the client owns its scene ([HungryClient]).
-				# A game delivered through dot-cloud sets a relative path here.
+				# A game delivered through gs-cloud sets a relative path here.
 		descriptor.client_scene = "game/client/hungry_client.tscn" if not mount.is_empty() else ""
 		descriptor.min_players = 0
 		out.append(descriptor)
 
 	return out
 
-## The content id and version of a pack mounted at [param root] ([code]res://dot_cloud/<id>/<version>[/code], the id may hold a slash), or an empty dictionary built in.
+## The content id and version of a pack mounted at [param root] ([code]res://gs_cloud/<id>/<version>[/code], the id may hold a slash), or an empty dictionary built in.
 static func _mount_of(root: String) -> Dictionary:
-	var prefix := "res://dot_cloud/"
+	var prefix := "res://gs_cloud/"
 
 	if not root.begins_with(prefix):
 		return {}
@@ -381,7 +381,7 @@ func _register_games() -> void:
 			})
 
 
-## The hunters' level of detail and sense workers follow the `npc_lod*` cvars (dot-game's GSGameNpcLod; all off by default).
+## The hunters' level of detail and sense workers follow the `npc_lod*` cvars (gs-game's GSGameNpcLod; all off by default).
 func _follow_npc_lod() -> void:
 	if hunters == null or hunters.spawner == null:
 		return

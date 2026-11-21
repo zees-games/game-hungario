@@ -159,7 +159,7 @@ func _build_platform() -> bool:
 
 	_avatars = GSAvatarManager.new()
 	# The same schema the game validates riders against. A server holding no art still
-	# decides whether an avatar is legal, which is dot-user-avatar's one idea.
+	# decides whether an avatar is legal, which is gs-user-avatar's one idea.
 	_avatars.schema = HungryContent.avatar_schema()
 	_avatars.register_service = true
 	_avatars.load_layered_config = false
@@ -235,7 +235,7 @@ func _build_server(server_side: Node) -> bool:
 		return false
 
 	var platform: GSResult = await _server.modules.load_module(
-		"res://addons/dot_platform/dot_platform_module.gd"
+		"res://addons/gs_platform/gs_platform_module.gd"
 	)
 
 	if not _check(platform.ok, "the platform module loads", str(platform.error)):
@@ -326,7 +326,7 @@ func _test_join() -> bool:
 
 	_link.spawned.connect(func() -> void: spawned[0] = true)
 	_link.disconnected.connect(func(reason: String) -> void: refused[0] = reason)
-	# dot-server's own `chat_received` is deliberately not what this listens on: the module routes every line through [GSChatRouter] onto this game's wire.
+	# gs-server's own `chat_received` is deliberately not what this listens on: the module routes every line through [GSChatRouter] onto this game's wire.
 	_link.chat_received.connect(func(payload: Dictionary) -> void:
 		if str(payload.get("kind", "")) == "state":
 			_chat_state.append(payload)
@@ -395,7 +395,7 @@ func _test_join() -> bool:
 func _test_client_scene() -> void:
 	_section("the client scene")
 
-	# The server does not name this: [GSClientLink] refuses an absolute scene path outside dot-cloud's mount, so a game shipped in the build owns its client scene.
+	# The server does not name this: [GSClientLink] refuses an absolute scene path outside gs-cloud's mount, so a game shipped in the build owns its client scene.
 	var packed: Variant = load("res://game/client/hungry_client.tscn")
 
 	if not _check(packed is PackedScene, "the client scene loads"):
@@ -436,7 +436,7 @@ func _test_client_scene() -> void:
 	_check(
 		_client.screens != null and _client.platform.board != null
 			and _client.menu != null and _client.menu.page(&"loadout") != null,
-		"and its Tab board and dot-menu's Escape menu, Loadout first"
+		"and its Tab board and gs-menu's Escape menu, Loadout first"
 	)
 
 	# The pointer is what drives this game, and a headless run has none. The sampler's
@@ -550,7 +550,7 @@ func _playing_moves(module: HungryModule, mine: int) -> void:
 	)
 
 
-## The avatar the client published is the one the server holds: dot-user-avatar over a real connection.
+## The avatar the client published is the one the server holds: gs-user-avatar over a real connection.
 func _playing_avatar(module: HungryModule, mine: int) -> void:
 	var server_monster := module.world.monster_for(mine)
 	_check(
@@ -690,7 +690,7 @@ func _test_mass_actions_are_heard(module: HungryModule, mine: int) -> void:
 func _test_ambient_cvars() -> void:
 	_section("the server's hungry_ambient* reaches the client's ambience director, live")
 	var director := _client.presentation.ambient if _client != null and _client.presentation != null else null
-	if not _check(director != null and director.has_moods(), "the client has a director with dot-audio's moods"):
+	if not _check(director != null and director.has_moods(), "the client has a director with gs-audio's moods"):
 		_done()
 		return
 	var rules := _client.ambient_rules
@@ -949,15 +949,15 @@ func _test_blind_and_beacon_audience(module: HungryModule, theirs: int) -> void:
 	_check(cleared, "and turning both off reaches both clients")
 
 
-## The player's block list (`sm`) reaches this game's voice via dot-chat's GSChatSelfMute; armed: dropping either end fails a check.
+## The player's block list (`sm`) reaches this game's voice via gs-chat's GSChatSelfMute; armed: dropping either end fails a check.
 func _test_voice_mute() -> void:
 	_section("sm mutes a player's voice")
 
 	# The one client in this process so far, as in a real one (a second publishes its own; the registry holds the last).
 	var voice: Variant = _client.voice if _client != null else null
 	var manager: GSVoiceManager = voice.manager if voice != null else null
-	if not _check(manager != null and GSRegistry.get_service(&"dot_voice_client") == manager,
-			"the client's voice is published as dot_voice_client"):
+	if not _check(manager != null and GSRegistry.get_service(&"gs_voice_client") == manager,
+			"the client's voice is published as gs_voice_client"):
 		_done()
 		return
 
@@ -966,7 +966,7 @@ func _test_voice_mute() -> void:
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(self_mute.path))
 	const TALKER := 1_900_000_001
 	self_mute.set_roster([{"id": 9, "name": "Loud", "key": "loud-key", "peer": TALKER}], 2)
-	self_mute.attach_voice(GSRegistry.get_service(&"dot_voice_client"))
+	self_mute.attach_voice(GSRegistry.get_service(&"gs_voice_client"))
 
 	var talk := func() -> void:
 		var codec := GSVoiceCodec.instance_for(manager.config.codec_id)

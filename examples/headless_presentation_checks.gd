@@ -70,7 +70,7 @@ func _board_shrinks(hud: HungryHud, world: HungryWorld) -> void:
 		str(shown.map(func(r: Dictionary) -> String: return "%s:%s" % [r[&"rank"], r[&"name"]]))
 	)
 
-	# The clock is dot-ui's GSScoreStrip, top centre, clear of the ballot's column.
+	# The clock is gs-ui's GSScoreStrip, top centre, clear of the ballot's column.
 	hud._refresh_clock()
 	hud.strip.refresh_cover()
 	var remaining := world.match_node.seconds_remaining() if world.match_node != null else -1.0
@@ -125,13 +125,13 @@ func _board_clear_of_chat(hud: HungryHud, ballot: Control) -> void:
 		"chat %s, ballot %s, clock %s" % [chat_rect, ballot_rect, clock_rect]
 	)
 
-	# A pack naming the strip does not parse on a shell whose dot-ui predates it, so the
-	# requires.json dot-ci derives must ask for dot-ui 4, and nothing may lower it.
+	# A pack naming the strip does not parse on a shell whose gs-ui predates it, so the
+	# requires.json gs-ci derives must ask for gs-ui 4, and nothing may lower it.
 	var asks := GSAddonApi.derive()
 	_check(
-		int(asks.get("dot_ui", 0)) >= 4 and not FileAccess.file_exists("res://" + GSAddonApi.FLOOR_FILE),
-		"the pack asks a shell for dot-ui level 4, the glance pieces",
-		str(asks.get("dot_ui"))
+		int(asks.get("gs_ui", 0)) >= 4 and not FileAccess.file_exists("res://" + GSAddonApi.FLOOR_FILE),
+		"the pack asks a shell for gs-ui level 4, the glance pieces",
+		str(asks.get("gs_ui"))
 	)
 
 
@@ -253,7 +253,7 @@ func _beacon(world: HungryWorld, them: HungryMonster) -> void:
 			% [str(pulses), sink.count_of(HungryPresentation.BEACON_SOUND)]
 	)
 
-	# Positional: dot-audio culls a ping past its distance, which is what makes the edge
+	# Positional: gs-audio culls a ping past its distance, which is what makes the edge
 	# pointer — not the sound — the way a beacon two screens away is found.
 	p.present(0.0, them.centre() + Vector2(ping.max_distance * 2.0, 0.0) if ping != null else Vector2.ZERO)
 	_check(
@@ -304,8 +304,8 @@ func _chat_box_input(p: HungryPresentation, window: GSChatWindow) -> void:
 
 
 func _chat_box_join(p: HungryPresentation, window: GSChatWindow) -> void:
-	# A join notice is a name and NO text (dot-chat's `_presence`). Drawn by its text it was
-	# an empty row in the box: with dot-server's own join line turned off, nobody was ever
+	# A join notice is a name and NO text (gs-chat's `_presence`). Drawn by its text it was
+	# an empty row in the box: with gs-server's own join line turned off, nobody was ever
 	# seen to join. The client is never added to the tree (its `_ready` builds the netcode).
 	var chat := GSChatClient.new()
 	chat.channels = HungryServices.chat_channels()

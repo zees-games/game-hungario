@@ -54,15 +54,15 @@ func _delivered_modes() -> void:
 	_check(built_in.size() == 8, "built in there are eight modes")
 	for d in built_in:
 		_check(not d.needs_delivered_content() and d.content_key() == "", "%s is bundled built in" % d.game_id)
-	var mounted := HungryModule.game_descriptors("res://dot_cloud/gamemann/game-hungario/0.3.1+r2")
+	var mounted := HungryModule.game_descriptors("res://gs_cloud/gamemann/game-hungario/0.3.1+r2")
 	_check(mounted.size() == 8, "mounted there are eight modes")
 	var ok := true
 	for d in mounted:
 		ok = ok and d.needs_delivered_content() and d.content_key() == "gamemann/game-hungario@0.3.1+r2" \
 			and d.client_scene_or_scene() == "game/client/hungry_client.tscn" \
-			and d.resolve_scene_path().begins_with("res://dot_cloud/gamemann/game-hungario/0.3.1+r2/game/modes/")
+			and d.resolve_scene_path().begins_with("res://gs_cloud/gamemann/game-hungario/0.3.1+r2/game/modes/")
 	_check(ok, "every mounted mode is delivered under the pack's content key, with a relative client scene")
-	_check(HungryModule._mount_of("res://dot_cloud/x").is_empty() and HungryModule._mount_of("res://").is_empty(), "a path that is not a mount names no content")
+	_check(HungryModule._mount_of("res://gs_cloud/x").is_empty() and HungryModule._mount_of("res://").is_empty(), "a path that is not a mount names no content")
 
 
 func _server_config() -> void:
@@ -253,4 +253,4 @@ func _templates() -> void:
 	for path: String in files:
 		if not FileAccess.file_exists("res://" + path) or FileAccess.get_file_as_string("res://" + path) != files[path]:
 			stale.append(path)
-	_check(stale.is_empty(), "the shipped files match the config (run addons/dot_game/qa/dot_game_cfg_templates.gd)", ",".join(stale))
+	_check(stale.is_empty(), "the shipped files match the config (run addons/gs_game/qa/gs_game_cfg_templates.gd)", ",".join(stale))

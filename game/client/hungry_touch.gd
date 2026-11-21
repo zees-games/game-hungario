@@ -3,7 +3,7 @@ extends Control
 
 const HungryTouch := preload("hungry_touch.gd")
 
-## The buttons a phone needs: split and throw, plus eject and boost, as a dot-ui [GSTouchButtons].
+## The buttons a phone needs: split and throw, plus eject and boost, as a gs-ui [GSTouchButtons].
 ##
 ## [b]This game is nearly playable on a phone by accident.[/b] There is nothing to aim and
 ## nothing to select: a drag is the pointer, near is slow, far is fast, and
@@ -51,7 +51,7 @@ static func make() -> HungryTouch:
 	return touch
 
 
-## dot-game's canonical slots, so split sits where every other game's main button does. Throw is disabled
+## gs-game's canonical slots, so split sits where every other game's main button does. Throw is disabled
 ## (drawn as its label only) until something is carried.
 static func touch_layout(throw_label: String) -> GSGameTouchLayout:
 	return GSGameTouchLayout.custom() \

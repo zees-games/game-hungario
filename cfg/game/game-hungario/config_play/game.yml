@@ -6,7 +6,7 @@
 # fruit_effect_sec: 8.0
 # Seconds a frosted monster is slowed. [0.5..60.0]
 # frost_sec: 5.0
-# Pepper damage at point blank, in dot-combat's units; the falloff and the minimum scale from it. [1.0..1000.0]
+# Pepper damage at point blank, in gs-combat's units; the falloff and the minimum scale from it. [1.0..1000.0]
 # pepper_damage: 100.0
 # Crumbs a lure plants where it lands. [1..]
 # lure_food_count: 26

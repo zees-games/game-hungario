@@ -6,13 +6,13 @@ extends Node2D
 ## [b]This file is content, not code.[/b] It ships inside `content/avatars/` in the build
 ## and it is also what [GSCloudPublisher] packages into the avatar pack, so at runtime
 ## there may be two copies of it on disk at different paths — one under `res://content/`
-## and one under `res://dot_cloud/hungry_avatars/<version>/`. That is exactly what
-## dot-cloud's version-namespaced mounting is for, and it is why this script has no
+## and one under `res://gs_cloud/hungry_avatars/<version>/`. That is exactly what
+## gs-cloud's version-namespaced mounting is for, and it is why this script has no
 ## `class_name`: a global identifier registered twice from two packs is a collision the
 ## engine resolves arbitrarily.
 ##
 ## It is deliberately a `_draw` call rather than a sprite. game-hungario ships no art, the
-## same way dot-ui ships none, and a part that is a few polygons is a part that can be
+## same way gs-ui ships none, and a part that is a few polygons is a part that can be
 ## versioned, signed, downloaded and mounted at a realistic size without anybody having to
 ## produce a texture first. Swapping these for real ones changes nothing anywhere else:
 ## the contract is the scene root being a `Node2D` that answers `hungry_dress`.

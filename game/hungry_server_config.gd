@@ -55,7 +55,7 @@ static func make_binder(config: GSConfig, json_path := "") -> GSGameConfigBinder
 ## Seconds a frosted monster is slowed.
 @export_range(0.5, 60.0, 0.5) var frost_sec: float = 5.0
 
-## Pepper damage at point blank, in dot-combat's units; the falloff and the minimum scale from it.
+## Pepper damage at point blank, in gs-combat's units; the falloff and the minimum scale from it.
 @export_range(1.0, 1000.0, 1.0) var pepper_damage: float = 100.0
 
 ## Crumbs a lure plants where it lands.

@@ -172,7 +172,7 @@ func _build_netcode() -> GSResult:
 	bridge.cue.connect(_on_cue)
 	bridge.roster_changed.connect(_on_roster_changed)
 
-	# dot-server's own `chat_received` is deliberately not connected: the server cancels that path and routes every line through [GSChatRouter] onto this game's wire (see [method HungryModule._on_player_chat]),
+	# gs-server's own `chat_received` is deliberately not connected: the server cancels that path and routes every line through [GSChatRouter] onto this game's wire (see [method HungryModule._on_player_chat]),
 	# so connecting both would draw a line twice on a server on the old path.
 	bridge.chat_received.connect(_on_chat_wire)
 	bridge.hunter_received.connect(_on_hunter)
@@ -335,7 +335,7 @@ func _build_presentation() -> void:
 	presentation.client = self
 	presentation.platform = platform
 	presentation.sound = sound
-	# The SAME config object the rest of the client reads, not a copy. dot-settings owns
+	# The SAME config object the rest of the client reads, not a copy. gs-settings owns
 	# the persistence and the scopes; `HungryConfig` stays the declaration, so there is
 	# one list rather than two that drift.
 	presentation.config = settings if settings != null else HungryConfig.new()
@@ -494,7 +494,7 @@ func _build_ui() -> void:
 	if platform.board is GSMenuScoreboard:
 		HungryMenus.dress_board(platform.board as GSMenuScoreboard, world, bridge)
 
-	# Escape, H and Leave are dot-menu's, built with the player's settings by the presentation
+	# Escape, H and Leave are gs-menu's, built with the player's settings by the presentation
 	# layer. What is this game's is the Loadout page, first, because Escape is where a player
 	# goes to change what they bring in.
 	menu = presentation.menu_settings.menu if presentation != null and presentation.menu_settings != null else null
@@ -598,7 +598,7 @@ func _physics_process(delta: float) -> void:
 	var ticks := net.clock.advance(delta)
 
 	# Each pass is its own tick: `advance` has already moved the clock by all of them, so `input_tick()` is the last on every pass,
-	# and a frame worth two ticks would send the second twice and the first never. Plain arithmetic, not a new dot-net call, so a pack runs on any client shell.
+	# and a frame worth two ticks would send the second twice and the first never. Plain arithmetic, not a new gs-net call, so a pack runs on any client shell.
 	for i in range(ticks):
 		if not net.clock.is_synced():
 			continue
@@ -624,7 +624,7 @@ func _process(delta: float) -> void:
 	_watch_mass()
 
 	if presentation != null:
-		# Once a frame, with where the camera is: dot-audio culls by listener distance and dot-fx ages what it spawned, and neither ticks while the tree is paused.
+		# Once a frame, with where the camera is: gs-audio culls by listener distance and gs-fx ages what it spawned, and neither ticks while the tree is paused.
 		presentation.present(delta, _watched_centre())
 
 	_board_accum += delta
@@ -651,7 +651,7 @@ func _watched_centre() -> Vector2:
 func _start_offline() -> void:
 	world.add_player(1, "You")
 
-	# Named from dot-bot's pool, as a server's are; never "Bot 3".
+	# Named from gs-bot's pool, as a server's are; never "Bot 3".
 	var roster := GSBotRoster.new()
 	var taken: Array = ["You"]
 	for index in range(offline_bots):
@@ -861,7 +861,7 @@ func _watch_mass() -> void:
 	_last_pieces = pieces
 
 	# Split and eject had a voice each in the bank since the first commit, and a row each
-	# in dot-audio's catalogue, and nothing ever played either: the one action this game
+	# in gs-audio's catalogue, and nothing ever played either: the one action this game
 	# is about was silent.
 	if more_pieces and _asked_recently(GS2DCommand.BUTTON_SPLIT):
 		presentation.on_split()
@@ -987,7 +987,7 @@ func _on_chat_message(message: GSChatMessage, channel_id: StringName) -> void:
 	# is adding a definition rather than a branch somebody has to remember to extend.
 	var window := _chat_window()
 
-	# A join or leave notice is a name and no text (dot-chat's `_presence`): drawn by its
+	# A join or leave notice is a name and no text (gs-chat's `_presence`): drawn by its
 	# text it was an empty line in the box, and by name and text a bare "Guest 435:".
 	# `describe()` words it ("Guest 435 joined"); every other kind is drawn by its text.
 	var text := message.describe() \
@@ -1083,7 +1083,7 @@ func _on_progress(state: Dictionary) -> void:
 	)
 
 
-## The talk key. The held Tab board is the platform's. Escape, H and the menu's keys are dot-menu's
+## The talk key. The held Tab board is the platform's. Escape, H and the menu's keys are gs-menu's
 ## ([HungrySettings]), which takes every key while anything of its is open.
 func _unhandled_input(event: InputEvent) -> void:
 	# [b]Voice first, and on both edges.[/b] Everything below this line is `is_pressed`,

@@ -3,7 +3,7 @@ extends RefCounted
 const HungryWorld := preload("hungry_world.gd")
 const HungryMonster := preload("hungry_monster.gd")
 
-## What dot-moderation's live tools mean in a 2D eating arena.
+## What gs-moderation's live tools mean in a 2D eating arena.
 ##
 ## [b]The subset is the honest one, and every refusal says why.[/b] What this game can do
 ## to a monster on the server alone, with the client simply following the snapshot, it
@@ -12,7 +12,7 @@ const HungryMonster := preload("hungry_monster.gd")
 ## the client predicts. What it refuses is refused for a reason about the wire or the
 ## design, and `modtools` prints each:
 ##
-## - [b]noclip, freeze and speed[/b] are dot-2d's [GS2DAdminModifiers], kept per monster
+## - [b]noclip, freeze and speed[/b] are gs-2d's [GS2DAdminModifiers], kept per monster
 ##   in [member HungryMonster.admin] and written into every piece's replicated state, so
 ##   the owning client predicts them — `headless_net` holds a forced noclip through a rock
 ##   for a whole window without a correction, and shows the same move made the naive way
@@ -160,7 +160,7 @@ static func unsupported() -> Dictionary:
 	}
 
 
-## Toggles that outlive a respawn here, beyond dot-moderation's own god and buddha.
+## Toggles that outlive a respawn here, beyond gs-moderation's own god and buddha.
 ##
 ## [b]Blind and beacon are about the person, not the body.[/b] Noclip and freeze end with
 ## the monster's pieces because arriving in a fresh life frozen is the respawn broken; a

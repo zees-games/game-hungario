@@ -31,7 +31,7 @@ var catalogue: GSMapCatalogue = null
 var rotation: GSMapRotation = null
 var director: GSVoteDirector = null
 
-## dot-server's game manager, which is what a vote actually applies through.
+## gs-server's game manager, which is what a vote actually applies through.
 var games: Object = null
 
 ## How many people are playing. Set by [HungryModule]; a vote's every threshold needs it.
@@ -56,14 +56,14 @@ var rotation_file: GSMapRotationFile = null
 ## Where [member rotation_file] was read from, or "" when there was no file.
 var rotation_source: String = ""
 
-## The file that says which modes rotate: dot-map's [GSMapRotationFile] format, looked for in
+## The file that says which modes rotate: gs-map's [GSMapRotationFile] format, looked for in
 ## the `--config` directory first. A test sets it empty. Empty, or no file, rotates every mode
 ## the catalogue holds, which is what this game always did.
 const ROTATION_FILE := "cfg/maps.yml"
 var rotation_stem: String = ROTATION_FILE
 
 ## [code]func(state: Dictionary)[/code]: the ballot as a client draws it, sent whenever it
-## changes. The host points it at the client shell (a dot-server notice), which draws a
+## changes. The host points it at the client shell (a gs-server notice), which draws a
 ## menu a player picks from with a number key or a click. Unset sends nothing.
 var ballot_fn: Callable = Callable()
 
@@ -73,7 +73,7 @@ var people_fn: Callable = Callable()
 ## What [member ballot_fn] is fed from. Polled once per [method advance].
 var feed: GSVoteBallotFeed = null
 
-## What dot-vote's commands are called here. `vote` rather than `votefor`, so the command
+## What gs-vote's commands are called here. `vote` rather than `votefor`, so the command
 ## is the token this game's own wire already sends.
 const COMMAND_NAMES := {"vote": "vote"}
 
@@ -83,7 +83,7 @@ var _match: GSMatch = null
 var config_path: String = CONFIG_PATH
 
 
-## dot-server's games, kept to the ones [member keep_fn] says are this game's modes.
+## gs-server's games, kept to the ones [member keep_fn] says are this game's modes.
 class ModeSource extends GSVoteGameSource:
 	## [code]func(id: StringName) -> bool[/code]: whether a game id is one of the modes.
 	var keep_fn: Callable = Callable()
@@ -133,7 +133,7 @@ static func _map(descriptor: GSGameDescriptor, min_players: int) -> GSMapDef:
 	out.kind = GSMapDef.KIND_ARENA
 	out.min_players = min_players
 	out.max_players = descriptor.max_players
-	# The same scene dot-server loads, read from the same declaration.
+	# The same scene gs-server loads, read from the same declaration.
 	out.scene_path = descriptor.resolve_scene_path()
 	out.meta = {"vote": {"display": descriptor.display_name}}
 	return out
@@ -164,11 +164,11 @@ static func vote_rules() -> GSVoteRules:
 	rules.rtv_enabled = true
 	rules.rtv_fraction = 0.6
 	rules.rtv_min_players = 1
-	# [b]Measured against elapsed time, which is the other bug dot-vote found.[/b]
+	# [b]Measured against elapsed time, which is the other bug gs-vote found.[/b]
 	rules.rtv_delay_sec = 120.0
 	rules.nominations_enabled = true
 	rules.nominations_per_player = 1
-	# On, which makes `MOST_NOMINATED` mean anything: dot-vote now allows a second nomination, so counts differ and a ballot can show which mode people want.
+	# On, which makes `MOST_NOMINATED` mean anything: gs-vote now allows a second nomination, so counts differ and a ballot can show which mode people want.
 	rules.nomination_seconding = true
 	rules.cooldown = 1
 	rules.cooldown_mode = GSVoteRules.Cooldown.PLAYS
@@ -181,7 +181,7 @@ static func vote_rules() -> GSVoteRules:
 	rules.vote_warning_sec = 5.0
 	rules.runoff_warning_sec = 3.0
 
-	# The ids the client's catalogue plays, from the wire's one copy of them. dot-vote
+	# The ids the client's catalogue plays, from the wire's one copy of them. gs-vote
 	# ships every cue empty and names no audio class.
 	rules.cue_vote_start = HungryEvents.CUE_VOTE_START
 	rules.cue_vote_end = HungryEvents.CUE_VOTE_END
@@ -237,14 +237,14 @@ func setup(p_games: Object) -> GSResult:
 		change_due.emit(id)
 	)
 
-	# Two signals, two messages: dot-vote emits a countdown second and that second's cue
+	# Two signals, two messages: gs-vote emits a countdown second and that second's cue
 	# separately, and merging them here would be this file deciding which is which.
 	director.cue.connect(func(id: StringName) -> void: cue_due.emit(id, 0, false))
 	director.countdown_tick.connect(func(seconds_left: int, runoff: bool) -> void:
 		cue_due.emit(&"", seconds_left, runoff)
 	)
 
-	# No second clock: the vote's own clock hears extends, kept-mode ballots and stops, and dot-vote's `timeleft` already reads it.
+	# No second clock: the vote's own clock hears extends, kept-mode ballots and stops, and gs-vote's `timeleft` already reads it.
 
 	return GSResult.success(null)
 
@@ -253,7 +253,7 @@ func _build_director(rules: GSVoteRules) -> void:
 	director = GSVoteDirector.new()
 	director.name = "Vote"
 	director.rules = rules
-	# The source is dot-server's games, not dot-map's catalogue: `GSVoteGameSource.apply` calls `change_game`, which is what changes the game.
+	# The source is gs-server's games, not gs-map's catalogue: `GSVoteGameSource.apply` calls `change_game`, which is what changes the game.
 	# Narrowed to this game's modes, since a server running several games would otherwise ballot the others.
 	var modes := ModeSource.new()
 	modes.manager = games
@@ -276,7 +276,7 @@ func _build_director(rules: GSVoteRules) -> void:
 	# Every round's end is reported (see _on_round_ended), so a time limit can wait for the
 	# round in progress under `time_up: finish_round`.
 	director.round_based = true
-	# Set by name and only where it exists: a delivered pack runs on the shell's dot-vote, and one older than API 3 has no `round_in_progress_fn`, whose name would fail the pack's parse.
+	# Set by name and only where it exists: a delivered pack runs on the shell's gs-vote, and one older than API 3 has no `round_in_progress_fn`, whose name would fail the pack's parse.
 	if "round_in_progress_fn" in director:
 		director.set(&"round_in_progress_fn", round_in_progress)
 	add_child(director)
@@ -353,7 +353,7 @@ func _on_round_ended(_round: int, _winner: int, _outcome: GSMatchRules.Outcome) 
 		director.note_round_end()
 
 
-## dot-vote's commands, on [param host] — the module, so they go when it does.
+## gs-vote's commands, on [param host] — the module, so they go when it does.
 func install_commands(host: Object) -> GSResult:
 	if director == null:
 		return GSResult.fail(GSError.CODE_STATE, "There is no vote to command.")

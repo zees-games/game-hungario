@@ -38,7 +38,7 @@ const HungryWorld := preload("hungry_world.gd")
 const AMBIENT_KIND := "ambience"
 
 ## Binds a [HungryWorld] and its netcode to a [GSServer]: the tick, join, console, bots and game
-## descriptors. The only file naming dot-server. The manager outlives the world: rebuilding
+## descriptors. The only file naming gs-server. The manager outlives the world: rebuilding
 ## [GSNetManager] on a game change would reset ids, peers and the clock, so only the bridge is rebound.
 
 ## The drawn mode ballot's notice topic. The client shell draws one menu per topic, and a
@@ -71,7 +71,7 @@ const GAME_FAMINE := "hungry_famine"
 
 const GAME_FEAST := "hungry_feast"
 
-## The world, which is dot-game's `game`; typed here because every call on it is the game's own.
+## The world, which is gs-game's `game`; typed here because every call on it is the game's own.
 var world: HungryWorld:
 	get:
 		return game as HungryWorld if game != null and is_instance_valid(game) else null
@@ -93,16 +93,16 @@ var _joined: Dictionary:
 		return roster.joined if roster != null else {}
 
 ## What players may bring in, and where their choices are kept.
-## Memory-backed, right for a dedicated server (a persistent loadout is dot-user's profile); an operator
+## Memory-backed, right for a dedicated server (a persistent loadout is gs-user's profile); an operator
 ## points the config at the local backend or subclasses [GSLoadoutStore], which is the seam.
 var loadouts: GSLoadoutManager = null
 
 ## Where the services write punishments: [constant HungryServices.PUNISHMENTS_PATH] unless a host says
-## otherwise before this loads. Static because dot-server constructs the module in `load_module`,
+## otherwise before this loads. Static because gs-server constructs the module in `load_module`,
 ## so no instance exists to set a field on.
 static var punishments_path: String = HungryServices.PUNISHMENTS_PATH
 
-## dot-moderation's live tools with this game's verbs (`HungryModTools`), and their
+## gs-moderation's live tools with this game's verbs (`HungryModTools`), and their
 ## commands. Built here rather than in the services layer because the world they act on is
 ## replaced by a game change and this module is what knows the current one.
 var mod_tools: GSModTools = null
@@ -120,7 +120,7 @@ var npc_skill: GSNpcAiSkill = GSNpcAiSkill.new()
 ## Rocks, spikes and lures.
 var hazards: HungryHazards = null
 
-## What a throwable does to somebody, through dot-combat's rules.
+## What a throwable does to somebody, through gs-combat's rules.
 var combat: HungryCombat = null
 
 ## Boards and achievements over the numbers this game already counts.
@@ -136,11 +136,11 @@ var backbone: GSBackboneClient = null
 
 ## Counts what every monster did, and reports it through [member backbone].
 ## Always built (the session figures are the game's own); reported only with a backbone. Keyed by the
-## scoped id dot-platform resolved, so a guest with no scoped key is counted under nothing.
+## scoped id gs-platform resolved, so a guest with no scoped key is counted under nothing.
 var stats: GSStatsTracker = null
-## The skill rank (dot-stats' GSStatsRank): weighted lifetime figures, filed as rank_score.
+## The skill rank (gs-stats' GSStatsRank): weighted lifetime figures, filed as rank_score.
 var rank: GSStatsRank = null
-## Files kills for the head-to-head table (dot-stats), keyed like the counters.
+## Files kills for the head-to-head table (gs-stats), keyed like the counters.
 var _kill_feed: GSStatsEventFeed = null
 
 ## userid -> the scoped key the tracker knows them by.
@@ -157,7 +157,7 @@ var _roster := GSBotRoster.new()
 ## `hungry_bots`, the old fixed count, kept only as an alias. See [method _register_console].
 var _cv_bots: GSConVar = null
 
-## How many bots, from how many people: dot-server's one rule for every game.
+## How many bots, from how many people: gs-server's one rule for every game.
 var _quota: GSBotQuota = null
 
 var _cv_pack: GSConVar = null
@@ -166,7 +166,7 @@ var _cv_auth_config: GSConVar = null
 
 var _cv_hunters: GSConVar = null
 
-## dot-workbench over the config and the modes; null until the load finishes.
+## gs-workbench over the config and the modes; null until the load finishes.
 var workbench: GSGameWorkbench = null
 
 ## Per-preset spawn points, one set for the module's life: every world's player stack applies
@@ -176,7 +176,7 @@ var spawn_overrides: GSProfileSet = GSSpawnOverrides.make_set(HungryMapConfig.GA
 ## The admins' permission check the workbench runtime asks through [method _runtime_permit].
 var _admin_permit := Callable()
 
-## dot-player-char's `sv_ragdoll*` set: how an eaten monster goes down. The module's, because
+## gs-player-char's `sv_ragdoll*` set: how an eaten monster goes down. The module's, because
 ## the cvars outlive a mode change and the world does not; each world is handed this one.
 var ragdoll_rules: GSPlayerRagdollRules = GSPlayerRagdollRules.new()
 
@@ -203,7 +203,7 @@ func _module_author() -> String:
 
 ## What a player owns.
 ## Nothing by default, deliberately: granting everything passes every test and ships free unlocks nobody
-## reports. Only items marked free are permitted until dot-platform's entitlement source says otherwise.
+## reports. Only items marked free are permitted until gs-platform's entitlement source says otherwise.
 func _entitlements_for_key(user_key: String) -> GSLoadoutEntitlements:
 	var granted := GSLoadoutEntitlements.none()
 	var platform: Object = server.modules.get_module("platform")
@@ -294,7 +294,7 @@ func _build_reporting() -> void:
 	log_info("reporting to the site listing", {"url": config.backbone_url})
 
 ## What this server looks like from outside.
-## dot-server's own report says `bots: 0`, so a listing would overstate humans; the map is the mode
+## gs-server's own report says `bots: 0`, so a listing would overstate humans; the map is the mode
 ## (`hungry_frenzy`), not the content id. Public so it can be checked without a token.
 func stats_report() -> Dictionary:
 	var report := server.to_stats_report()
@@ -422,7 +422,7 @@ func _publish_rank(key: StringName) -> void:
 	if rank != null and stats.has_player(key):
 		var _s := rank.publish_lifetime(key, stats.session_values(key), stats.schema)
 
-## Starts counting for a session under dot-game's stable per-server key (guests too); a bot is counted under nothing.
+## Starts counting for a session under gs-game's stable per-server key (guests too); a bot is counted under nothing.
 func _begin_stats(session: GSClientSession) -> void:
 	if stats == null:
 		return
@@ -446,9 +446,9 @@ func _end_stats(session: GSClientSession) -> void:
 	stats_feed.forget(session.userid)
 
 
-## The avatar dot-platform resolved for this session, if there is a dot-platform.
+## The avatar gs-platform resolved for this session, if there is a gs-platform.
 ## Duck-typed on purpose: naming [code]GSPlatformModule[/code] would make a LAN server impossible
-## without dot-auth and dot-user. A module answering to `player_for` is enough (dot-server's admin contract).
+## without gs-auth and gs-user. A module answering to `player_for` is enough (gs-server's admin contract).
 func _avatar_for(session: GSClientSession) -> GSAvatar:
 	var platform: Object = server.modules.get_module("platform")
 
@@ -475,7 +475,7 @@ func _drive_bots() -> void:
 		var slots: int = server.config.max_players if server != null and server.config != null else -1
 		wanted = _quota.wanted(humans, slots)
 
-	# dot-bot's roster: named from its pool, never a person's name, newest out first.
+	# gs-bot's roster: named from its pool, never a person's name, newest out first.
 	var taken: Array = []
 	for id in world.player_ids():
 		var someone := world.monster_for(id)
@@ -654,7 +654,7 @@ func _on_tuning_changed(key: String, _value: Variant, _source: String) -> void:
 			if world.tunables != null and world.tunables.mass_rules != null:
 				world.tunables.mass_rules.max_pieces = HungryContent.mass_rules().max_pieces
 
-## dot-workbench over the server config and the six modes: the HTTP page only with `workbench.enabled` in cfg/server.yml, the F9 panel never on a dedicated server.
+## gs-workbench over the server config and the six modes: the HTTP page only with `workbench.enabled` in cfg/server.yml, the F9 panel never on a dedicated server.
 func _start_workbench() -> void:
 	var rt: GSProfileRuntime = hbridge.ensure_runtime() if hbridge != null else GSProfileRuntime.new()
 	var admin_permit := Callable()

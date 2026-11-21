@@ -131,7 +131,7 @@ func _test_services() -> void:
 		"one of which is a radius, because an arena is bigger than a screen"
 	)
 
-	# [b]THE join.[/b] dot-chat consults a `dot_mute_source` and dot-moderation publishes
+	# [b]THE join.[/b] gs-chat consults a `gs_mute_source` and gs-moderation publishes
 	# one, and neither imports the other — so the only thing that makes a gag work is that
 	# something is registered under that name.
 	_check(
@@ -140,7 +140,7 @@ func _test_services() -> void:
 	)
 	_check(
 		GSRegistry.has(GSModerationManager.BAN_SERVICE),
-		"and a ban source, which dot-server's admission check consults"
+		"and a ban source, which gs-server's admission check consults"
 	)
 
 	# [b]Proximity voice, which is where this game and the lobby part company.[/b] Hearing
@@ -168,13 +168,13 @@ func _test_services() -> void:
 		var _on := voice_cvar.set_value("1")
 	_check(not off_enabled and services.voice.enabled, "and turns the router off and on")
 
-	# dot-server's own chat is cancelled rather than run beside the router.
+	# gs-server's own chat is cancelled rather than run beside the router.
 	var legacy := _server.events.fire("player_chat", {
 		"userid": 1, "name": "Nobody", "text": "hello", "team_only": false,
 	})
 	_check(
 		legacy.cancelled,
-		"dot-server's own chat broadcast is cancelled, so there is exactly one path"
+		"gs-server's own chat broadcast is cancelled, so there is exactly one path"
 	)
 	_done()
 
@@ -201,7 +201,7 @@ func _test_moderation() -> void:
 	)
 	_check(gagged.ok, "a gag is issued and stored", str(gagged.error))
 
-	# Round-tripped through the store: dot-moderation once shipped a voice mute that loaded back
+	# Round-tripped through the store: gs-moderation once shipped a voice mute that loaded back
 	# as a WARN, and a punishment surviving a reconnect is the point of the addon.
 	var reloaded := GSModerationManager.new()
 	reloaded.store = GSPunishmentStoreFile.new(services.punishments_path)
@@ -228,7 +228,7 @@ func _test_moderation() -> void:
 	_done()
 
 
-## dot-moderation's live tools, as an operator types them, against a monster that joined
+## gs-moderation's live tools, as an operator types them, against a monster that joined
 ## the way a client's does. The subset this game supports acts on the world; the rest is
 ## refused with the reason `HungryModTools` gives.
 func _test_live_tools() -> void:
@@ -301,7 +301,7 @@ func _test_live_tools_acts(world: HungryWorld, monster: HungryMonster, session: 
 	_check(monster.carried.has(StringName(item)), "`give Chomp %s` puts it in their hands" % item,
 		" | ".join(given))
 
-	# Noclip, freeze and speed are dot-2d's admin modifiers now: on the monster, and in every
+	# Noclip, freeze and speed are gs-2d's admin modifiers now: on the monster, and in every
 	# piece's replicated state, which is what the owning client predicts. `headless_net` is
 	# where the prediction itself is measured; this is the console reaching it.
 	var clipped := await _live("noclip Chomp")
@@ -322,7 +322,7 @@ func _test_live_tools_acts(world: HungryWorld, monster: HungryMonster, session: 
 			and _said_any(quick, "2×") and not _said_any(quick, "2.2"),
 		"`speed Chomp 2.2` lands on the 2x step, and says so", " | ".join(quick))
 
-	# A respawn is a new body: dot-moderation switches noclip and freeze off through the
+	# A respawn is a new body: gs-moderation switches noclip and freeze off through the
 	# handlers, off HungryWorld.player_spawned. Without that hook the bits would ride the
 	# monster — which outlives its pieces — into the next life.
 	var _again := await _live("respawn Chomp")
@@ -345,7 +345,7 @@ func _test_live_tools_flags(monster: HungryMonster, session: GSClientSession) ->
 		"and it is on every piece's entity the netcode sends them"
 	)
 
-	# A blind is a spell. dot-moderation lifts it through the same handler when the time is
+	# A blind is a spell. gs-moderation lifts it through the same handler when the time is
 	# up, so what is checked is the flag, not the timer.
 	var _lift := await _live("blind Chomp off")
 	var spell := await _live("blind Chomp 0.2")
@@ -398,7 +398,7 @@ func _test_live_tools_flags(monster: HungryMonster, session: GSClientSession) ->
 	var _released := _server.release_session(session.peer_id)
 
 
-## What a throwable does, through dot-combat rather than through a constant.
+## What a throwable does, through gs-combat rather than through a constant.
 func _test_combat() -> void:
 	_section("combat")
 
@@ -461,7 +461,7 @@ func _test_hunters() -> void:
 	)
 
 	# The wire order has to be stable and has to be sorted as String — `Array.sort()` on a
-	# StringName compares interned pointers, and dot-net shipped exactly that bug.
+	# StringName compares interned pointers, and gs-net shipped exactly that bug.
 	var ids := HungryHunters.wire_ids()
 	var sorted := ids.duplicate()
 	sorted.sort()
@@ -479,7 +479,7 @@ func _test_hunters() -> void:
 	_check(
 		GSNpcInstance.from_plane(GSNpcInstance.to_plane(Vector2(3.0, -7.0)))
 			== Vector2(3.0, -7.0),
-		"a 2D point round-trips through dot-npc's plane"
+		"a 2D point round-trips through gs-npc's plane"
 	)
 
 	_server.console.execute("hungry_hunters on")
@@ -661,7 +661,7 @@ func _test_hunt_flee(hunters: HungryHunters, world: HungryWorld, id: int, tag: S
 
 ## Information, not a check: what one whole-map path search costs, as a hunter's repath
 ## does it (`find_smooth_path`, the spawner's snap, partial paths allowed), so the next
-## run knows whether dot-npc's scan for the nearest point wants a spatial index.
+## run knows whether gs-npc's scan for the nearest point wants a spatial index.
 func _time_path_searches() -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 20260926
@@ -713,7 +713,7 @@ func _test_hazards() -> void:
 	)
 
 	# A lure is a prop and is not an obstacle. The field is read rather than assumed:
-	# dot-props' own sweep found two documented limits that limited nothing.
+	# gs-props' own sweep found two documented limits that limited nothing.
 	var lure := hazards.place(0, &"lure", Vector2(-200.0, 0.0))
 	_check(lure.ok, "a lure goes down too", str(lure.error))
 	_check(

@@ -5,7 +5,7 @@ const HungryGrid := preload("../game/hungry_grid.gd")
 const HungryPreset := preload("../game/hungry_preset.gd")
 const HungryWorld := preload("../game/hungry_world.gd")
 
-## What a bot sees ([method HungryBot.look_for]) is asked of dot-sim's `GSSimGrid2D` when the library is there, and it
+## What a bot sees ([method HungryBot.look_for]) is asked of gs-sim's `GSSimGrid2D` when the library is there, and it
 ## must answer as the script does: on every preset, mid-round with bots playing, every monster's head and seeded origins
 ## and sights give the same threat, prey, enemy and snack to the bit, and the native grid holds the same ids in the same
 ## query order; a world with [member HungryBot.native_forage] off steers its bots identically tick for tick; and a bot
@@ -58,8 +58,8 @@ func _section_library() -> bool:
 	_entered += 1
 	print("the library has the grid")
 	if not GSSim.has(&"grid2d"):
-		print("  dot-sim's grid2d module is not loaded: the native half is skipped")
-		var required := (OS.get_environment("GS_SIM_REQUIRE_NATIVE") if OS.has_environment("GS_SIM_REQUIRE_NATIVE") else OS.get_environment("DOT_SIM_REQUIRE_NATIVE")) == "1"
+		print("  gs-sim's grid2d module is not loaded: the native half is skipped")
+		var required := (OS.get_environment("GS_SIM_REQUIRE_NATIVE") if OS.has_environment("GS_SIM_REQUIRE_NATIVE") else OS.get_environment("GS_SIM_REQUIRE_NATIVE")) == "1"
 		_check(not required, "the library is loaded (GS_SIM_REQUIRE_NATIVE=1)")
 		_finished += 1
 		_report_sections(_entered, _finished, 1, 1)

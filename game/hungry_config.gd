@@ -5,13 +5,13 @@ extends GSConfig
 ##
 ## [b]The declaration, not the store.[/b] [HungrySettings] reads these `@export`s with
 ## [method GSSettingsSchema.from_config] (the type, the range, the default) into the
-## dot-settings document dot-menu's Escape menu is a view of, and the presentation layer
+## gs-settings document gs-menu's Escape menu is a view of, and the presentation layer
 ## writes each value back here as it changes, so the game reads plain properties and there
 ## is one list. The document is what is saved; this object is never written to disk. Until
-## 2026-10-12 it was (`user://cfg/hungry.json`, dot-ui's settings screen), and
+## 2026-10-12 it was (`user://cfg/hungry.json`, gs-ui's settings screen), and
 ## [HungrySettings] migrates that file once.
 ##
-## The volume is not here any more: it is dot-menu's stock audio page, which dot-audio's
+## The volume is not here any more: it is gs-menu's stock audio page, which gs-audio's
 ## mixer applies, as in every game of the family.
 
 @export_group("Camera")

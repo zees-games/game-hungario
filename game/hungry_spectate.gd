@@ -11,7 +11,7 @@ const HungryWorld := preload("hungry_world.gd")
 ## happens somewhere else.
 ##
 ## [b]A 2D world is the XZ plane, which is what makes this four lines rather than a
-## second addon.[/b] dot-npc settled that convention and everything downstream inherited
+## second addon.[/b] gs-npc settled that convention and everything downstream inherited
 ## it; `GSSpectatorManager.camera_2d_of` gives a position and a facing back, so nothing
 ## here needs a 3D camera or a second code path.
 ##
@@ -87,7 +87,7 @@ func _participants() -> PackedStringArray:
 	return out
 
 
-## The side they are actually on: dot-spectate reads 0 as "no team", and the stack is built
+## The side they are actually on: gs-spectate reads 0 as "no team", and the stack is built
 ## before anything can spectate.
 func _team_of(key: String) -> int:
 	return world.player_stack.team_index_of(key) if world.player_stack != null else 0

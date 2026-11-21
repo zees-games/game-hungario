@@ -85,7 +85,7 @@ func _ready() -> void:
 
 ## The actions this game reads, added only if nothing has made them yet.
 ##
-## A client's are made first by dot-menu's key table ([HungryBindings], applied from the
+## A client's are made first by gs-menu's key table ([HungryBindings], applied from the
 ## player's settings); this is for a suite or a tool with a sampler and no settings. It only
 ## ever adds; it never rebinds one that exists.
 func _register_actions() -> void:

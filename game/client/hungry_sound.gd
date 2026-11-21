@@ -5,7 +5,7 @@ const HungrySound := preload("hungry_sound.gd")
 
 ## Every noise this game makes, generated at startup. It ships no audio files.
 ##
-## [b]The same reasoning as everything else here.[/b] dot-ui ships no art, dot-2d draws
+## [b]The same reasoning as everything else here.[/b] gs-ui ships no art, gs-2d draws
 ## nothing, and the avatar parts are polygons — so the sound is a few hundred milliseconds
 ## of arithmetic rather than a directory of WAVs somebody has to produce before the game
 ## makes any noise at all. A real deployment replaces [method bake] with a bank of loaded
@@ -63,7 +63,7 @@ enum Cue {
 	## An administrator's beacon, once a second. Appended, so every cue above keeps its
 	## number.
 	BEACON,
-	## An eaten monster going down ([HungryFall]): dot-player-char's four death sounds, under
+	## An eaten monster going down ([HungryFall]): gs-player-char's four death sounds, under
 	## their ids, made here like every other noise in this game. Appended.
 	FALL_THUD,
 	FALL_SMACK,
@@ -202,7 +202,7 @@ static func bake(
 ##
 ## [param pitch] is a multiplier, so eating a haunch and eating a crumb are the same blip
 ## at different pitches rather than two voices that have to be kept in step.
-## [param gain_db] is added to [member volume_db]: what dot-audio decided this voice is worth
+## [param gain_db] is added to [member volume_db]: what gs-audio decided this voice is worth
 ## (the def's gain and the measured trim), handed down by [code]HungrySoundSink[/code].
 func play(cue: Cue, pitch: float = 1.0, gain_db: float = 0.0) -> void:
 	if muted or _players.is_empty():

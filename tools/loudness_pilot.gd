@@ -1,6 +1,6 @@
 extends RefCounted
 
-## Drives the local monster for dot-audio's loudness capture (addons/dot_audio/tools/loudness.sh
+## Drives the local monster for gs-audio's loudness capture (addons/gs_audio/tools/loudness.sh
 ## finds this file by name; run it with `-- --offline`, the main scene is the browser).
 ##
 ## [b]Why the stand-in is not enough here.[/b] It holds W and turns a mouse that steers

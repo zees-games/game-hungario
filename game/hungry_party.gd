@@ -12,8 +12,8 @@ extends Node
 ## no round boundary to be in the middle of — so a host leaving should cost a moment and
 ## not the session.
 ##
-## **Reporting is refused, exactly as the arena refuses it.** This game files to dot-stats
-## and unlocks dot-achievements, and a peer-to-peer host is a player's own machine that can
+## **Reporting is refused, exactly as the arena refuses it.** This game files to gs-stats
+## and unlocks gs-achievements, and a peer-to-peer host is a player's own machine that can
 ## lie about how much they ate. A host who can cheat and a persistent number are one
 ## exploit rather than two features.
 
@@ -74,7 +74,7 @@ func host(display_name: String) -> GSResult:
 			"this build cannot host a private arena",
 			GSP2PSession.unavailable_reason()
 		)
-	# Awaited: dot-peer-to-peer's session awaits its signaller since 37d47c1, because an
+	# Awaited: gs-peer-to-peer's session awaits its signaller since 37d47c1, because an
 	# HTTP rendezvous answers a frame later at best. A caller of this awaits it too.
 	var res: GSResult = await session.host(display_name)
 	if res.ok:

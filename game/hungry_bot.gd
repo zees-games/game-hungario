@@ -22,7 +22,7 @@ const HungryWorld := preload("hungry_world.gd")
 ## from moving as one body comes from hashing the id, which is the same trick
 ## [GS2DScatter] uses to place a field.
 ##
-## [b]How well it plays is dot-bot's `bot_difficulty`[/b] ([GSBotSettings] on the world: the
+## [b]How well it plays is gs-bot's `bot_difficulty`[/b] ([GSBotSettings] on the world: the
 ## module binds the cvars, the offline client the console variables). Three of the settings
 ## mean something on a plate: `bot_sight` scales how far it looks ([constant SIGHT] at medium),
 ## `bot_reaction` how soon it runs from something that can eat it (the margin past six radii,
@@ -181,7 +181,7 @@ class Look:
 		return "-" if piece == null else str(piece.id)
 
 
-## [method look_for] asks dot-sim's `GSSimGrid2D` (kept beside the world's grid by
+## [method look_for] asks gs-sim's `GSSimGrid2D` (kept beside the world's grid by
 ## [HungryGrid]) for the neighbour loop when the library has it, to the script's bit
 ## (`headless_native_forage`); off, or with no library (the web), the script looks.
 static var native_forage := true

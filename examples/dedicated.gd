@@ -105,14 +105,14 @@ func _test_stats_report() -> void:
 	script.source_code = "extends Node\nfunc post_integration(_a = null, _b = null, _c = null): return null\n"
 	var _reloaded := script.reload()
 	client.set_script(script)
-	GSRegistry.register(&"dot_backbone_client", client)
+	GSRegistry.register(&"gs_backbone_client", client)
 	var _r0 := cv.set_value("0")
 	var _r1 := cv.set_value("1")
 	_check(stats.report_to_backbone, "on with a backbone client makes the tracker report")
 	_check(stats.get_node_or_null(GSGameStatsReport.TIMER_NAME) != null, "and adds the flush timer")
 	var _r2 := cv.set_value("0")
 	_check(not stats.report_to_backbone, "off stops it again")
-	GSRegistry.unregister_instance(&"dot_backbone_client", client)
+	GSRegistry.unregister_instance(&"gs_backbone_client", client)
 	client.free()
 	_done()
 
@@ -212,7 +212,7 @@ func _test_transport() -> void:
 	_section("browser clients")
 
 	var transport := GSTransportWebSocket.new()
-	_check(transport != null, "dot-core can build a WebSocket transport")
+	_check(transport != null, "gs-core can build a WebSocket transport")
 	_check(
 		transport.supports_web_clients(),
 		"which is the one browser clients can reach"
@@ -305,7 +305,7 @@ func _test_no_message_preloads_itself() -> void:
 func _extends_message(source: String) -> bool:
 	for line in source.split("\n"):
 		if line.begins_with("extends "):
-			return line.contains("GSNetMessage") or line.contains("dot_net_message.gd")
+			return line.contains("GSNetMessage") or line.contains("gs_net_message.gd")
 	return false
 
 

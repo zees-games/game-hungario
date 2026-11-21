@@ -2,7 +2,7 @@ extends GSGameClientBench
 
 const HungryModule := preload("../game/hungry_module.gd")
 
-## Client prediction bench (dot-game's GSGameClientBench): see that class for the flags.
+## Client prediction bench (gs-game's GSGameClientBench): see that class for the flags.
 ## `--bots` adds that many of the module's own bots; `--play` supplies the pilot's movement.
 
 

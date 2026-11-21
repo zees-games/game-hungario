@@ -4,7 +4,7 @@ const HungryServices := preload("../hungry_services.gd")
 
 ## The client half of voice: a microphone, a codec, a jitter buffer per speaker, and a key.
 ##
-## [b]dot-voice does the work; this decides three things[/b] — where a captured frame goes,
+## [b]gs-voice does the work; this decides three things[/b] — where a captured frame goes,
 ## where an arriving one comes from, and what opens the gate. Everything else (resampling,
 ## encoding, sequencing, concealment, one buffer per speaker) is [GSVoiceManager]'s.
 ##
@@ -40,7 +40,7 @@ var send_fn: Callable = Callable()
 ## [b]What makes the receiving half checkable at all.[/b] `GSVoiceSinkPlayer` needs an
 ## `AudioStreamPlayer` and a mixer, neither of which exists in a headless run — so without
 ## a buffer sink the receiving half is the one part of this game nothing can ever run, and
-## a wire that decoded to nothing would look exactly like one that worked. dot-voice put
+## a wire that decoded to nothing would look exactly like one that worked. gs-voice put
 ## [GSVoiceSource] and [GSVoiceSink] behind an interface for precisely this.
 var buffered_playback: bool = false
 
@@ -69,7 +69,7 @@ func setup(enable_capture: bool = true) -> GSResult:
 		manager.sink_factory = _make_buffer_sink
 
 	# [b]Not opened here.[/b] The first press of the talk key opens it ([method set_talking],
-	# dot-voice's update_talk): a microphone opened as the client loads is one nobody agreed
+	# gs-voice's update_talk): a microphone opened as the client loads is one nobody agreed
 	# to, and in a browser it is a permission prompt in front of somebody who has not asked.
 	if not InputMap.has_action(GSVoiceManager.TALK_ACTION):
 		InputMap.add_action(GSVoiceManager.TALK_ACTION)
@@ -80,7 +80,7 @@ func setup(enable_capture: bool = true) -> GSResult:
 	# The menu's voice rows bind to it, and the server's sv_voice_enable reaches it, with or
 	# without a microphone: a listener must still stop hearing a server that turned voice off.
 	manager.publish_as_client()
-	var _following := manager.follow_cvars(GSRegistry.get_service(&"dot_client_link"))
+	var _following := manager.follow_cvars(GSRegistry.get_service(&"gs_client_link"))
 
 	var supported := GSVoiceSourceMicrophone.is_supported()
 	available = supported.ok
@@ -146,7 +146,7 @@ func active_speakers() -> PackedInt64Array:
 ##
 ## [b]A local mute, deliberately not a request to the server.[/b] "I do not want to hear
 ## this person" is a client's business; "this person may not speak" is a moderator's and is
-## dot-moderation's — a client asking a server to stop sending somebody's voice to
+## gs-moderation's — a client asking a server to stop sending somebody's voice to
 ## everybody is not muting anybody.
 func set_local_mute(speaker: int, muted: bool) -> void:
 	if manager != null:

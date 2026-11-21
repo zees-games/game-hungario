@@ -7,9 +7,9 @@ const HungryPiece := preload("../hungry_piece.gd")
 
 ## The thirty lines [GS2DNetSync] says belong in the game.
 ##
-## [b]dot-2d may not name a dot-net class.[/b] A script that so much as mentions a
+## [b]gs-2d may not name a gs-net class.[/b] A script that so much as mentions a
 ## missing [code]class_name[/code] fails to parse and takes every script that references
-## it down with it, so dot-2d has to compile with dot-core alone. What it ships instead is
+## it down with it, so gs-2d has to compile with gs-core alone. What it ships instead is
 ## a description of what to replicate as [i]data[/i] — property names, and type names as
 ## strings. Resolving those strings against [enum GSNetVar.Type] is this file's job.
 ##
@@ -49,7 +49,7 @@ func _register_net_vars() -> void:
 		var declaration: GSNetVar = null
 
 		if bool(spec["custom"]):
-			# Position and velocity are two components, not three. dot-net's quantised vector types are Vector3, and a 2D game paying for a Z
+			# Position and velocity are two components, not three. gs-net's quantised vector types are Vector3, and a 2D game paying for a Z
 			# that is always zero wastes 40% of its position bandwidth, which on a world with a hundred visible pieces is the difference
 			# between fitting in a packet and not.
 			if property == &"net_position":
@@ -244,7 +244,7 @@ func _net_state_applied(tick: int) -> void:
 ##
 ## Deliberately not the bookkeeping half. [member last_state_tick] is what reconciliation
 ## rewinds to and the tick here is a *render* tick, behind the server's — recording it
-## would rewind a prediction to a tick the server never sent. dot-net does not call this
+## would rewind a prediction to a tick the server never sent. gs-net does not call this
 ## on a predicted entity for the same reason.
 func _net_interpolated(_tick: int) -> void:
 	if piece == null:

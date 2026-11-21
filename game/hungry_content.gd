@@ -254,7 +254,7 @@ static func rules(tick_rate: int = TICK_RATE) -> HungryRules:
 	out.display_name = "Free for all"
 	out.mass_to_win = WIN_MASS
 	out.team_based = false
-	# Mass is the score, and dot-match's own score-limit check counts kills. The
+	# Mass is the score, and gs-match's own score-limit check counts kills. The
 	# subclass is what makes the win condition mean the right thing.
 	out.score_limit = 0
 	out.time_limit_sec = 900.0

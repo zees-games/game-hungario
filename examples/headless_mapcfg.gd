@@ -19,13 +19,13 @@ func _ready() -> void:
 
 
 func _run() -> void:
-	print("game-hungario: per-map cvars from cfg/game/game-hungario/dot_map/map")
-	if not ResourceLoader.exists("res://addons/dot_map/config/dot_map_config.gd"):
-		print("SKIPPED: dot-map is not linked at addons/dot_map")
+	print("game-hungario: per-map cvars from cfg/game/game-hungario/gs_map/map")
+	if not ResourceLoader.exists("res://addons/gs_map/config/gs_map_config.gd"):
+		print("SKIPPED: gs-map is not linked at addons/gs_map")
 		get_tree().quit(0)
 		return
 	var root := ProjectSettings.globalize_path("user://mapcfg_test")
-	var dir := root.path_join("cfg/game/%s/dot_map/map" % HungryMapConfig.GAME_ID)
+	var dir := root.path_join("cfg/game/%s/gs_map/map" % HungryMapConfig.GAME_ID)
 	DirAccess.make_dir_recursive_absolute(dir)
 	_write(dir.path_join("warrens.yml"), "hungry_hazards_count: 6\nhungry_warrens_corners: quartered\nhungry_hunters_on: 1\nbot_quota: 99\n")
 

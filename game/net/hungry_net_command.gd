@@ -6,11 +6,11 @@ const HungryNetCommand := preload("hungry_net_command.gd")
 ##
 ## [b]This is the only thing a client is allowed to send about itself.[/b] Clients send
 ## inputs, never state — a client that could send a position could send any position, and
-## dot-net's whole security model rests on the distinction.
+## gs-net's whole security model rests on the distinction.
 ##
 ## It is a thin wrapper around [GS2DCommand] rather than a set of fields, because
 ## [GS2DCommand] already knows how to quantise itself through a duck-typed
-## [code]Variant[/code] writer. dot-2d cannot name a dot-net class — a script that
+## [code]Variant[/code] writer. gs-2d cannot name a gs-net class — a script that
 ## mentions a missing [code]class_name[/code] fails to parse — so the composition happens
 ## here, and the quantisation decisions stay in the addon that owns them.
 ##
@@ -52,7 +52,7 @@ func _equals(other: GSNetInput) -> bool:
 	return them != null and command.equals(them.command)
 
 
-## Bits one command costs, before dot-net's own framing.
+## Bits one command costs, before gs-net's own framing.
 static func estimated_bits() -> int:
 	return GS2DCommand.estimated_bits()
 

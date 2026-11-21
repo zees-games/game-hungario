@@ -288,15 +288,15 @@ func _interface_hud(hud: HungryHud, stack: GSScreenStack) -> void:
 		"and a leaderboard with a row in it (%d)" % hud.leaderboard.row_count()
 	)
 
-	# The feed takes coloured fragments, which is all dot-ui knows about this game.
+	# The feed takes coloured fragments, which is all gs-ui knows about this game.
 	hud.say("hello")
 	hud.chat({"name": "Bo", "text": "hi"})
 	hud.note(HungryEvents.Kind.DIED, {"first": 1, "second": 0, "extra": 0})
 	_check(hud.feed.line_count() >= 3, "the feed takes lines (%d)" % hud.feed.line_count())
 
 	# Nothing of this game's is on the stack now: the pause, settings, controls and loadout
-	# screens are dot-menu's Escape menu (HungrySettings), chat left the stack long before, when
-	# it became a `GSChatWindow`, and the Tab board is dot-menu's own, held by the platform.
+	# screens are gs-menu's Escape menu (HungrySettings), chat left the stack long before, when
+	# it became a `GSChatWindow`, and the Tab board is gs-menu's own, held by the platform.
 	_check(stack.registered_ids().is_empty(), "nothing of this game's is on the stack (%d)" % stack.registered_ids().size())
 
 

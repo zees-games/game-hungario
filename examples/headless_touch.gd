@@ -50,7 +50,7 @@ func _run() -> void:
 	if &"menu_button_corner" in config:
 		_check(config.get(&"menu_button_corner") == &"top_left", "the menu button is in the top-left corner")
 	else:
-		_check(true, "this dot-menu has no menu_button_corner; nothing to set")
+		_check(true, "this gs-menu has no menu_button_corner; nothing to set")
 	config = null
 	settings.free()
 	_report(CHECKS)
