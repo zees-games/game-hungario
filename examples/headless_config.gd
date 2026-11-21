@@ -1,6 +1,6 @@
-extends DotGameCheckSuite
+extends GSGameCheckSuite
 
-## The server config and the mode configs through DotGameConfigBinder: fields, cvars, the simulation reading them, strict refusal, the diff, the yml round trip and the workbench.
+## The server config and the mode configs through GSGameConfigBinder: fields, cvars, the simulation reading them, strict refusal, the diff, the yml round trip and the workbench.
 ##
 ## [codeblock]
 ## godot --headless --path . res://examples/headless_config.tscn
@@ -22,7 +22,7 @@ const SECTIONS := 7
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.FATAL)
+	GSLog.set_level(GSLog.Level.FATAL)
 	_run.call_deferred()
 
 
@@ -76,9 +76,9 @@ func _server_config() -> void:
 	for k in ["fruit_effect_sec", "frost_sec", "pepper_damage", "lure_food_count", "throw_cooldown_ticks", "respawn_delay_sec", "spawn_protection_sec", "friendly_fire", "hunter_speed_scale", "max_players", "bot_fill", "hunters_on", "hazards_count", "outgrown", "warrens_corners", "avatar_pack", "backbone_config"]:
 		_check(keys.has(k), "%s is exposed" % k)
 
-	var console := DotConsole.new()
+	var console := GSConsole.new()
 	add_child(console)
-	var made := binder.bind_cvars(console.cvar, DotConVar.FLAG_ARCHIVE)
+	var made := binder.bind_cvars(console.cvar, GSConVar.FLAG_ARCHIVE)
 	_check(made.size() == keys.size() and console.has_name("hungry_hunters_on") and console.has_name("hungry_outgrown"),
 		"every field is a cvar, the hand-written names included")
 	console.set_cvar("hungry_pepper_damage", "250")
@@ -111,7 +111,7 @@ func _modes() -> void:
 	_check(HungryModes.result().ok, "the mode configs load at their defaults")
 	var frenzy := HungryModes.preset_for(&"frenzy")
 	_check(frenzy.food_target == 700 and frenzy.world_size == Vector2(3000.0, 3000.0) and frenzy.win_mass == 900.0, "the defaults are the code's presets")
-	var binder: DotGameConfigBinder = HungryModes.binders[&"frenzy"]
+	var binder: GSGameConfigBinder = HungryModes.binders[&"frenzy"]
 	_check(binder.diff().is_empty(), "a mode has no diff at its defaults")
 	var edit := binder.config.apply_dictionary({"food_target": 321, "world_width": 2500.0}, "test")
 	_check(not edit.is_empty(), "the field takes an edit")
@@ -168,10 +168,10 @@ func _write_res(path: String, text: String) -> void:
 func _workbench() -> void:
 	HungryTuning.reset()
 	var binder := HungryTuning.binder if HungryTuning.settings() != null else null
-	var wb := DotGameWorkbench.new()
+	var wb := GSGameWorkbench.new()
 	wb.panel_mode = 1
 	wb.config = {"enabled": false}
-	for s: DotProfileSet in binder.profile_sets():
+	for s: GSProfileSet in binder.profile_sets():
 		wb.add_set(s, s.rel_path)
 	add_child(wb)
 	_check(wb.start().ok, "the workbench starts")
@@ -181,7 +181,7 @@ func _workbench() -> void:
 		keys.append(e["key"])
 	var listed := PackedStringArray()
 	for kind: String in wb.api.kinds():
-		var lg: DotResult = wb.api.handle(DotGameWorkbench.LOCAL_ACTOR, {"op": "get", "kind": kind, "id": binder.profile_id})
+		var lg: GSResult = wb.api.handle(GSGameWorkbench.LOCAL_ACTOR, {"op": "get", "kind": kind, "id": binder.profile_id})
 		if lg.ok:
 			listed.append_array(PackedStringArray((lg.value as Dictionary).get("values", {}).keys()))
 	var missing := PackedStringArray()
@@ -189,7 +189,7 @@ func _workbench() -> void:
 		if not listed.has(k):
 			missing.append(k)
 	_check(missing.is_empty() and binder.profile_sets().size() == 3, "the workbench lists all %d keys over %d files" % [keys.size(), binder.profile_sets().size()], ",".join(missing))
-	var res: DotResult = wb.api.handle(DotGameWorkbench.LOCAL_ACTOR, {"op": "set", "kind": "config_play", "id": binder.profile_id, "key": "frost_sec", "value": 9.0})
+	var res: GSResult = wb.api.handle(GSGameWorkbench.LOCAL_ACTOR, {"op": "set", "kind": "config_play", "id": binder.profile_id, "key": "frost_sec", "value": 9.0})
 	_check(res.ok and HungryTuning.settings().frost_sec == 9.0, "a workbench edit reaches the live config", "" if res.ok else res.error.message)
 	var files: Dictionary = wb.exporter.call("collect")
 	var text: String = files.get("cfg/game/game-hungario/config_play/game.yml", "")
@@ -212,9 +212,9 @@ func _probe() -> void:
 	binder.strict = true
 	binder.roots = PackedStringArray([ProjectSettings.globalize_path(ROOT)])
 	var loaded := binder.load_layers()
-	var console := DotConsole.new()
+	var console := GSConsole.new()
 	add_child(console)
-	binder.bind_cvars(console.cvar, DotConVar.FLAG_ARCHIVE, console.has_name)
+	binder.bind_cvars(console.cvar, GSConVar.FLAG_ARCHIVE, console.has_name)
 	print("PROBE ok=%s frost=%s frost_src=%s pepper=%s pepper_src=%s cvar=%s maxp=%s maxp_src=%s fruit=%s fruit_src=%s" % [
 		loaded.ok, config.frost_sec, binder.source_of("frost_sec"), config.pepper_damage, binder.source_of("pepper_damage"),
 		console.find_cvar("hungry_pepper_damage").get_string(), config.max_players, binder.source_of("max_players"),

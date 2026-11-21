@@ -39,7 +39,7 @@ static var HAZARD_SCENE := HungryPaths.rebase("res://game/hungry_hazard_body.tsc
 const PLACE_INTERVAL := 0.0
 
 
-signal placed(place_id: int, def: DotPropDef, at: Vector2)
+signal placed(place_id: int, def: GSPropDef, at: Vector2)
 signal cleared(place_id: int)
 
 ## A hazard did something to somebody. Server side; the world acts on it.
@@ -47,7 +47,7 @@ signal struck(player_id: int, piece_id: int, effect: StringName)
 
 
 var authoritative: bool = false
-var spawner: DotPropSpawner = null
+var spawner: GSPropSpawner = null
 var world: HungryWorld = null
 
 var _placements: Dictionary = {}
@@ -63,8 +63,8 @@ var _obstacles: PackedVector3Array = PackedVector3Array()
 ##
 ## Three fields of `meta` are the whole of what a hazard is: `radius`, `colour` and
 ## `effect` — and `effect` is the only one this game reads that dot-props does not.
-static func catalogue() -> DotPropCatalogue:
-	var out := DotPropCatalogue.new()
+static func catalogue() -> GSPropCatalogue:
+	var out := GSPropCatalogue.new()
 
 	# A rock. Solid, inert, and the reason an arena has geometry at all: something to
 	# break line of sight with and something to corner somebody against.
@@ -82,7 +82,7 @@ static func catalogue() -> DotPropCatalogue:
 
 
 static func _add(
-	into: DotPropCatalogue,
+	into: GSPropCatalogue,
 	id: StringName,
 	display: String,
 	radius: float,
@@ -90,7 +90,7 @@ static func _add(
 	effect: StringName,
 	cost: int
 ) -> void:
-	var def := DotPropDef.make(id, HAZARD_SCENE)
+	var def := GSPropDef.make(id, HAZARD_SCENE)
 	def.display_name = display
 	def.category = &"hazard"
 	def.cost = cost
@@ -103,27 +103,27 @@ static func _add(
 	into.add(def)
 
 
-static var _shared: DotPropCatalogue = null
+static var _shared: GSPropCatalogue = null
 
-static func shared_catalogue() -> DotPropCatalogue:
+static func shared_catalogue() -> GSPropCatalogue:
 	if _shared == null:
 		_shared = catalogue()
 
 	return _shared
 
 
-static func radius_of(def: DotPropDef) -> float:
+static func radius_of(def: GSPropDef) -> float:
 	return float(def.meta.get("radius", 0.0)) if def != null else 0.0
 
 
-static func colour_of(def: DotPropDef) -> Color:
+static func colour_of(def: GSPropDef) -> Color:
 	if def == null:
 		return Color(0.5, 0.5, 0.55)
 
 	return Color.from_string(String(def.meta.get("colour", "808080")), Color(0.5, 0.5, 0.55))
 
 
-static func effect_of(def: DotPropDef) -> StringName:
+static func effect_of(def: GSPropDef) -> StringName:
 	return StringName(String(def.meta.get("effect", "block"))) if def != null else &"block"
 
 
@@ -149,21 +149,21 @@ static func id_at(index: int) -> StringName:
 
 # --- Lifecycle -------------------------------------------------------------
 
-func setup(p_authoritative: bool, p_world: HungryWorld) -> DotResult:
+func setup(p_authoritative: bool, p_world: HungryWorld) -> GSResult:
 	authoritative = p_authoritative
 	world = p_world
 
 	if not authoritative:
-		return DotResult.success(null)
+		return GSResult.success(null)
 
-	var limits := DotPropLimits.new()
+	var limits := GSPropLimits.new()
 	# Both from the server config (hungry_hazards_per_owner, hungry_hazards_world_budget), 0 = unlimited.
 	var tuning := HungryTuning.settings()
 	limits.per_player_budget = tuning.hazards_per_owner
 	limits.world_budget = tuning.hazards_world_budget
 	limits.spawn_interval = PLACE_INTERVAL
 	limits.clean_up_on_leave = true
-	# DotPropLimits.undo_depth 0 means no undo, not unlimited: with no per-owner cap, keep its default.
+	# GSPropLimits.undo_depth 0 means no undo, not unlimited: with no per-owner cap, keep its default.
 	if tuning.hazards_per_owner > 0:
 		limits.undo_depth = tuning.hazards_per_owner
 
@@ -172,7 +172,7 @@ func setup(p_authoritative: bool, p_world: HungryWorld) -> DotResult:
 	if not problem.ok:
 		return problem.wrap("The hazard limits are not usable")
 
-	spawner = DotPropSpawner.new()
+	spawner = GSPropSpawner.new()
 	spawner.name = "Spawner"
 	spawner.catalogue = shared_catalogue()
 	spawner.limits = limits
@@ -190,7 +190,7 @@ func setup(p_authoritative: bool, p_world: HungryWorld) -> DotResult:
 	# arrives on layer 1 masking layer 1 — the layer the layout calls `world` — so
 	# before this a hazard was, as far as the collision matrix went, a piece of floor.
 	spawner.spawned.connect(
-		func(prop: DotPropInstance) -> void:
+		func(prop: GSPropInstance) -> void:
 			if world == null or world.player_stack == null or prop.node == null:
 				return
 
@@ -202,12 +202,12 @@ func setup(p_authoritative: bool, p_world: HungryWorld) -> DotResult:
 			# of floor. Swallowing the result is how that goes unnoticed; this game's own
 			# stack suite found it by asserting the layer exists.
 			if not put.ok:
-				DotLog.warn(CHANNEL, "a hazard was not classified", {
+				GSLog.warn(CHANNEL, "a hazard was not classified", {
 					"why": put.error.message
 				})
 	)
 
-	return DotResult.success(null)
+	return GSResult.success(null)
 
 
 func _physics_process(delta: float) -> void:
@@ -219,14 +219,14 @@ func _physics_process(delta: float) -> void:
 
 # --- The authority --------------------------------------------------------
 
-func place(owner_id: int, hazard_id: StringName, at: Vector2) -> DotResult:
+func place(owner_id: int, hazard_id: StringName, at: Vector2) -> GSResult:
 	if not authoritative:
-		return DotResult.fail(DotError.CODE_FORBIDDEN, "Only the server places hazards.")
+		return GSResult.fail(GSError.CODE_FORBIDDEN, "Only the server places hazards.")
 
 	var def := shared_catalogue().get_prop(hazard_id)
 
 	if def == null:
-		return DotResult.fail(DotError.CODE_INVALID, "There is no such hazard.")
+		return GSResult.fail(GSError.CODE_INVALID, "There is no such hazard.")
 
 	var bounded := at
 
@@ -236,8 +236,8 @@ func place(owner_id: int, hazard_id: StringName, at: Vector2) -> DotResult:
 	var instance := spawner.spawn_2d(hazard_id, StringName(str(owner_id)), bounded)
 
 	if instance == null:
-		return DotResult.fail(
-			DotError.CODE_FORBIDDEN,
+		return GSResult.fail(
+			GSError.CODE_FORBIDDEN,
 			"That could not be placed.",
 			"budget, cooldown or world cap; see the props channel"
 		)
@@ -245,7 +245,7 @@ func place(owner_id: int, hazard_id: StringName, at: Vector2) -> DotResult:
 	# Frozen through the physics gun's own call rather than by assigning `freeze`, because
 	# that is the one place in dot-props that also zeroes the velocities — and a body
 	# frozen with a velocity applies it the instant anything thaws it.
-	DotPhysGun.set_frozen(instance, true)
+	GSPhysGun.set_frozen(instance, true)
 
 	var place_id := _next_place_id
 	_next_place_id += 1
@@ -256,7 +256,7 @@ func place(owner_id: int, hazard_id: StringName, at: Vector2) -> DotResult:
 	_rebuild_obstacles()
 
 	placed.emit(place_id, def, bounded)
-	return DotResult.success(place_id)
+	return GSResult.success(place_id)
 
 
 ## Scatters a ring of hazards, deterministically from a seed.
@@ -269,12 +269,12 @@ func scatter(hazard_id: StringName, count: int, seed_value: int) -> int:
 		return 0
 
 	# [b]The same class the food is scattered with, rather than arithmetic here.[/b]
-	# `Dot2DScatter.position_of` is a pure function of the seed and the index, so a hazard
+	# `GS2DScatter.position_of` is a pure function of the seed and the index, so a hazard
 	# field and a food field are laid out by one function rather than by two that can
 	# disagree about what "a uniform point in this rectangle" means — and it already
 	# keeps a margin off the walls, which is the thing a hand-written version forgets and
 	# only notices when a rock is half outside the arena.
-	var field := Dot2DScatter.over(world.arena.bounds, count, seed_value)
+	var field := GS2DScatter.over(world.arena.bounds, count, seed_value)
 	field.margin = 400.0
 
 	var made := 0
@@ -294,7 +294,7 @@ func clear_all() -> int:
 	return spawner.clear_all() if authoritative else 0
 
 
-func _on_removed(instance: DotPropInstance, _reason: StringName) -> void:
+func _on_removed(instance: GSPropInstance, _reason: StringName) -> void:
 	var place_id := int(_place_of_instance.get(instance.instance_id, 0))
 
 	if place_id == 0:
@@ -332,7 +332,7 @@ func resolve() -> void:
 func _resolve_piece(monster: HungryMonster, piece: HungryPiece) -> void:
 	for entry in _placements.values():
 		var placement: Dictionary = entry
-		var def: DotPropDef = placement["def"]
+		var def: GSPropDef = placement["def"]
 		var at: Vector2 = placement["at"]
 		var radius := radius_of(def)
 		var clearance := radius + piece.radius()
@@ -374,7 +374,7 @@ func adopt(place_id: int, hazard_id: StringName, at: Vector2) -> void:
 	var def := shared_catalogue().get_prop(hazard_id)
 
 	if def == null:
-		DotLog.warn(CHANNEL, "the server placed a hazard this build does not know", {
+		GSLog.warn(CHANNEL, "the server placed a hazard this build does not know", {
 			"hazard": String(hazard_id), "place": place_id,
 		})
 		return
@@ -435,7 +435,7 @@ func _rebuild_obstacles() -> void:
 
 	for entry in _placements.values():
 		var placement: Dictionary = entry
-		var def: DotPropDef = placement["def"]
+		var def: GSPropDef = placement["def"]
 
 		if effect_of(def) != &"block":
 			continue
@@ -453,7 +453,7 @@ func wire_rows() -> Array:
 	for place_id in _placements.keys():
 		var placement: Dictionary = _placements[place_id]
 		out.append([
-			int(place_id), index_of((placement["def"] as DotPropDef).id), placement["at"],
+			int(place_id), index_of((placement["def"] as GSPropDef).id), placement["at"],
 		])
 
 	return out

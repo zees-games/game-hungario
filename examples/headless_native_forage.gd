@@ -1,11 +1,11 @@
-extends DotGameCheckSuite
+extends GSGameCheckSuite
 
 const HungryBot := preload("../game/hungry_bot.gd")
 const HungryGrid := preload("../game/hungry_grid.gd")
 const HungryPreset := preload("../game/hungry_preset.gd")
 const HungryWorld := preload("../game/hungry_world.gd")
 
-## What a bot sees ([method HungryBot.look_for]) is asked of dot-sim's `DotSimGrid2D` when the library is there, and it
+## What a bot sees ([method HungryBot.look_for]) is asked of dot-sim's `GSSimGrid2D` when the library is there, and it
 ## must answer as the script does: on every preset, mid-round with bots playing, every monster's head and seeded origins
 ## and sights give the same threat, prey, enemy and snack to the bit, and the native grid holds the same ids in the same
 ## query order; a world with [member HungryBot.native_forage] off steers its bots identically tick for tick; and a bot
@@ -38,7 +38,7 @@ var _tick := 0
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.ERROR)
 	_run.call_deferred()
 
 
@@ -57,7 +57,7 @@ func _run() -> void:
 func _section_library() -> bool:
 	_entered += 1
 	print("the library has the grid")
-	if not DotSim.has(&"grid2d"):
+	if not GSSim.has(&"grid2d"):
 		print("  dot-sim's grid2d module is not loaded: the native half is skipped")
 		var required := (OS.get_environment("GS_SIM_REQUIRE_NATIVE") if OS.has_environment("GS_SIM_REQUIRE_NATIVE") else OS.get_environment("DOT_SIM_REQUIRE_NATIVE")) == "1"
 		_check(not required, "the library is loaded (GS_SIM_REQUIRE_NATIVE=1)")
@@ -262,8 +262,8 @@ func _same_commands(a: Dictionary, b: Dictionary) -> bool:
 	for key in a:
 		if not b.has(key):
 			return false
-		var x: Dot2DCommand = a[key]
-		var y: Dot2DCommand = b[key]
+		var x: GS2DCommand = a[key]
+		var y: GS2DCommand = b[key]
 		if x.aim != y.aim or x.reach != y.reach or x.buttons != y.buttons:
 			return false
 	return true

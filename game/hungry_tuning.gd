@@ -1,6 +1,6 @@
 extends RefCounted
 
-## The server's operator surface: [HungryServerConfig] through a [DotGameConfigBinder] (cfg/ yml tiers, env, argv, cvars, the workbench). The modes' are [HungryModes].
+## The server's operator surface: [HungryServerConfig] through a [GSGameConfigBinder] (cfg/ yml tiers, env, argv, cvars, the workbench). The modes' are [HungryModes].
 ##
 ## Static, because the simulation reads it from places that have no owner to ask. Loaded on first use; [method result] holds a strict refusal until the module, which can quit, reads it.
 
@@ -9,8 +9,8 @@ const HungryServerConfig := preload("hungry_server_config.gd")
 const GAME_ID := "game-hungario"
 
 static var server: HungryServerConfig = null
-static var binder: DotGameConfigBinder = null
-static var _result: DotResult = null
+static var binder: GSGameConfigBinder = null
+static var _result: GSResult = null
 
 
 ## The server config, loaded on first use.
@@ -28,7 +28,7 @@ static func load_all() -> void:
 
 
 ## The load outcome: a failure when strict and a layer was wrong.
-static func result() -> DotResult:
+static func result() -> GSResult:
 	load_all()
 	return _result
 

@@ -1,4 +1,4 @@
-extends DotGameCheckSuite
+extends GSGameCheckSuite
 
 ## The touch layout: four buttons that fit a phone without overlapping, and a finger on a button kept off the steering.
 ## Run: `./game.sh test headless_touch`
@@ -9,7 +9,7 @@ const CHECKS := 10
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.ERROR)
 	_run.call_deferred()
 
 

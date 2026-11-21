@@ -33,23 +33,23 @@ const OWN_IDS: Array[StringName] = [&"classic", &"frenzy", &"gauntlet", &"warren
 ## Entry id -> why it was refused.
 var refused: Dictionary = {}
 
-var catalogue: DotMapCatalogue = null
+var catalogue: GSMapCatalogue = null
 var _blocks: Dictionary = {}
 
 
 ## Follows [param index] (the process's shared one by default).
-func follow(index: DotContentIndex = null) -> void:
-	catalogue = DotMapCatalogue.new()
+func follow(index: GSContentIndex = null) -> void:
+	catalogue = GSMapCatalogue.new()
 
 	for id in OWN_IDS:
-		var own := DotMapDef.new()
+		var own := GSMapDef.new()
 		own.id = id
 		own.display_name = String(id).capitalize()
-		own.kind = DotMapDef.KIND_ARENA
+		own.kind = GSMapDef.KIND_ARENA
 		own.scene_path = HungryPaths.rebase("res://game/hungry_workshop.gd")
 		var _added := catalogue.add(own)
 
-	catalogue.follow_content(index if index != null else DotContentIndex.shared(), accepted())
+	catalogue.follow_content(index if index != null else GSContentIndex.shared(), accepted())
 
 
 ## The pack maps now visible, as menu rows `{id, name, detail, current}`. Reads documents lazily.
@@ -99,7 +99,7 @@ func preset_for(id: StringName) -> HungryPreset:
 var _docs: Dictionary = {}
 
 
-func _document_blocks(map: DotMapDef) -> Variant:
+func _document_blocks(map: GSMapDef) -> Variant:
 	if _blocks.has(map.entry_key):
 		return _blocks[map.entry_key]
 
@@ -127,7 +127,7 @@ func _document_blocks(map: DotMapDef) -> Variant:
 
 	if why != "":
 		refused[String(map.id)] = why
-		DotLog.warn(CHANNEL, "a subscribed map was refused", {"id": String(map.id), "why": why})
+		GSLog.warn(CHANNEL, "a subscribed map was refused", {"id": String(map.id), "why": why})
 		_blocks[map.entry_key] = null
 		return null
 

@@ -1,4 +1,4 @@
-extends DotGameModule
+extends GSGameModule
 
 const HungryAmbience := preload("hungry_ambience.gd")
 
@@ -37,20 +37,20 @@ const HungryWorld := preload("hungry_world.gd")
 ## The workbench kind of the ambience cvar set (saved to cfg/.../ambience/server.yml).
 const AMBIENT_KIND := "ambience"
 
-## Binds a [HungryWorld] and its netcode to a [DotServer]: the tick, join, console, bots and game
+## Binds a [HungryWorld] and its netcode to a [GSServer]: the tick, join, console, bots and game
 ## descriptors. The only file naming dot-server. The manager outlives the world: rebuilding
-## [DotNetManager] on a game change would reset ids, peers and the clock, so only the bridge is rebound.
+## [GSNetManager] on a game change would reset ids, peers and the clock, so only the bridge is rebound.
 
 ## The drawn mode ballot's notice topic. The client shell draws one menu per topic, and a
 ## server running several games sends its own `game_ballot` beside this one.
 const MAP_BALLOT_TOPIC := &"map_ballot"
 
-## Snapshots a second. Twenty is the number [Dot2DNetSync.estimated_bits] was sized
+## Snapshots a second. Twenty is the number [GS2DNetSync.estimated_bits] was sized
 ## against: a hundred visible pieces at 104 bits each is about 1.3 kB a snapshot, so 20 Hz
 ## is 26 kB/s to a player in a crowd and a great deal less to everybody else.
 const SNAPSHOT_RATE := 20
 
-## Ids at or above this belong to bots. Well clear of anything [DotServer] hands out,
+## Ids at or above this belong to bots. Well clear of anything [GSServer] hands out,
 ## which counts up from 1.
 const BOT_ID_BASE := 900001
 
@@ -94,8 +94,8 @@ var _joined: Dictionary:
 
 ## What players may bring in, and where their choices are kept.
 ## Memory-backed, right for a dedicated server (a persistent loadout is dot-user's profile); an operator
-## points the config at the local backend or subclasses [DotLoadoutStore], which is the seam.
-var loadouts: DotLoadoutManager = null
+## points the config at the local backend or subclasses [GSLoadoutStore], which is the seam.
+var loadouts: GSLoadoutManager = null
 
 ## Where the services write punishments: [constant HungryServices.PUNISHMENTS_PATH] unless a host says
 ## otherwise before this loads. Static because dot-server constructs the module in `load_module`,
@@ -105,9 +105,9 @@ static var punishments_path: String = HungryServices.PUNISHMENTS_PATH
 ## dot-moderation's live tools with this game's verbs (`HungryModTools`), and their
 ## commands. Built here rather than in the services layer because the world they act on is
 ## replaced by a game change and this module is what knows the current one.
-var mod_tools: DotModTools = null
+var mod_tools: GSModTools = null
 
-var mod_commands: DotModToolCommands = null
+var mod_commands: GSModToolCommands = null
 
 ## NPC monsters, and the director that decides when they arrive.
 var hunters: HungryHunters = null
@@ -115,7 +115,7 @@ var hunters: HungryHunters = null
 ## How good the hunters are, server-wide: `npc_skill`, `npc_reaction_scale`,
 ## `npc_reaction_min`. Here rather than on [member hunters] because the console is
 ## registered before the hunters are built, and the value has to be there to hand them.
-var npc_skill: DotNpcAiSkill = DotNpcAiSkill.new()
+var npc_skill: GSNpcAiSkill = GSNpcAiSkill.new()
 
 ## Rocks, spikes and lures.
 var hazards: HungryHazards = null
@@ -132,16 +132,16 @@ var maps: HungryMaps = null
 ## Reports this server to its site listing, when an operator has configured one.
 ##
 ## Null on a server with no integration token, which is every LAN game and every test.
-var backbone: DotBackboneClient = null
+var backbone: GSBackboneClient = null
 
 ## Counts what every monster did, and reports it through [member backbone].
 ## Always built (the session figures are the game's own); reported only with a backbone. Keyed by the
 ## scoped id dot-platform resolved, so a guest with no scoped key is counted under nothing.
-var stats: DotStatsTracker = null
-## The skill rank (dot-stats' DotStatsRank): weighted lifetime figures, filed as rank_score.
-var rank: DotStatsRank = null
+var stats: GSStatsTracker = null
+## The skill rank (dot-stats' GSStatsRank): weighted lifetime figures, filed as rank_score.
+var rank: GSStatsRank = null
 ## Files kills for the head-to-head table (dot-stats), keyed like the counters.
-var _kill_feed: DotStatsEventFeed = null
+var _kill_feed: GSStatsEventFeed = null
 
 ## userid -> the scoped key the tracker knows them by.
 var _stat_keys: Dictionary = {}
@@ -151,39 +151,39 @@ var _bots: Dictionary = {}
 
 var _next_bot_id: int = BOT_ID_BASE
 
-## Gets the bots from the number there are to the number [DotBotQuota] wants, named.
-var _roster := DotBotRoster.new()
+## Gets the bots from the number there are to the number [GSBotQuota] wants, named.
+var _roster := GSBotRoster.new()
 
 ## `hungry_bots`, the old fixed count, kept only as an alias. See [method _register_console].
-var _cv_bots: DotConVar = null
+var _cv_bots: GSConVar = null
 
 ## How many bots, from how many people: dot-server's one rule for every game.
-var _quota: DotBotQuota = null
+var _quota: GSBotQuota = null
 
-var _cv_pack: DotConVar = null
+var _cv_pack: GSConVar = null
 
-var _cv_auth_config: DotConVar = null
+var _cv_auth_config: GSConVar = null
 
-var _cv_hunters: DotConVar = null
+var _cv_hunters: GSConVar = null
 
 ## dot-workbench over the config and the modes; null until the load finishes.
-var workbench: DotGameWorkbench = null
+var workbench: GSGameWorkbench = null
 
 ## Per-preset spawn points, one set for the module's life: every world's player stack applies
 ## it and the workbench edits it, so a mode change does not leave the workbench on a freed stack.
-var spawn_overrides: DotProfileSet = DotSpawnOverrides.make_set(HungryMapConfig.GAME_ID)
+var spawn_overrides: GSProfileSet = GSSpawnOverrides.make_set(HungryMapConfig.GAME_ID)
 
 ## The admins' permission check the workbench runtime asks through [method _runtime_permit].
 var _admin_permit := Callable()
 
 ## dot-player-char's `sv_ragdoll*` set: how an eaten monster goes down. The module's, because
 ## the cvars outlive a mode change and the world does not; each world is handed this one.
-var ragdoll_rules: DotPlayerRagdollRules = DotPlayerRagdollRules.new()
+var ragdoll_rules: GSPlayerRagdollRules = GSPlayerRagdollRules.new()
 
 ## The ambience cvars (`hungry_ambient*`): REPLICATED, because each client plays its own ambience under the server's intent.
-var ambient_rules: DotAmbienceRules = HungryAmbience.make_rules()
+var ambient_rules: GSAmbienceRules = HungryAmbience.make_rules()
 
-var _cv_hazards: DotConVar = null
+var _cv_hazards: GSConVar = null
 
 ## Who last said something. What `hungry_status` reports, off the accepted line.
 var _last_spoke: String = ""
@@ -204,8 +204,8 @@ func _module_author() -> String:
 ## What a player owns.
 ## Nothing by default, deliberately: granting everything passes every test and ships free unlocks nobody
 ## reports. Only items marked free are permitted until dot-platform's entitlement source says otherwise.
-func _entitlements_for_key(user_key: String) -> DotLoadoutEntitlements:
-	var granted := DotLoadoutEntitlements.none()
+func _entitlements_for_key(user_key: String) -> GSLoadoutEntitlements:
+	var granted := GSLoadoutEntitlements.none()
 	var platform: Object = server.modules.get_module("platform")
 
 	if platform == null or not platform.has_method("entitlements_for"):
@@ -219,13 +219,13 @@ func _entitlements_for_key(user_key: String) -> DotLoadoutEntitlements:
 
 	return granted
 
-func _entitlements_for_player(player_id: int) -> DotLoadoutEntitlements:
+func _entitlements_for_player(player_id: int) -> GSLoadoutEntitlements:
 	return _entitlements_for_key(HungryContent.loadout_key(player_id))
 
 ## Saves a published loadout, so it survives a respawn and a mode change.
 ## Through the manager, the trust boundary (rate limit, cap, schema, entitlements, key usability);
 ## the bridge's schema validation is repeated so neither half is the only check.
-func _store_loadout(player_id: int, loadout: DotLoadout) -> DotResult:
+func _store_loadout(player_id: int, loadout: GSLoadout) -> GSResult:
 		# Awaited: a store write may be slow, and the cache must not update before it succeeds, or a player
 		# loses their change at the next load without explanation.
 	return await loadouts.publish(HungryContent.loadout_key(player_id), loadout, 0)
@@ -234,7 +234,7 @@ func _store_loadout(player_id: int, loadout: DotLoadout) -> DotResult:
 ## Awaited, so not on the join path: the player enters with the schema default and their own arrives
 ## a moment later.
 func _apply_stored_loadout(player_id: int) -> void:
-	var active: DotResult = await loadouts.active_for(
+	var active: GSResult = await loadouts.active_for(
 		HungryContent.loadout_key(player_id)
 	)
 
@@ -254,7 +254,7 @@ func _apply_stored_loadout(player_id: int) -> void:
 ## The token comes from a config file only: it is a sensitive key (refused from environment and argv)
 ## and a cvar would be settable over RCON. Absent one, the server is simply not listed.
 func _build_reporting() -> void:
-	var config := DotAuthConfig.new()
+	var config := GSAuthConfig.new()
 	var path := _cv_auth_config.get_string() if _cv_auth_config != null else ""
 
 	if path != "" and FileAccess.file_exists(path):
@@ -272,7 +272,7 @@ func _build_reporting() -> void:
 		})
 		return
 
-	backbone = DotBackboneClient.new()
+	backbone = GSBackboneClient.new()
 	backbone.name = "Backbone"
 	backbone.config = config
 	# Sampled when they are sent rather than pushed when they change, which is the whole
@@ -315,27 +315,27 @@ func roster_report() -> Array:
 ## What this game counts per player. Declared once; the site learns it at boot.
 ## Every stat is published. The kinds are the contract: `top_mass` is a BEST, so a monster that shrank
 ## keeps its record, and everything else adds.
-static func stats_schema() -> DotStatsSchema:
-	var schema := DotStatsSchema.new()
+static func stats_schema() -> GSStatsSchema:
+	var schema := GSStatsSchema.new()
 	for id in [&"food", &"fruit", &"pieces_eaten", &"kills", &"deaths", &"bursts", &"items"]:
 		schema.define(id).publish = true
-	var mass := schema.define(&"mass_eaten", DotStatsDef.Kind.COUNTER, "Mass eaten")
+	var mass := schema.define(&"mass_eaten", GSStatsDef.Kind.COUNTER, "Mass eaten")
 	mass.publish = true
 	mass.decimals = 1
-	var top := schema.define(&"top_mass", DotStatsDef.Kind.BEST, "Biggest")
+	var top := schema.define(&"top_mass", GSStatsDef.Kind.BEST, "Biggest")
 	top.publish = true
 	top.decimals = 1
-	var _rank := DotStatsRank.declare(schema, &"rank_score", "Rank score")
+	var _rank := GSStatsRank.declare(schema, &"rank_score", "Rank score")
 	return schema
 
 func _build_stats() -> void:
-	stats = DotStatsTracker.new()
+	stats = GSStatsTracker.new()
 	stats.name = "Stats"
 	stats.schema = stats_schema()
 	stats.report_to_backbone = backbone != null
 	stats.reporter.client = backbone
 	add_child(stats)
-	rank = DotStatsRank.new()
+	rank = GSStatsRank.new()
 	rank.terms = [
 		{"stat": "pieces_eaten", "weight": 1.0},
 		{"stat": "kills", "weight": 1.0},
@@ -345,11 +345,11 @@ func _build_stats() -> void:
 		{"stat": "deaths", "weight": -0.5},
 	]
 	rank.record_fn = func(who: Variant, stat: StringName, value: float) -> void: stats.record(StringName(str(who)), stat, value)
-	_kill_feed = DotStatsEventFeed.new(stats)
+	_kill_feed = GSStatsEventFeed.new(stats)
 	_kill_feed.key_of = func(id: Variant) -> StringName: return _stat_key(int(id))
 	_kill_feed.extra = func() -> Dictionary: return {"mode": String(world.preset.id) if world != null and world.preset != null else ""}
-	# The registered tracker is what DotGameStatsReport's default apply flips.
-	DotRegistry.register(DotGameStatsFeed.SERVICE, stats)
+	# The registered tracker is what GSGameStatsReport's default apply flips.
+	GSRegistry.register(GSGameStatsFeed.SERVICE, stats)
 	var _report := bind_stats_report()
 
 	world.food_eaten.connect(_on_stat_food)
@@ -423,7 +423,7 @@ func _publish_rank(key: StringName) -> void:
 		var _s := rank.publish_lifetime(key, stats.session_values(key), stats.schema)
 
 ## Starts counting for a session under dot-game's stable per-server key (guests too); a bot is counted under nothing.
-func _begin_stats(session: DotClientSession) -> void:
+func _begin_stats(session: GSClientSession) -> void:
 	if stats == null:
 		return
 	if session.local:
@@ -436,7 +436,7 @@ func _begin_stats(session: DotClientSession) -> void:
 	stats.begin(StringName(key), session.display_name)
 
 
-func _end_stats(session: DotClientSession) -> void:
+func _end_stats(session: GSClientSession) -> void:
 	if stats == null or not _stat_keys.has(session.userid):
 		return
 	if rank != null:
@@ -447,9 +447,9 @@ func _end_stats(session: DotClientSession) -> void:
 
 
 ## The avatar dot-platform resolved for this session, if there is a dot-platform.
-## Duck-typed on purpose: naming [code]DotPlatformModule[/code] would make a LAN server impossible
+## Duck-typed on purpose: naming [code]GSPlatformModule[/code] would make a LAN server impossible
 ## without dot-auth and dot-user. A module answering to `player_for` is enough (dot-server's admin contract).
-func _avatar_for(session: DotClientSession) -> DotAvatar:
+func _avatar_for(session: GSClientSession) -> GSAvatar:
 	var platform: Object = server.modules.get_module("platform")
 
 	if platform == null or not platform.has_method("player_for"):
@@ -461,10 +461,10 @@ func _avatar_for(session: DotClientSession) -> DotAvatar:
 		return null
 
 	var avatar: Variant = (player as Object).get("avatar")
-	return avatar as DotAvatar if avatar is DotAvatar else null
+	return avatar as GSAvatar if avatar is GSAvatar else null
 
 
-## Keeps the bot population where [DotBotQuota] says and hands each one its command.
+## Keeps the bot population where [GSBotQuota] says and hands each one its command.
 ## Every tick: it is two counts and a comparison, and a joining person takes a bot's place on the tick
 ## they arrive. A leaver is out of the world before the next tick, so nobody half-disconnected counts.
 func _drive_bots() -> void:
@@ -512,7 +512,7 @@ func _add_bot(display_name: String) -> int:
 		# Bots take turns through the traits and throwables so the loadout paths a human's choice takes are
 		# exercised on a server nobody has joined, and an operator sees them doing something.
 	var monster: HungryMonster = added.value
-	var loadout := DotLoadout.empty(hbridge.loadout_schema.id)
+	var loadout := GSLoadout.empty(hbridge.loadout_schema.id)
 	loadout.set_item(
 		HungryContent.SLOT_STARTER,
 		HungryContent.ITEM_IDS[index % HungryContent.ITEM_IDS.size()]
@@ -524,8 +524,8 @@ func _add_bot(display_name: String) -> int:
 		HungryContent.TRAIT_IDS[index % 2]
 	)
 
-	var legal := DotLoadoutValidator.validate(
-		loadout, hbridge.loadout_schema, DotLoadoutEntitlements.none()
+	var legal := GSLoadoutValidator.validate(
+		loadout, hbridge.loadout_schema, GSLoadoutEntitlements.none()
 	)
 
 	if legal.ok:
@@ -557,11 +557,11 @@ func _build_query_provider() -> void:
 	# Logged rather than checked: a server with neither query protocol enabled is a
 	# legitimate deployment — a peer-to-peer session has no listener to answer on — and
 	# refusing to load the game over it would take the game down for a listing.
-	DotLog.result(CHANNEL, "the query provider", add_query_provider(provider), DotLog.Level.DEBUG)
+	GSLog.result(CHANNEL, "the query provider", add_query_provider(provider), GSLog.Level.DEBUG)
 
-## A [DotQueryProvider] over this module. An inner class for game-fatal-contact's reason: it is
+## A [GSQueryProvider] over this module. An inner class for game-fatal-contact's reason: it is
 ## one method and a reference, and a file for it would be a file about nothing else.
-class HungryQueryProvider extends DotQueryProvider:
+class HungryQueryProvider extends GSQueryProvider:
 	## The module, held as an [Object] because this script has no [code]class_name[/code]
 	## and an inner class cannot name the outer script it lives in. Every read off it is
 	## typed on arrival instead.
@@ -570,7 +570,7 @@ class HungryQueryProvider extends DotQueryProvider:
 	func _provider_name() -> String:
 		return "hungry"
 
-	func _contribute(snapshot: DotQuerySnapshot) -> void:
+	func _contribute(snapshot: GSQuerySnapshot) -> void:
 		if module == null or module.world == null:
 			return
 
@@ -579,7 +579,7 @@ class HungryQueryProvider extends DotQueryProvider:
 		# `:=` cannot infer anything off it.
 		var world: HungryWorld = module.world
 		var preset: Object = world.preset
-		var match_node: DotMatch = world.match_node
+		var match_node: GSMatch = world.match_node
 
 		var values := {
 			"mode": String(preset.id) if preset != null else "",
@@ -600,7 +600,7 @@ class HungryQueryProvider extends DotQueryProvider:
 		}
 
 		if match_node != null:
-			values["state"] = DotMatch.State.keys()[match_node.state]
+			values["state"] = GSMatch.State.keys()[match_node.state]
 			values["round"] = match_node.round_number
 
 		var top: Array[HungryMonster] = world.leaderboard(1)
@@ -625,7 +625,7 @@ func describe() -> Dictionary:
 ## Binds the server config's cvars and commands, and keeps the live round in step with an edit.
 func _bind_tuning() -> void:
 	var binder := HungryTuning.binder
-	var _made := binder.bind_cvars(add_cvar, DotConVar.FLAG_ARCHIVE | DotConVar.FLAG_NOTIFY)
+	var _made := binder.bind_cvars(add_cvar, GSConVar.FLAG_ARCHIVE | GSConVar.FLAG_NOTIFY)
 	binder.bind_commands(add_command)
 	binder.field_changed.connect(_on_tuning_changed)
 
@@ -633,7 +633,7 @@ func _bind_tuning() -> void:
 func _on_tuning_changed(key: String, _value: Variant, _source: String) -> void:
 	if world == null or world.match_node == null or world.match_node.rules == null:
 		return
-	var rules: DotMatchRules = world.match_node.rules
+	var rules: GSMatchRules = world.match_node.rules
 	var tuning := HungryTuning.settings()
 	match key:
 		"respawn_delay_sec":
@@ -656,7 +656,7 @@ func _on_tuning_changed(key: String, _value: Variant, _source: String) -> void:
 
 ## dot-workbench over the server config and the six modes: the HTTP page only with `workbench.enabled` in cfg/server.yml, the F9 panel never on a dedicated server.
 func _start_workbench() -> void:
-	var rt: DotProfileRuntime = hbridge.ensure_runtime() if hbridge != null else DotProfileRuntime.new()
+	var rt: GSProfileRuntime = hbridge.ensure_runtime() if hbridge != null else GSProfileRuntime.new()
 	var admin_permit := Callable()
 	if server != null and server.admins != null:
 		admin_permit = server.admins.uid_has_permission
@@ -665,17 +665,17 @@ func _start_workbench() -> void:
 	_admin_permit = admin_permit
 	rt.permit = _runtime_permit
 	rt.actor_name = _runtime_actor_name
-	workbench = DotGameWorkbench.new()
+	workbench = GSGameWorkbench.new()
 	workbench.name = "Workbench"
 	workbench.dedicated = DisplayServer.get_name() == "headless"
 	workbench.listen_host_fn = func() -> bool: return DisplayServer.get_name() != "headless"
 	workbench.permit_fn = func(actor: Variant, flag: String) -> bool:
 		return admin_permit.is_valid() and actor is String and bool(admin_permit.call(actor, flag))
-	for set: DotProfileSet in HungryTuning.binder.profile_sets():
+	for set: GSProfileSet in HungryTuning.binder.profile_sets():
 		workbench.add_set(set, "Server settings: %s" % set.rel_path.trim_prefix("config_"))
-	var ambient_set: DotProfileSet = null
+	var ambient_set: GSProfileSet = null
 	if server != null and server.console != null:
-		ambient_set = DotGameWorkbench.cvar_set(server.console, HungryAmbience.cvar_types(), AMBIENT_KIND)
+		ambient_set = GSGameWorkbench.cvar_set(server.console, HungryAmbience.cvar_types(), AMBIENT_KIND)
 	if ambient_set != null:
 		workbench.add_set(ambient_set, "Ambience (hungry_ambient*)")
 	for id in HungryModes.IDS:
@@ -684,29 +684,29 @@ func _start_workbench() -> void:
 	add_child(workbench)
 	var started := workbench.start(rt)
 	if not started.ok:
-		DotLog.result(CHANNEL, "the workbench", started)
+		GSLog.result(CHANNEL, "the workbench", started)
 		return
 	# Off until the owner sets sv_workbench_remote 1; then flagged admins edit from a client.
 	if net != null:
 		var _served := workbench.serve_remote(net)
 	HungryTuning.binder.attach(rt)
 	if ambient_set != null:
-		var _applied := DotGameWorkbench.bind_cvar_set(ambient_set, rt, server.console)
+		var _applied := GSGameWorkbench.bind_cvar_set(ambient_set, rt, server.console)
 	for id in HungryModes.IDS:
 		HungryModes.binders[id].attach(rt)
-	add_command("workbench", func(ctx: DotCmdContext) -> void: ctx.reply_lines(_workbench_lines()),
-		"Show the admin workbench's state", DotAdminFlags.CVAR)
+	add_command("workbench", func(ctx: GSCmdContext) -> void: ctx.reply_lines(_workbench_lines()),
+		"Show the admin workbench's state", GSAdminFlags.CVAR)
 
 ## Hands [member spawn_overrides] to [param target]'s player stack, which lays its grid again with them.
 func _hand_spawn_overrides(target: HungryWorld) -> void:
 	if target != null and target.player_stack != null:
 		target.player_stack.use_spawn_overrides(spawn_overrides)
 
-## [member DotProfileRuntime.permit]: the server's admin flags, by user id.
+## [member GSProfileRuntime.permit]: the server's admin flags, by user id.
 func _runtime_permit(actor: Variant, flag: String) -> bool:
 	return _admin_permit.is_valid() and actor is String and bool(_admin_permit.call(actor, flag))
 
-## [member DotProfileRuntime.actor_name].
+## [member GSProfileRuntime.actor_name].
 func _runtime_actor_name(actor: Variant) -> String:
 	return str(actor)
 

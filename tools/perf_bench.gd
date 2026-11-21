@@ -1,6 +1,6 @@
-extends DotGamePerfBench
+extends GSGamePerfBench
 
-## Solo-client benchmark (dot-game's DotGamePerfBench: see it for the flags and the report). Runs the offline client with `--bots N` stand-ins on the game's own default map; windowed on a GPU box through tools/perf_bench.sh, not headless.
+## Solo-client benchmark (dot-game's GSGamePerfBench: see it for the flags and the report). Runs the offline client with `--bots N` stand-ins on the game's own default map; windowed on a GPU box through tools/perf_bench.sh, not headless.
 
 
 func _configure() -> void:

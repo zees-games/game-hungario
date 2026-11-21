@@ -6,7 +6,7 @@ Eight modes. `classic`, `frenzy`, `famine` and `feast` are dials; `gauntlet`, `w
 
 **Mass IS radius, so a gap is a mass limit.** A gate admits a radius under half its width, which on the players' curve (`8 √mass`, `base_radius` 8) is a mass. That is the mechanic every level is built on: geometry that is open to the players who are behind and shut to the player who is ahead is a catch-up mechanic made out of space rather than out of a rule, and no dial in `HungryPreset` can produce it. A leader can still split through (half the mass is `1/√2` of the radius), at the cost of `merge_delay_sec`, in the one place being in halves is most dangerous; a pepper does the same to somebody else against their will.
 
-**The geometry is derived on both ends and never replicated.** `HungryLayout.for_id(id, bounds)` is a pure function; the hello carries the *name* (`warrens:quartered` carries the variant too) and a client builds the same discs the server pushes it out of — the same trick `Dot2DScatter` plays with food. `HungryHazards` is deliberately not this: a hazard is placed at runtime, so it travels, is owned and can be cleared. A layout is the map.
+**The geometry is derived on both ends and never replicated.** `HungryLayout.for_id(id, bounds)` is a pure function; the hello carries the *name* (`warrens:quartered` carries the variant too) and a client builds the same discs the server pushes it out of — the same trick `GS2DScatter` plays with food. `HungryHazards` is deliberately not this: a hazard is placed at runtime, so it travels, is owned and can be cleared. A layout is the map.
 
 **Three things a layout makes true, all in `HungryWorld`:**
 

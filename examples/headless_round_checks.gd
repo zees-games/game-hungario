@@ -34,7 +34,7 @@ func _items_pickup(world: HungryWorld, thrower: HungryMonster) -> void:
 
 
 ## A thrown pepper bursts a big enough victim into pieces that cannot merge at once.
-func _items_pepper(world: HungryWorld, thrower: HungryMonster, victim: HungryMonster, hold: Dot2DCommand) -> void:
+func _items_pepper(world: HungryWorld, thrower: HungryMonster, victim: HungryMonster, hold: GS2DCommand) -> void:
 	# Now the pepper. A victim large enough to be worth bursting, right in front.
 	world.spawn(1, Vector2(-300.0, 0.0))
 	world.spawn(2, Vector2(100.0, 0.0))
@@ -61,7 +61,7 @@ func _items_pepper(world: HungryWorld, thrower: HungryMonster, victim: HungryMon
 	var throw_command := _aim_at(
 		thrower.rider_piece().position(),
 		victim.rider_piece().position(),
-		Dot2DCommand.BUTTON_ACTION
+		GS2DCommand.BUTTON_ACTION
 	)
 
 	world.tick({1: throw_command, 2: hold})
@@ -123,14 +123,14 @@ func _items_rind(world: HungryWorld, victim: HungryMonster) -> void:
 
 
 ## A thrown frostberry slows its target.
-func _items_frost(world: HungryWorld, thrower: HungryMonster, victim: HungryMonster, hold: Dot2DCommand) -> void:
+func _items_frost(world: HungryWorld, thrower: HungryMonster, victim: HungryMonster, hold: GS2DCommand) -> void:
 	# Frost.
 	thrower.carried.clear()
 	thrower.take_item(HungryContent.ITEM_FROST)
 	var frost_command := _aim_at(
 		thrower.rider_piece().position(),
 		victim.rider_piece().position(),
-		Dot2DCommand.BUTTON_ACTION
+		GS2DCommand.BUTTON_ACTION
 	)
 	thrower.throw_ready_tick = world.current_tick()
 	world.tick({1: frost_command, 2: hold})
@@ -153,7 +153,7 @@ func _items_frost(world: HungryWorld, thrower: HungryMonster, victim: HungryMons
 
 
 ## The warrens at the winning mass: the ring leaves a whole perimeter lane, and the quartered variant holds a leader to a quarter of it.
-func _reach_warrens(layout: HungryLayout, bounds: Rect2, wall: Vector2, rules: Dot2DMassRules, stranded_big: PackedVector2Array, big_note: String, mode: StringName, won: float) -> void:
+func _reach_warrens(layout: HungryLayout, bounds: Rect2, wall: Vector2, rules: GS2DMassRules, stranded_big: PackedVector2Array, big_note: String, mode: StringName, won: float) -> void:
 	# The design: a leader is not quartered. The corner rocks stand against the walls, a pinwheel, with the lane going round their inner side.
 	var ring_block: Vector3 = layout.blocks[layout.rings[0].x]
 	var ring_reach := Vector2(ring_block.x, ring_block.y).distance_to(bounds.get_center())
@@ -261,12 +261,12 @@ func _reach_gates(layout: HungryLayout, bounds: Rect2, start: float, slack: floa
 
 
 ## The HUD is built, outlined, and carries a leaderboard and a feed.
-func _interface_hud(hud: HungryHud, stack: DotScreenStack) -> void:
+func _interface_hud(hud: HungryHud, stack: GSScreenStack) -> void:
 	_check(hud.mass_bar != null, "the HUD builds its widgets")
 	_check(hud.minimap != null, "including a minimap")
 
 	# HUD text over the pale sky is outlined or it is a smudge, so the mass number is a
-	# Label: DotStatBar draws its own text with no outline.
+	# Label: GSStatBar draws its own text with no outline.
 	_check(
 		hud.mass_label != null and not hud.mass_bar.show_text,
 		"the mass number is an outlined Label, not the bar's own text"
@@ -296,7 +296,7 @@ func _interface_hud(hud: HungryHud, stack: DotScreenStack) -> void:
 
 	# Nothing of this game's is on the stack now: the pause, settings, controls and loadout
 	# screens are dot-menu's Escape menu (HungrySettings), chat left the stack long before, when
-	# it became a `DotChatWindow`, and the Tab board is dot-menu's own, held by the platform.
+	# it became a `GSChatWindow`, and the Tab board is dot-menu's own, held by the platform.
 	_check(stack.registered_ids().is_empty(), "nothing of this game's is on the stack (%d)" % stack.registered_ids().size())
 
 
@@ -304,7 +304,7 @@ func _interface_hud(hud: HungryHud, stack: DotScreenStack) -> void:
 func _interface_board(world: HungryWorld) -> void:
 	# The Tab board: the world's monsters, in the world's order, dressed by the game and held
 	# open by the platform while Tab is down (opened by hand here).
-	var board := DotMenuScoreboard.new()
+	var board := GSMenuScoreboard.new()
 	add_child(board)
 	HungryMenus.dress_board(board, world, null)
 	board.source = HungryMenus.solo_snapshot
@@ -325,16 +325,16 @@ func _interface_loadout_page() -> void:
 	var lp_schema := HungryContent.loadout_schema()
 	var lp_offered := true
 	for slot in lp_schema.ordered_slots():
-		var lp_allowed := lp_schema.choices_for(slot.id, DotLoadoutEntitlements.none())
+		var lp_allowed := lp_schema.choices_for(slot.id, GSLoadoutEntitlements.none())
 		lp_offered = lp_offered and (lp.page.find_row(StringName("loadout_%s" % slot.id)).options.size() == lp_allowed.size())
 	_check(lp_offered, "the Loadout page offers exactly what the schema allows this player")
 	var lp_sent: Array = []
-	lp.on_chosen(func(l: DotLoadout) -> void: lp_sent.append(l))
+	lp.on_chosen(func(l: GSLoadout) -> void: lp_sent.append(l))
 	var lp_trait := lp.page.find_row(StringName("loadout_%s" % HungryContent.SLOT_TRAIT))
 	var lp_other: Variant = lp_trait.options[-1][0] if lp_trait.options.size() > 1 else null
 	if lp_other != null:
 		lp_trait.setter.call(lp_other)
-	_check(lp_other == null or (lp_sent.size() == 1 and (lp_sent[0] as DotLoadout).item_in(HungryContent.SLOT_TRAIT) == StringName(str(lp_other))),
+	_check(lp_other == null or (lp_sent.size() == 1 and (lp_sent[0] as GSLoadout).item_in(HungryContent.SLOT_TRAIT) == StringName(str(lp_other))),
 		"and a choice is sent as it is made", str(lp_sent))
 	_check(lp.summary().contains("speed"), "with what the trait does, in numbers", lp.summary())
 
@@ -420,13 +420,13 @@ func _interface_loadout_offers() -> void:
 		"but not the one nobody has unlocked"
 	)
 	_check(
-		DotLoadoutValidator.validate(
-			offered, HungryContent.loadout_schema(), DotLoadoutEntitlements.none()
+		GSLoadoutValidator.validate(
+			offered, HungryContent.loadout_schema(), GSLoadoutEntitlements.none()
 		).ok,
 		"and what it produces is legal"
 	)
 	var unlocked := HungryMenus.loadout_page(null)
-	unlocked.allow(DotLoadoutEntitlements.of([HungryContent.TRAIT_GREEDY_UNLOCK]))
+	unlocked.allow(GSLoadoutEntitlements.of([HungryContent.TRAIT_GREEDY_UNLOCK]))
 	var greedy_offered := false
 	for option in unlocked.page.find_row(StringName("loadout_%s" % HungryContent.SLOT_TRAIT)).options:
 		greedy_offered = greedy_offered or option[0] == HungryContent.TRAIT_GREEDY
@@ -434,8 +434,8 @@ func _interface_loadout_offers() -> void:
 
 
 ## Chat is not a screen on the stack; the chat window submits trimmed text.
-func _interface_chat(stack: DotScreenStack) -> void:
-	# [b]Chat is no longer a screen on this stack.[/b] It was a modal `DotScreen` on Enter
+func _interface_chat(stack: GSScreenStack) -> void:
+	# [b]Chat is no longer a screen on this stack.[/b] It was a modal `GSScreen` on Enter
 	# with one line edit in it — the only chat box of its kind in the family, with no log,
 	# no channels and no way to know whether anything else was carrying the conversation.
 	_check(
@@ -444,7 +444,7 @@ func _interface_chat(stack: DotScreenStack) -> void:
 		"two chat boxes in one game is the shape this tree pays most for"
 	)
 
-	var chat := DotChatWindow.new()
+	var chat := GSChatWindow.new()
 	chat.register_actions = false
 	add_child(chat)
 
@@ -474,18 +474,18 @@ func _interface_touch(world: HungryWorld) -> void:
 	add_child(sampler)
 
 	_check(
-		not sampler.sample().is_pressed(Dot2DCommand.BUTTON_SPLIT),
+		not sampler.sample().is_pressed(GS2DCommand.BUTTON_SPLIT),
 		"nothing is pressed to start with"
 	)
 
 	touch.buttons.button_down.emit(&"split")
 	_check(
-		sampler.sample().is_pressed(Dot2DCommand.BUTTON_SPLIT),
+		sampler.sample().is_pressed(GS2DCommand.BUTTON_SPLIT),
 		"the split button reaches the command"
 	)
 	touch.buttons.button_up.emit(&"split")
 	_check(
-		not sampler.sample().is_pressed(Dot2DCommand.BUTTON_SPLIT),
+		not sampler.sample().is_pressed(GS2DCommand.BUTTON_SPLIT),
 		"and lets go again"
 	)
 
@@ -501,7 +501,7 @@ func _interface_touch(world: HungryWorld) -> void:
 
 	touch.buttons.button_down.emit(&"throw")
 	_check(
-		sampler.sample().is_pressed(Dot2DCommand.BUTTON_ACTION),
+		sampler.sample().is_pressed(GS2DCommand.BUTTON_ACTION),
 		"and it reaches the command too"
 	)
 	touch.buttons.button_up.emit(&"throw")

@@ -30,11 +30,11 @@ Every one of these parsed cleanly and produced no error. Each is kept because th
 
 **No mouthful ever popped and no monster ever burst** (until 2026-09-27): `fx_catalogue()` named scenes in a `scenes/fx/` directory that did not exist, dot-fx refuses a missing scene at DEBUG only, and the effects section passed on the shake and the tint, which need no scene.
 
-**The renderer culled most of the screen once a player grew.** `_view` and dot-2d's `Dot2DCameraRig` multiplied the viewport by the zoom; `Camera2D.zoom` is a magnification. On a black background that reads as an empty arena. Every suite passed before and after; the third screenshot framing found it the night it was written.
+**The renderer culled most of the screen once a player grew.** `_view` and dot-2d's `GS2DCameraRig` multiplied the viewport by the zoom; `Camera2D.zoom` is a magnification. On a black background that reads as an empty arena. Every suite passed before and after; the third screenshot framing found it the night it was written.
 
 ### The vote
 
-The director was advanced by itself *and* by the module, so every vote clock ran double; there was no `rtv` console command, so the wire was the only way to vote; nothing called `note_score` or `note_round_end`; any player could extend the mode from the wire; and a descriptive `DotMapTimeLimit` kept the old limit after an extend. All found finishing the map-chooser work (2026-09-23/24). Current wiring in [services.md](services.md#the-vote-and-dot-map).
+The director was advanced by itself *and* by the module, so every vote clock ran double; there was no `rtv` console command, so the wire was the only way to vote; nothing called `note_score` or `note_round_end`; any player could extend the mode from the wire; and a descriptive `GSMapTimeLimit` kept the old limit after an extend. All found finishing the map-chooser work (2026-09-23/24). Current wiring in [services.md](services.md#the-vote-and-dot-map).
 
 ### The levels
 
@@ -70,13 +70,13 @@ None of these was reachable from the other project's own suite. Details in [bugs
 
 - game-fatal-contact's bridge reconciled twice (correction rate 0.500 against 0.032).
 - `client_spawn` carries `userid`, not `peer_id`; a module looking a session up by `peer_id` adds nobody.
-- `Dot2DScatter` could not be mirrored until it gained `adopt`: a receiving peer must take the index it was given.
-- dot-server could not serve a game shipped inside its own build: the fallback to the server's absolute scene path was refused by `DotClientLink`.
-- `DotCloudClient` never registered itself, so four call sites found null and every one treated that as a legitimate configuration.
+- `GS2DScatter` could not be mirrored until it gained `adopt`: a receiving peer must take the index it was given.
+- dot-server could not serve a game shipped inside its own build: the fallback to the server's absolute scene path was refused by `GSClientLink`.
+- `GSCloudClient` never registered itself, so four call sites found null and every one treated that as a legitimate configuration.
 - dot-net's cached interest answer dropped what the observer owned, so a client did not receive its own newly spawned entity until the cache expired.
 - dot-net never pulled back a predicted entity whose server state stood still (fixed in f99fde3): an empty snapshot body was adopted as "you are right".
-- dot-ui's `DotTableView` honoured no column width and a column with no `width` collapsed to nothing: the mass, pieces, rank and ping had never been drawn.
-- dot-audio refused a sound with no file, until `DotAudioDef.generated`.
+- dot-ui's `GSTableView` honoured no column width and a column with no `width` collapsed to nothing: the mass, pieces, rank and ping had never been drawn.
+- dot-audio refused a sound with no file, until `GSAudioDef.generated`.
 - dot-match walked spawn points that had been freed: the solo mode change builds a fresh client beside the old one, the new match (no `spawns_ref`) collected every point under the current scene, and when the old world was freed the next round's `point.reset()` crashed the engine (signal 11). Seen only with the client built late in `headless_presentation`. dot-match forgets freed points (5689bc2); the world points the match at its own point (`spawns_ref`), and the section runs last on purpose.
 
 ## "Mode vote in 1…" under an open ballot

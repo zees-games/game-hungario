@@ -10,11 +10,11 @@ const HungryLayout := preload("hungry_layout.gd")
 const HungryPredicted := preload("hungry_predicted.gd")
 const HungryProjectile := preload("hungry_projectile.gd")
 const CHANNEL := "hungry"
-var arena: Dot2DArena = null
+var arena: GS2DArena = null
 ## What is solid in this world: the level's own geometry.
 var layout: HungryLayout = HungryLayout.none()
 var field: HungryField = null
-var tunables: Dot2DTunables = null
+var tunables: GS2DTunables = null
 ## What a client predicts with: built from the server's config and mode, sent in the hello, adopted by clients. Shared with every monster.
 var predicted: HungryPredicted = HungryPredicted.new()
 ## projectile id -> [HungryProjectile].
@@ -26,7 +26,7 @@ var _next_shot_id: int = 1
 func adopt_layout(layout_id: StringName) -> void:
 	layout = HungryLayout.for_id(layout_id, arena.bounds)
 
-	DotLog.debug(CHANNEL, "adopted the authority's layout", {
+	GSLog.debug(CHANNEL, "adopted the authority's layout", {
 		"layout": String(layout_id), "blocks": layout.count(),
 	})
 
@@ -67,7 +67,7 @@ func drop_projectile(shot_id: int) -> void:
 ## With dot-sim's grid2d the bots' neighbour loop runs natively over a copy of the arena's grid
 ## (HungryGrid, made on the first bot ask); without it, dot-2d's own grid.
 func _use_native_grid() -> void:
-	if not DotSim.has(&"grid2d"):
+	if not GSSim.has(&"grid2d"):
 		return
 
 	var grid := HungryGrid.new(HungryContent.CELL_SIZE)

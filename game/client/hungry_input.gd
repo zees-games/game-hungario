@@ -1,14 +1,14 @@
 @tool
-extends Dot2DSampler
+extends GS2DSampler
 
 const HungryInput := preload("hungry_input.gd")
 const HungryMonster := preload("../hungry_monster.gd")
 const HungryNetCommand := preload("../net/hungry_net_command.gd")
 const HungryTouch := preload("hungry_touch.gd")
 
-## Turns a mouse, a keyboard, a gamepad or a finger into a [Dot2DCommand].
+## Turns a mouse, a keyboard, a gamepad or a finger into a [GS2DCommand].
 ##
-## [Dot2DSampler] already does almost all of it, including the part that matters: it
+## [GS2DSampler] already does almost all of it, including the part that matters: it
 ## resolves the pointer to a [b]direction and a distance in world units[/b] rather than
 ## sending a screen position, because a screen position depends on a window size and a
 ## camera zoom the server does not have.
@@ -21,7 +21,7 @@ const HungryTouch := preload("hungry_touch.gd")
 ##
 ## [b]Speed comes from how far the cursor is.[/b] Close is slow, far is full speed, and
 ## the dead zone is what makes it possible to stop. That relationship is
-## [member Dot2DTunables.full_speed_reach] and it is the whole feel of the genre.
+## [member GS2DTunables.full_speed_reach] and it is the whole feel of the genre.
 
 
 ## `func() -> HungryMonster`. Whose centroid the pointer is measured from.
@@ -35,7 +35,7 @@ var camera: Camera2D = null
 
 ## Replaces the sampled command with a supplied one.
 ##
-## [code]func() -> Dot2DCommand[/code]. This is the same seam [Dot2DSampler] exists to be:
+## [code]func() -> GS2DCommand[/code]. This is the same seam [GS2DSampler] exists to be:
 ## the motor never reads a device, so a bot sitting in a client's seat, a recorded demo
 ## and a headless run with no pointer all drive the game through exactly the code a player
 ## does. Unset — which is every real session — the devices are read.
@@ -129,8 +129,8 @@ func _unhandled_input(event: InputEvent) -> void:
 ##
 ## Overrides the base entirely rather than extending it, because the base measures from a
 ## node and the whole difference here is what it measures from.
-func sample(_delta: float = 0.0) -> Dot2DCommand:
-	var command := Dot2DCommand.new()
+func sample(_delta: float = 0.0) -> GS2DCommand:
+	var command := GS2DCommand.new()
 
 	if suspended or not is_inside_tree():
 		return command
@@ -138,8 +138,8 @@ func sample(_delta: float = 0.0) -> Dot2DCommand:
 	if command_source.is_valid():
 		var supplied: Variant = command_source.call()
 
-		if supplied is Dot2DCommand:
-			var typed := supplied as Dot2DCommand
+		if supplied is GS2DCommand:
+			var typed := supplied as GS2DCommand
 			typed.sanitise(max_reach)
 			return typed
 
@@ -149,13 +149,13 @@ func sample(_delta: float = 0.0) -> Dot2DCommand:
 	var touching_throw := touch != null and touch.throw_held
 
 	command.set_button(
-		Dot2DCommand.BUTTON_SPLIT, _held(split_button) or _held(split_click) or touching_split
+		GS2DCommand.BUTTON_SPLIT, _held(split_button) or _held(split_click) or touching_split
 	)
 	command.set_button(
-		Dot2DCommand.BUTTON_ACTION, _held(action_button) or _held(action_click) or touching_throw
+		GS2DCommand.BUTTON_ACTION, _held(action_button) or _held(action_click) or touching_throw
 	)
-	command.set_button(Dot2DCommand.BUTTON_BOOST, _held(boost_button) or (touch != null and touch.boost_held))
-	command.set_button(Dot2DCommand.BUTTON_EJECT, _held(eject_button) or (touch != null and touch.eject_held))
+	command.set_button(GS2DCommand.BUTTON_BOOST, _held(boost_button) or (touch != null and touch.boost_held))
+	command.set_button(GS2DCommand.BUTTON_EJECT, _held(eject_button) or (touch != null and touch.eject_held))
 
 	var monster := _monster()
 

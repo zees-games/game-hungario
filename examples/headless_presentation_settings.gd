@@ -23,11 +23,11 @@ func _test_schema_is_the_config() -> void:
 		+ "the slider and the console at once"
 	)
 	_check(
-		schema.find(&"show_names").scope == DotSettingsDef.Scope.ACCOUNT,
+		schema.find(&"show_names").scope == GSSettingsDef.Scope.ACCOUNT,
 		"the scope is the one thing a config cannot say, so it is passed in"
 	)
 	_check(
-		schema.find(&"follow_sec").scope == DotSettingsDef.Scope.DEVICE,
+		schema.find(&"follow_sec").scope == GSSettingsDef.Scope.DEVICE,
 		"and a camera follow time stays with the machine, because it is about this screen"
 	)
 	_check(schema.has(&"master_volume") and schema.has(&"ui_theme") and schema.has(&"window_mode"),
@@ -79,15 +79,15 @@ func _test_migration() -> void:
 	_section("The old settings and keys are migrated once, and nothing is lost")
 	var config_path := "user://hungry_migration_test.json"
 	var keys_path := "user://hungry_migration_keys_test.json"
-	var _c := DotPaths.write_json(config_path, {
+	var _c := GSPaths.write_json(config_path, {
 		"volume_db": -14.0, "muted": false, "follow_sec": 0.25, "zoom_with_size": false,
 		"show_names": false, "feed_lines": 3,
 	})
-	var _k := DotPaths.write_json(keys_path, {"bindings": {
+	var _k := GSPaths.write_json(keys_path, {"bindings": {
 		"hungry_split": [{"type": "key", "code": KEY_E, "physical": true}, {"type": "mouse", "button": MOUSE_BUTTON_MIDDLE}],
 		"hungry_eject": [{"type": "key", "code": KEY_R, "physical": true}],
 	}})
-	var store := DotSettingsStoreMemory.new()
+	var store := GSSettingsStoreMemory.new()
 	# A version-1 document, as the old client left one: the console had set the feed length
 	# and net_stat, and that value was the one in force.
 	var _d := store.save_document(HungrySettings.APP_NAMESPACE, &"local", {"version": 1, "values": {"feed_lines": 5, "net_stat": 2}})
@@ -120,16 +120,16 @@ func _test_migration() -> void:
 	_check(FileAccess.file_exists(config_path) and FileAccess.file_exists(keys_path), "the old files are read, never deleted")
 
 	# A first run: nothing to migrate, nothing written.
-	var fresh := DotSettingsStoreMemory.new()
+	var fresh := GSSettingsStoreMemory.new()
 	var none := HungrySettings.migrate_store(fresh, HungrySettings.APP_NAMESPACE, "", "")
 	_check(none.is_empty() and (fresh.load_document(HungrySettings.APP_NAMESPACE, &"local").value as Dictionary).is_empty(),
 		"a first run migrates nothing and writes nothing")
-	DotPaths.remove_tree(config_path)
-	DotPaths.remove_tree(keys_path)
+	GSPaths.remove_tree(config_path)
+	GSPaths.remove_tree(keys_path)
 
 	# The spec's own doing: a first run's defaults, the game page, the corner plates and the help screen.
 	var d := HungrySettings.new()
-	d.store = DotSettingsStoreMemory.new()
+	d.store = GSSettingsStoreMemory.new()
 	d.legacy_config_path = ""
 	d.legacy_bindings_path = ""
 	add_child(d)

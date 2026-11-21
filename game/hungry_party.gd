@@ -20,17 +20,17 @@ extends Node
 const CHANNEL := "hungry.party"
 
 signal open(code: String)
-signal closed(res: DotResult)
+signal closed(res: GSResult)
 
-var session: DotP2PSession = null
+var session: GSP2PSession = null
 
 @export var signalling_url: String = ""
 
-var _http: DotHttp = null
+var _http: GSHttp = null
 
 
-func setup() -> DotResult:
-	session = DotP2PSession.new()
+func setup() -> GSResult:
+	session = GSP2PSession.new()
 	session.name = "P2P"
 	session.config = _config()
 	add_child(session)
@@ -40,17 +40,17 @@ func setup() -> DotResult:
 		return res.wrap("hungario's party session")
 
 	session.signaller = _make_signaller()
-	session.ended.connect(func(r: DotResult) -> void: closed.emit(r))
-	return DotResult.success(null)
+	session.ended.connect(func(r: GSResult) -> void: closed.emit(r))
+	return GSResult.success(null)
 
 
-func _config() -> DotP2PConfig:
-	var c := DotP2PConfig.new()
+func _config() -> GSP2PConfig:
+	var c := GSP2PConfig.new()
 	# Sixteen. The arena is big and this game is cheap on the wire -- a monster is a
 	# position, a mass and a bitmask -- so the limit here is the host's uplink rather than
 	# the simulation, and sixteen is what a domestic one carries at this rate.
 	c.max_peers = 16
-	c.trust = DotP2PConfig.Trust.SANDBOXED
+	c.trust = GSP2PConfig.Trust.SANDBOXED
 	# On, and this is the axis where this game disagrees with the arena. There is no round
 	# to be in the middle of.
 	c.migrate_host = true
@@ -58,28 +58,28 @@ func _config() -> DotP2PConfig:
 	return c
 
 
-func _make_signaller() -> DotP2PSignaller:
+func _make_signaller() -> GSP2PSignaller:
 	if signalling_url.is_empty():
-		return DotP2PSignallerLoopback.new(session.local_id)
-	_http = DotHttp.new()
+		return GSP2PSignallerLoopback.new(session.local_id)
+	_http = GSHttp.new()
 	_http.name = "PartyHttp"
 	add_child(_http)
-	return DotP2PSignallerHttp.new(signalling_url, session.local_id, _http)
+	return GSP2PSignallerHttp.new(signalling_url, session.local_id, _http)
 
 
-func host(display_name: String) -> DotResult:
-	if not DotP2PSession.available():
-		return DotResult.fail(
-			DotError.CODE_UNSUPPORTED,
+func host(display_name: String) -> GSResult:
+	if not GSP2PSession.available():
+		return GSResult.fail(
+			GSError.CODE_UNSUPPORTED,
 			"this build cannot host a private arena",
-			DotP2PSession.unavailable_reason()
+			GSP2PSession.unavailable_reason()
 		)
 	# Awaited: dot-peer-to-peer's session awaits its signaller since 37d47c1, because an
 	# HTTP rendezvous answers a frame later at best. A caller of this awaits it too.
-	var res: DotResult = await session.host(display_name)
+	var res: GSResult = await session.host(display_name)
 	if res.ok:
 		open.emit(str(res.value))
-		DotLog.info(
+		GSLog.info(
 			CHANNEL,
 			"a private arena is open; nothing from it is filed anywhere",
 			{"code": str(res.value)}
@@ -87,7 +87,7 @@ func host(display_name: String) -> DotResult:
 	return res
 
 
-func join(code: String, display_name: String) -> DotResult:
+func join(code: String, display_name: String) -> GSResult:
 	return await session.join(code, display_name)
 
 
@@ -103,7 +103,7 @@ func active() -> bool:
 func reporting_allowed() -> bool:
 	if not active():
 		return true
-	return session.config.trust != DotP2PConfig.Trust.SANDBOXED
+	return session.config.trust != GSP2PConfig.Trust.SANDBOXED
 
 
 func describe_lines() -> PackedStringArray:

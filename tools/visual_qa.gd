@@ -1,4 +1,4 @@
-extends DotGameVisualQaCapture
+extends GSGameVisualQaCapture
 
 ## Hungario's visual QA capture (the loop is dot-game's docs/visual-qa.md). Hungario is a 2D game, so the three views are
 ## three 2D cameras over the real renderer, not a person with a first-person camera and two outside ones. Every frame of
@@ -52,8 +52,8 @@ var _hunter_at := Vector2.ZERO
 var _split_done := false
 
 
-## The three views as 2D cameras of the game's own canvas (DotGameVisualQaViews is the 3D pair).
-class Views2D extends DotGameVisualQaViews:
+## The three views as 2D cameras of the game's own canvas (GSGameVisualQaViews is the 3D pair).
+class Views2D extends GSGameVisualQaViews:
 	var wide_view: SubViewport = null
 	var wide_camera: Camera2D = null
 	var close_view: SubViewport = null
@@ -73,14 +73,14 @@ class Views2D extends DotGameVisualQaViews:
 		close_camera.global_position = at
 		close_camera.zoom = Vector2.ONE * base_zoom * close
 
-	func save(dir: String, index: int, first_person: Viewport) -> DotResult:
+	func save(dir: String, index: int, first_person: Viewport) -> GSResult:
 		var shots := {"f": first_person, "t": wide_view, "o": close_view}
 		for prefix: String in shots:
 			var path := "%s/%s_%03d.jpg" % [dir, prefix, index]
 			var err := (shots[prefix] as Viewport).get_texture().get_image().save_jpg(path, jpg_quality)
 			if err != OK:
-				return DotResult.fail(DotError.CODE_IO, "visual QA frame not saved", "%s: %s" % [path, error_string(err)])
-		return DotResult.success(index)
+				return GSResult.fail(GSError.CODE_IO, "visual QA frame not saved", "%s: %s" % [path, error_string(err)])
+		return GSResult.success(index)
 
 	func _view_2d(host: Node, world: World2D) -> SubViewport:
 		var view := SubViewport.new()
@@ -117,12 +117,12 @@ func _warmup_frames(_item: String, _clip: String) -> int:
 
 ## No 3D stage: the world, the renderer and the camera are built per item in [method _stage].
 func _build() -> void:
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.ERROR)
 	_views_2d = Views2D.new()
 	views = _views_2d
 
 
-func _stage(item: String, clip: String) -> DotResult:
+func _stage(item: String, clip: String) -> GSResult:
 	_teardown()
 	_world = HungryWorld.new()
 	_world.name = "World"
@@ -159,9 +159,9 @@ func _stage(item: String, clip: String) -> DotResult:
 	return _stage_hunter(item.trim_prefix("hunter_"), clip, spot)
 
 
-func _stage_rider(look: String, clip: String) -> DotResult:
+func _stage_rider(look: String, clip: String) -> GSResult:
 	var recipe: Array = LOOKS[look]
-	var avatar := DotAvatar.make(&"hungry_rider")
+	var avatar := GSAvatar.make(&"hungry_rider")
 	avatar.set_part(&"body", recipe[0])
 	if recipe[1] != &"":
 		avatar.set_part(&"hat", recipe[1])
@@ -172,12 +172,12 @@ func _stage_rider(look: String, clip: String) -> DotResult:
 	_world.monster_for(PLAYER).avatar = avatar
 	if clip == "split":
 		_world.feed_player(PLAYER, 60.0)
-	return DotResult.success(clip)
+	return GSResult.success(clip)
 
 
-func _stage_hunter(kind: String, clip: String, spot: Vector2) -> DotResult:
+func _stage_hunter(kind: String, clip: String, spot: Vector2) -> GSResult:
 	if HungryHunters.mass_of(StringName(kind)) <= 0.0:
-		return DotResult.fail(DotError.CODE_INVALID, "hunter %s has no mass" % kind)
+		return GSResult.fail(GSError.CODE_INVALID, "hunter %s has no mass" % kind)
 	# The player's monster is the small one: the hunter is drawn beside it with a ring, and a big rival stands behind.
 	_hunters = HungryHunters.new()
 	_hunters.name = "Hunters"
@@ -189,7 +189,7 @@ func _stage_hunter(kind: String, clip: String, spot: Vector2) -> DotResult:
 	_world.spawn(RIVAL, spot + Vector2(-220.0, 60.0))
 	_world.feed_player(RIVAL, 400.0)
 	_world.tick({})
-	return DotResult.success(clip)
+	return GSResult.success(clip)
 
 
 func _adopt_hunter(kind: String, at: Vector2) -> void:
@@ -217,7 +217,7 @@ func _drive(_item: String, clip: String, t: float, _frame: int) -> void:
 
 
 func _drive_rider(clip: String, t: float) -> void:
-	var command := Dot2DCommand.new()
+	var command := GS2DCommand.new()
 	match clip:
 		"move":
 			command.aim = Vector2.from_angle(t * 1.6)
@@ -230,7 +230,7 @@ func _drive_rider(clip: String, t: float) -> void:
 			command.reach = 400.0
 			if t >= 0.4 and not _split_done:
 				_split_done = true
-				command.set_button(Dot2DCommand.BUTTON_SPLIT, true)
+				command.set_button(GS2DCommand.BUTTON_SPLIT, true)
 	_world.tick({PLAYER: command})
 
 

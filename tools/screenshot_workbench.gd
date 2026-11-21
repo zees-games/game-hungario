@@ -19,8 +19,8 @@ func _initialize() -> void:
 	root.add_child(_client)
 
 
-## Frame sequence after each still (GS_SHOT_FRAMES, set by the .sh); see DotShotSeq. The state machine holds still while it records, and `_seq_end` defers the quit until it is done.
-var _seq := DotShotSeq.new()
+## Frame sequence after each still (GS_SHOT_FRAMES, set by the .sh); see GSShotSeq. The state machine holds still while it records, and `_seq_end` defers the quit until it is done.
+var _seq := GSShotSeq.new()
 var _seq_active := false
 var _seq_end := false
 
@@ -39,9 +39,9 @@ func _process(_delta: float) -> bool:
 	if _seq_end:
 		return true
 	_frames += 1
-	var platform: DotGameClient = _client.get("platform")
+	var platform: GSGameClient = _client.get("platform")
 	if not _opened and _frames > 30 and platform.is_shown():
-		var wb := _client.get_node_or_null("Workbench") as DotGameWorkbench
+		var wb := _client.get_node_or_null("Workbench") as GSGameWorkbench
 		print("workbench: ", wb != null and wb.overlay != null)
 		if wb == null:
 			return true

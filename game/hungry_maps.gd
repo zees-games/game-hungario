@@ -27,9 +27,9 @@ signal announced(line: String)
 signal cue_due(cue: StringName, seconds_left: int, runoff: bool)
 
 
-var catalogue: DotMapCatalogue = null
-var rotation: DotMapRotation = null
-var director: DotVoteDirector = null
+var catalogue: GSMapCatalogue = null
+var rotation: GSMapRotation = null
+var director: GSVoteDirector = null
 
 ## dot-server's game manager, which is what a vote actually applies through.
 var games: Object = null
@@ -40,7 +40,7 @@ var player_count_fn: Callable = Callable()
 ## Whether a voter is an admin.
 var is_admin_fn: Callable = Callable()
 
-## `func() -> DotMatch`. The match being played now, for its round ends. A callable because
+## `func() -> GSMatch`. The match being played now, for its round ends. A callable because
 ## a mode change builds a new world, and a new world a new match.
 var match_fn: Callable = Callable()
 
@@ -48,15 +48,15 @@ var match_fn: Callable = Callable()
 ## here is won on. Reported to the director for `trigger: score_limit`.
 var score_fn: Callable = Callable()
 
-var commands: DotVoteCommands = null
+var commands: GSVoteCommands = null
 
 ## The server's maps.yml, or null when there is none. See [method load_rotation].
-var rotation_file: DotMapRotationFile = null
+var rotation_file: GSMapRotationFile = null
 
 ## Where [member rotation_file] was read from, or "" when there was no file.
 var rotation_source: String = ""
 
-## The file that says which modes rotate: dot-map's [DotMapRotationFile] format, looked for in
+## The file that says which modes rotate: dot-map's [GSMapRotationFile] format, looked for in
 ## the `--config` directory first. A test sets it empty. Empty, or no file, rotates every mode
 ## the catalogue holds, which is what this game always did.
 const ROTATION_FILE := "cfg/maps.yml"
@@ -71,25 +71,25 @@ var ballot_fn: Callable = Callable()
 var people_fn: Callable = Callable()
 
 ## What [member ballot_fn] is fed from. Polled once per [method advance].
-var feed: DotVoteBallotFeed = null
+var feed: GSVoteBallotFeed = null
 
 ## What dot-vote's commands are called here. `vote` rather than `votefor`, so the command
 ## is the token this game's own wire already sends.
 const COMMAND_NAMES := {"vote": "vote"}
 
-var _match: DotMatch = null
+var _match: GSMatch = null
 
 ## The file [method setup] layers over the defaults. A test sets it empty.
 var config_path: String = CONFIG_PATH
 
 
 ## dot-server's games, kept to the ones [member keep_fn] says are this game's modes.
-class ModeSource extends DotVoteGameSource:
+class ModeSource extends GSVoteGameSource:
 	## [code]func(id: StringName) -> bool[/code]: whether a game id is one of the modes.
 	var keep_fn: Callable = Callable()
 
-	func choices() -> Array[DotVoteChoice]:
-		var out: Array[DotVoteChoice] = []
+	func choices() -> Array[GSVoteChoice]:
+		var out: Array[GSVoteChoice] = []
 
 		for choice in super.choices():
 			if not keep_fn.is_valid() or bool(keep_fn.call(choice.id)):
@@ -100,17 +100,17 @@ class ModeSource extends DotVoteGameSource:
 
 
 ## The modes, as maps.
-static func map_catalogue() -> DotMapCatalogue:
-	var out := DotMapCatalogue.new()
+static func map_catalogue() -> GSMapCatalogue:
+	var out := GSMapCatalogue.new()
 
 	# Built from the game descriptors rather than beside them: scene path, name and id are declared once in [method HungryModule.game_descriptors].
-	# What is new is `min_players`, which a `DotGameDescriptor` does not record and a ballot needs.
+	# What is new is `min_players`, which a `GSGameDescriptor` does not record and a ballot needs.
 	for descriptor in HungryModule.game_descriptors():
 		var added := out.add(_map(descriptor, int(MINIMUMS.get(descriptor.game_id, 1))))
 
 		if not added.ok:
-			# Loud, because a catalogue that silently holds nothing is a shape this family keeps finding: `DotMapCatalogue.add` validates and refuses.
-			DotLog.error(CHANNEL, "a mode was refused by the map catalogue", {
+			# Loud, because a catalogue that silently holds nothing is a shape this family keeps finding: `GSMapCatalogue.add` validates and refuses.
+			GSLog.error(CHANNEL, "a mode was refused by the map catalogue", {
 				"game": descriptor.game_id, "why": added.error.message,
 			})
 
@@ -123,14 +123,14 @@ const MINIMUMS := {
 }
 
 
-static func _map(descriptor: DotGameDescriptor, min_players: int) -> DotMapDef:
-	var out := DotMapDef.new()
+static func _map(descriptor: GSGameDescriptor, min_players: int) -> GSMapDef:
+	var out := GSMapDef.new()
 	out.id = StringName(descriptor.game_id)
 	out.display_name = descriptor.display_name
 	# [b]A semantic version or a default, because `validate()` refuses anything else.[/b]
-	out.version = descriptor.version if DotSemVer.parse(descriptor.version).valid \
+	out.version = descriptor.version if GSSemVer.parse(descriptor.version).valid \
 		else "1.0.0"
-	out.kind = DotMapDef.KIND_ARENA
+	out.kind = GSMapDef.KIND_ARENA
 	out.min_players = min_players
 	out.max_players = descriptor.max_players
 	# The same scene dot-server loads, read from the same declaration.
@@ -140,10 +140,10 @@ static func _map(descriptor: DotGameDescriptor, min_players: int) -> DotMapDef:
 
 
 ## The vote's policy. Fifty-five settings and these are the ones this game changes.
-static func vote_rules() -> DotVoteRules:
-	var rules := DotVoteRules.new()
+static func vote_rules() -> GSVoteRules:
+	var rules := GSVoteRules.new()
 	rules.enabled = true
-	rules.trigger = DotVoteRules.Trigger.TIME_LIMIT
+	rules.trigger = GSVoteRules.Trigger.TIME_LIMIT
 	# A mode is half an hour rather than the forty-five minutes a map elsewhere gets. A
 	# round here is a few minutes; a limit that outlasted a dozen of them would be a limit
 	# nobody ever saw fire.
@@ -156,8 +156,8 @@ static func vote_rules() -> DotVoteRules:
 	rules.max_options = 4
 	rules.include_extend = true
 	rules.include_current = false
-	rules.method = DotVoteRules.Method.PLURALITY
-	rules.tie_break = DotVoteRules.TieBreak.BALLOT_ORDER
+	rules.method = GSVoteRules.Method.PLURALITY
+	rules.tie_break = GSVoteRules.TieBreak.BALLOT_ORDER
 	# Off, so the ordinary tie-break runs: with it on "extend" is erased from a tie, but every pseudo-option sorts last so `BALLOT_ORDER` hands the tie to the new thing anyway.
 	# Set explicitly so changing it is a visible change.
 	rules.extend_needs_majority = false
@@ -171,8 +171,8 @@ static func vote_rules() -> DotVoteRules:
 	# On, which makes `MOST_NOMINATED` mean anything: dot-vote now allows a second nomination, so counts differ and a ballot can show which mode people want.
 	rules.nomination_seconding = true
 	rules.cooldown = 1
-	rules.cooldown_mode = DotVoteRules.Cooldown.PLAYS
-	rules.apply = DotVoteRules.Apply.END_OF_ROUND
+	rules.cooldown_mode = GSVoteRules.Cooldown.PLAYS
+	rules.apply = GSVoteRules.Apply.END_OF_ROUND
 	rules.apply_delay_sec = 5.0
 
 	# Five seconds' warning, counted down on every client, before a ballot opens over a
@@ -192,12 +192,12 @@ static func vote_rules() -> DotVoteRules:
 
 
 
-func setup(p_games: Object) -> DotResult:
+func setup(p_games: Object) -> GSResult:
 	games = p_games
 
 	catalogue = map_catalogue()
-	rotation = DotMapRotation.of(catalogue)
-	rotation.mode = DotMapRotation.Mode.SEQUENTIAL
+	rotation = GSMapRotation.of(catalogue)
+	rotation.mode = GSMapRotation.Mode.SEQUENTIAL
 	# One play of cooldown over four maps: enough that the same mode never plays twice in
 	# a row, and not so much that a two-mode server runs out of things to pick.
 	rotation.cooldown = 1
@@ -213,11 +213,11 @@ func setup(p_games: Object) -> DotResult:
 	# below is built from them — so what an owner sets reaches `timeleft` too. Refused
 	# whole, loudly and not fatally, when the result does not validate.
 	var layered := rules.layer_over_defaults(
-		config_path, DotVoteGameSource.running_game_metadata(METADATA_KEY)
+		config_path, GSVoteGameSource.running_game_metadata(METADATA_KEY)
 	)
 
 	if not layered.ok:
-		DotLog.error(CHANNEL, "the vote configuration is not usable; using the defaults", {
+		GSLog.error(CHANNEL, "the vote configuration is not usable; using the defaults", {
 			"path": config_path,
 			"why": layered.error.message,
 			"detail": layered.error.detail,
@@ -225,7 +225,7 @@ func setup(p_games: Object) -> DotResult:
 
 	_build_director(rules)
 
-	feed = DotVoteBallotFeed.of(director, func(state: Dictionary) -> void:
+	feed = GSVoteBallotFeed.of(director, func(state: Dictionary) -> void:
 		if ballot_fn.is_valid():
 			ballot_fn.call(state)
 	)
@@ -233,7 +233,7 @@ func setup(p_games: Object) -> DotResult:
 	feed.people_fn = func(voter: StringName) -> Dictionary:
 		return people_fn.call(voter) if people_fn.is_valid() else {}
 
-	director.change_due.connect(func(id: StringName, _choice: DotVoteChoice) -> void:
+	director.change_due.connect(func(id: StringName, _choice: GSVoteChoice) -> void:
 		change_due.emit(id)
 	)
 
@@ -246,14 +246,14 @@ func setup(p_games: Object) -> DotResult:
 
 	# No second clock: the vote's own clock hears extends, kept-mode ballots and stops, and dot-vote's `timeleft` already reads it.
 
-	return DotResult.success(null)
+	return GSResult.success(null)
 
 
-func _build_director(rules: DotVoteRules) -> void:
-	director = DotVoteDirector.new()
+func _build_director(rules: GSVoteRules) -> void:
+	director = GSVoteDirector.new()
 	director.name = "Vote"
 	director.rules = rules
-	# The source is dot-server's games, not dot-map's catalogue: `DotVoteGameSource.apply` calls `change_game`, which is what changes the game.
+	# The source is dot-server's games, not dot-map's catalogue: `GSVoteGameSource.apply` calls `change_game`, which is what changes the game.
 	# Narrowed to this game's modes, since a server running several games would otherwise ballot the others.
 	var modes := ModeSource.new()
 	modes.manager = games
@@ -321,7 +321,7 @@ func _report_score() -> void:
 ## Follows the match a round ends in. Rebound on every mode change, because a new mode is
 ## a new world with a new match, and a connection to the freed one would never fire.
 func _bind_match() -> void:
-	var node: DotMatch = match_fn.call() if match_fn.is_valid() else null
+	var node: GSMatch = match_fn.call() if match_fn.is_valid() else null
 
 	if node == _match:
 		return
@@ -341,24 +341,24 @@ func _bind_match() -> void:
 ## Whether a round is being played now, for `time_up: finish_round`: warmup and the gap between rounds have nothing to play out, so a limit there changes the mode at once.
 ## Asked of [member match_fn] every time because a mode change replaces the match; no match is "cannot tell".
 func round_in_progress() -> bool:
-	var node: DotMatch = match_fn.call() if match_fn.is_valid() else null
+	var node: GSMatch = match_fn.call() if match_fn.is_valid() else null
 	return node == null or not is_instance_valid(node) or node.is_live()
 
 
 ## A round ended. This game's rules apply a vote's winner at the end of a round, and until
 ## this was connected nothing told the director one had — so the winner waited for the
 ## clock, and a round-limit or round-end trigger could never fire at all.
-func _on_round_ended(_round: int, _winner: int, _outcome: DotMatchRules.Outcome) -> void:
+func _on_round_ended(_round: int, _winner: int, _outcome: GSMatchRules.Outcome) -> void:
 	if director != null:
 		director.note_round_end()
 
 
 ## dot-vote's commands, on [param host] — the module, so they go when it does.
-func install_commands(host: Object) -> DotResult:
+func install_commands(host: Object) -> GSResult:
 	if director == null:
-		return DotResult.fail(DotError.CODE_STATE, "There is no vote to command.")
+		return GSResult.fail(GSError.CODE_STATE, "There is no vote to command.")
 
-	commands = DotVoteCommands.new()
+	commands = GSVoteCommands.new()
 	commands.director = director
 	commands.names = COMMAND_NAMES.duplicate()
 	# maps.yml's `commands:` block, so an operator renames rtv and friends without this game
@@ -382,14 +382,14 @@ func install_commands(host: Object) -> DotResult:
 
 
 ## Reads maps.yml and applies it; called at setup and again by `hungry_maps_reload`.
-func load_rotation() -> DotResult:
-	var dir := DotMapRotationFile.config_dir_arg()
-	var found := DotMapRotationFile.find(rotation_stem, dir)
+func load_rotation() -> GSResult:
+	var dir := GSMapRotationFile.config_dir_arg()
+	var found := GSMapRotationFile.find(rotation_stem, dir)
 
 	if found == "" and rotation_stem != "" and (dir != "" or rotation_stem != ROTATION_FILE):
 		# The default name being absent is an install with no maps.yml; a name or a directory
 		# somebody chose that finds nothing is a typo they would otherwise never hear about.
-		DotLog.warn(CHANNEL, "the map rotation file was not found; every mode rotates", {
+		GSLog.warn(CHANNEL, "the map rotation file was not found; every mode rotates", {
 			"file": rotation_stem, "config_dir": dir,
 		})
 
@@ -398,10 +398,10 @@ func load_rotation() -> DotResult:
 	if found != "":
 		paths.append(found)
 
-	var read := DotMapRotationFile.load_files(paths, "game-hungario")
+	var read := GSMapRotationFile.load_files(paths, "game-hungario")
 
 	if not read.ok:
-		DotLog.error(CHANNEL, "the map rotation file could not be read; every mode rotates", {
+		GSLog.error(CHANNEL, "the map rotation file could not be read; every mode rotates", {
 			"why": read.error.message,
 		})
 		rotation_file = null
@@ -413,7 +413,7 @@ func load_rotation() -> DotResult:
 	rotation_source = ", ".join(rotation_file.sources)
 
 	if rotation_file.has_rotations():
-		DotLog.info(CHANNEL, "the map rotation file", {
+		GSLog.info(CHANNEL, "the map rotation file", {
 			"paths": rotation_source, "active": rotation_file.active_name(),
 		})
 
@@ -428,20 +428,20 @@ func apply_rotation() -> void:
 		return
 
 	if rotation_file != null and rotation_file.has_rotations():
-		rotation_file.fallback_in = func(_map: DotMapDef) -> bool: return true
+		rotation_file.fallback_in = func(_map: GSMapDef) -> bool: return true
 		rotation_file.apply(rotation)
 		return
 
 	rotation.order = []
 
-	for map: DotMapDef in catalogue.maps:
+	for map: GSMapDef in catalogue.maps:
 		map.in_rotation = true
 
 
 ## `sv_map_rotation <name>`: the live switch to another named rotation in the file.
-func switch_rotation(rotation_name: String) -> DotResult:
+func switch_rotation(rotation_name: String) -> GSResult:
 	if rotation_file == null:
-		return DotResult.fail(DotError.CODE_STATE, "There is no maps.yml to switch rotations in.")
+		return GSResult.fail(GSError.CODE_STATE, "There is no maps.yml to switch rotations in.")
 
 	return rotation_file.switch(rotation, rotation_name)
 

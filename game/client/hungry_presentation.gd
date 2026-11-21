@@ -26,41 +26,41 @@ const CHAT_MARGIN_BOTTOM := 84.0
 
 ## The player's document, the one every row, console variable and key reads.
 ## [member menu_settings]' manager.
-var settings: DotSettingsManager = null
+var settings: GSSettingsManager = null
 
 ## dot-menu's settings node: the document, what applies the stock keys, and the Escape menu
 ## (with help on H, the Controls page, Leave and net_stat). It is [member platform]'s, so the
 ## store and the migration's files are chosen on the node handed to the platform.
 var menu_settings: HungrySettings = null
 
-## The platform layer ([DotGameClient]) that owns the settings node, the Escape menu and the
+## The platform layer ([GSGameClient]) that owns the settings node, the Escape menu and the
 ## console. [HungryClient] hands in its own, set up already. Left null, [method setup] builds a
 ## bare one (no cover, no pointer) around [member menu_settings], which is what a suite does.
-var platform: DotGameClient = null
-var audio: DotAudioManager = null
+var platform: GSGameClient = null
+var audio: GSAudioManager = null
 
 ## The arena's ambience bed: dot-audio's stock (generated, CC0; the addon's stock/CREDITS.md),
 ## through a second manager on dot-audio's own Godot sink, because [HungrySoundSink] plays
 ## this game's generated cues and nothing with a file. Nobody walks here, so no footsteps.
-var bed_audio: DotAudioManager = null
-var ambience: DotAudioAmbience = null
+var bed_audio: GSAudioManager = null
+var ambience: GSAudioAmbience = null
 ## Quiet moods under the arena (dot-audio's stock set); the old bed plays only when none loaded.
-var ambient: DotAmbienceDirector = null
+var ambient: GSAmbienceDirector = null
 
 ## The bed under every mode: a wet, low room with something dripping, which is what a dish
 ## of cells eating each other sounds like.
 const BED := &"amb_cave"
-var fx: DotFxManager = null
-## The player's console. See [method DotConsoleKit.build] and [method _build_console].
-var console: DotConsoleController = null
-var console_panel: DotConsolePanel = null
+var fx: GSFxManager = null
+## The player's console. See [method GSConsoleKit.build] and [method _build_console].
+var console: GSConsoleController = null
+var console_panel: GSConsolePanel = null
 
 ## This client's own commands in the console, where the offline client adds dot-bot's
 ## `bot_difficulty` and `bot_*` variables.
-var local_console: DotConsoleLocal = null
+var local_console: GSConsoleLocal = null
 
 ## The in-game chat box. See [method _build_chat].
-var chat_window: DotChatWindow = null
+var chat_window: GSChatWindow = null
 
 ## The game's own configuration, which stays the declaration.
 var config: HungryConfig = null
@@ -76,7 +76,7 @@ var _chat_layer: CanvasLayer = null
 var _chat_relayed: bool = false
 
 
-func setup() -> DotResult:
+func setup() -> GSResult:
 	if config == null:
 		config = HungryConfig.new()
 
@@ -103,7 +103,7 @@ func setup() -> DotResult:
 
 	# [b]And then every value is pushed once, which is the half that was missing.[/b]
 	apply_all()
-	return DotResult.success(null)
+	return GSResult.success(null)
 
 
 ## Pushes every current setting at whatever reads it: this game's keys here, the stock ones
@@ -117,8 +117,8 @@ func apply_all() -> void:
 
 ## A platform of this presentation's own, for a caller that has none: a suite, or a shot. No
 ## cover and no pointer capture, because there is no game behind it.
-func _make_platform() -> DotResult:
-	platform = DotGameClient.new()
+func _make_platform() -> GSResult:
+	platform = GSGameClient.new()
 	platform.name = "Platform"
 	platform.use_gate = false
 	platform.capture_pointer = false
@@ -128,10 +128,10 @@ func _make_platform() -> DotResult:
 	return platform.setup()
 
 
-func _build_settings() -> DotResult:
+func _build_settings() -> GSResult:
 	menu_settings = platform.settings as HungrySettings
 	if menu_settings == null:
-		return DotResult.fail(DotError.CODE_STATE, "hungario's settings did not load")
+		return GSResult.fail(GSError.CODE_STATE, "hungario's settings did not load")
 	settings = menu_settings.settings
 
 	# And into the config on the way in, because the config is what the game reads. A
@@ -139,7 +139,7 @@ func _build_settings() -> DotResult:
 	# this family's single most repeated bug.
 	settings.schema.apply_to_config(config, settings.to_config().values())
 	settings.changed.connect(_on_setting_changed)
-	return DotResult.success(null)
+	return GSResult.success(null)
 
 
 func _on_setting_changed(key: StringName, value: Variant, _why: StringName) -> void:
@@ -148,7 +148,7 @@ func _on_setting_changed(key: StringName, value: Variant, _why: StringName) -> v
 	# those writes is a signal something else is listening to.
 	if config != null and config.has_key(String(key)):
 		var def := settings.schema.find(key)
-		if def != null and def.kind == DotSettingsDef.Kind.ENUM:
+		if def != null and def.kind == GSSettingsDef.Kind.ENUM:
 			config.set(key, maxi(0, def.options.find(StringName(str(value)))))
 		else:
 			config.set(key, value)
@@ -162,16 +162,16 @@ func _on_setting_changed(key: StringName, value: Variant, _why: StringName) -> v
 
 
 ## What hungario makes a noise about, with the limits it never had.
-static func sound_catalogue() -> DotAudioCatalogue:
-	var c := DotAudioCatalogue.new()
+static func sound_catalogue() -> GSAudioCatalogue:
+	var c := GSAudioCatalogue.new()
 
 	# Eating is the common case: a monster in a dense field eats several times a second,
 	# and past a handful of overlapping blips it is noise anyway. A cap and a short
 	# cooldown are what turn that from a texture into a rhythm.
-	var eat := DotAudioDef.new()
+	var eat := GSAudioDef.new()
 	eat.id = &"eat"
 	eat.generated = true
-	eat.kind = DotAudioDef.Kind.POSITIONAL_2D
+	eat.kind = GSAudioDef.Kind.POSITIONAL_2D
 	eat.bus = &"SFX"
 	eat.max_concurrent = 4
 	eat.cooldown_ms = 35
@@ -181,10 +181,10 @@ static func sound_catalogue() -> DotAudioCatalogue:
 	eat.max_distance = 1400.0
 	c.add(eat)
 
-	var fruit := DotAudioDef.new()
+	var fruit := GSAudioDef.new()
 	fruit.id = &"fruit"
 	fruit.generated = true
-	fruit.kind = DotAudioDef.Kind.POSITIONAL_2D
+	fruit.kind = GSAudioDef.Kind.POSITIONAL_2D
 	fruit.bus = &"SFX"
 	fruit.max_concurrent = 2
 	fruit.priority = 60
@@ -192,7 +192,7 @@ static func sound_catalogue() -> DotAudioCatalogue:
 	c.add(fruit)
 
 	for id in [&"pickup", &"split", &"eject", &"throw"]:
-		var d := DotAudioDef.new()
+		var d := GSAudioDef.new()
 		d.id = id
 		d.generated = true
 		d.bus = &"SFX"
@@ -204,7 +204,7 @@ static func sound_catalogue() -> DotAudioCatalogue:
 	# The three that must never be refused for a cheaper sound: being burst, eating
 	# somebody, and dying are the only moments in this game that change everything.
 	for id in [&"burst", &"devour", &"die"]:
-		var d := DotAudioDef.new()
+		var d := GSAudioDef.new()
 		d.id = id
 		d.generated = true
 		d.bus = &"SFX"
@@ -216,8 +216,8 @@ static func sound_catalogue() -> DotAudioCatalogue:
 	return c
 
 
-static func _add_cue_sounds(c: DotAudioCatalogue) -> void:
-	var click := DotAudioDef.new()
+static func _add_cue_sounds(c: GSAudioCatalogue) -> void:
+	var click := GSAudioDef.new()
 	click.id = &"click"
 	click.generated = true
 	click.bus = &"UI"
@@ -228,7 +228,7 @@ static func _add_cue_sounds(c: DotAudioCatalogue) -> void:
 	# The mode vote's cues: flat and on the interface bus, since a ballot is about the server, not a place in the arena.
 	# Under the three that change everything, so a ballot opening never costs the sound of being eaten.
 	for vote_id in HungryEvents.VOTE_CUES:
-		var cue := DotAudioDef.new()
+		var cue := GSAudioDef.new()
 		cue.id = StringName(vote_id)
 		cue.generated = true
 		cue.bus = &"UI"
@@ -238,10 +238,10 @@ static func _add_cue_sounds(c: DotAudioCatalogue) -> void:
 
 	# An administrator's beacon: a ping once a second from the beaconed monster, positional so dot-audio's distance cull decides who hears it.
 	# Further than a fruit, because its job is to be found; under the three that change everything and under the vote.
-	var ping := DotAudioDef.new()
+	var ping := GSAudioDef.new()
 	ping.id = BEACON_SOUND
 	ping.generated = true
-	ping.kind = DotAudioDef.Kind.POSITIONAL_2D
+	ping.kind = GSAudioDef.Kind.POSITIONAL_2D
 	ping.bus = &"SFX"
 	ping.max_concurrent = 2
 	ping.priority = 45
@@ -251,12 +251,12 @@ static func _add_cue_sounds(c: DotAudioCatalogue) -> void:
 	# An eaten monster going down ([HungryFall]): dot-player-char's four sound ids, made by
 	# this game's bank like everything else. Placed, and no further than a fruit: a death on
 	# the other side of the arena is not yours. Under the three that change everything.
-	for id: StringName in [DotPlayerDeathReactions.SOUND_THUD, DotPlayerDeathReactions.SOUND_FACE_PLANT,
-			DotPlayerDeathReactions.SOUND_SLUMP, DotPlayerDeathReactions.SOUND_WHOOSH]:
-		var fall := DotAudioDef.new()
+	for id: StringName in [GSPlayerDeathReactions.SOUND_THUD, GSPlayerDeathReactions.SOUND_FACE_PLANT,
+			GSPlayerDeathReactions.SOUND_SLUMP, GSPlayerDeathReactions.SOUND_WHOOSH]:
+		var fall := GSAudioDef.new()
 		fall.id = id
 		fall.generated = true
-		fall.kind = DotAudioDef.Kind.POSITIONAL_2D
+		fall.kind = GSAudioDef.Kind.POSITIONAL_2D
 		fall.bus = &"SFX"
 		fall.max_concurrent = 3
 		fall.cooldown_ms = 60
@@ -265,13 +265,13 @@ static func _add_cue_sounds(c: DotAudioCatalogue) -> void:
 		c.add(fall)
 
 
-func _build_audio() -> DotResult:
-	audio = DotAudioManager.new()
+func _build_audio() -> GSResult:
+	audio = GSAudioManager.new()
 	audio.name = "Audio"
 	audio.catalogue = sound_catalogue()
 	# The volumes are the stock audio page's, set on this mixer by dot-menu's applier
 	# ([method HungrySettings.bind_audio]) in linear amplitude.
-	audio.mixer = DotAudioMixer.new()
+	audio.mixer = GSAudioMixer.new()
 	audio.voices = HungrySound.VOICES
 	audio.apply_mixer_to_buses = false
 	# Measured toward the family's -17 LUFS (dot-audio docs/loudness.md) with tools/loudness_pilot.gd at this game's master default (0.4, Master -8 dB): three 40 s runs read -17.6, -17.1 and -17.6.
@@ -285,9 +285,9 @@ func _build_audio() -> DotResult:
 	if not res.ok:
 		return res.wrap("hungario's audio")
 
-	var beds := DotAudioCatalogue.new()
-	DotAudioStock.add_to(beds, false)
-	bed_audio = DotAudioManager.new()
+	var beds := GSAudioCatalogue.new()
+	GSAudioStock.add_to(beds, false)
+	bed_audio = GSAudioManager.new()
 	bed_audio.name = "BedAudio"
 	bed_audio.catalogue = beds
 	bed_audio.voices = 2
@@ -300,12 +300,12 @@ func _build_audio() -> DotResult:
 	var bres := bed_audio.setup()
 	if not bres.ok:
 		return bres.wrap("hungario's ambience")
-	ambience = DotAudioAmbience.new()
+	ambience = GSAudioAmbience.new()
 	ambience.name = "Ambience"
 	ambience.manager = bed_audio
 	ambience.fallback_bed = BED
 	add_child(ambience)
-	ambient = DotAmbienceDirector.new()
+	ambient = GSAmbienceDirector.new()
 	ambient.name = "Ambient"
 	ambient.manager = bed_audio
 	ambient.default_mood = HungryAmbience.DEFAULT_MOOD
@@ -317,7 +317,7 @@ func _build_audio() -> DotResult:
 	var _moods := ambient.setup()
 	if not ambient.has_moods():
 		ambience.set_map_bed(BED)
-	return DotResult.success(null)
+	return GSResult.success(null)
 
 
 ## A mode (map) arrived: its mood. The old bed stays only when no mood loaded.
@@ -334,10 +334,10 @@ func use_sound(p_sound: HungrySound) -> void:
 
 
 
-static func fx_catalogue() -> DotFxCatalogue:
-	var c := DotFxCatalogue.new()
+static func fx_catalogue() -> GSFxCatalogue:
+	var c := GSFxCatalogue.new()
 
-	var pop := DotFxDef.new()
+	var pop := GSFxDef.new()
 	pop.id = &"eat_pop"
 	pop.scene_path = "%s/eat_pop.tscn" % FX_DIR
 	pop.lifetime_ms = 320
@@ -350,7 +350,7 @@ static func fx_catalogue() -> DotFxCatalogue:
 	pop.min_quality = 1
 	c.add(pop)
 
-	var burst := DotFxDef.new()
+	var burst := GSFxDef.new()
 	burst.id = &"burst"
 	burst.scene_path = "%s/burst.tscn" % FX_DIR
 	burst.lifetime_ms = 900
@@ -359,28 +359,28 @@ static func fx_catalogue() -> DotFxCatalogue:
 	burst.max_distance = 0.0
 	c.add(burst)
 
-	var threat := DotFxDef.new()
+	var threat := GSFxDef.new()
 	threat.id = &"threat"
-	threat.kind = DotFxDef.Kind.SCREEN
+	threat.kind = GSFxDef.Kind.SCREEN
 	threat.flash_peak = 0.22
 	threat.flash_colour = Color(0.9, 0.2, 0.25)
 	threat.flash_decay_ms = 400
 	c.add(threat)
 
-	var shake := DotFxDef.new()
+	var shake := GSFxDef.new()
 	shake.id = &"burst_shake"
-	shake.kind = DotFxDef.Kind.SHAKE
+	shake.kind = GSFxDef.Kind.SHAKE
 	shake.shake_trauma = 0.55
 	c.add(shake)
 
 	return c
 
 
-func _build_fx() -> DotResult:
-	fx = DotFxManager.new()
+func _build_fx() -> GSResult:
+	fx = GSFxManager.new()
 	fx.name = "Fx"
 	fx.catalogue = fx_catalogue()
-	fx.config = DotFxConfig.new()
+	fx.config = GSFxConfig.new()
 	fx.config.max_decals = 0
 	add_child(fx)
 
@@ -392,10 +392,10 @@ func _build_fx() -> DotResult:
 	# `headless_presentation` asserts the list is empty, this is for a build that lost one anyway.
 	var missing := fx.catalogue.missing_scenes()
 	if not missing.is_empty():
-		DotLog.warn(CHANNEL, "effect scenes missing; those effects will not draw", {
+		GSLog.warn(CHANNEL, "effect scenes missing; those effects will not draw", {
 			"paths": ", ".join(missing),
 		})
-	return DotResult.success(null)
+	return GSResult.success(null)
 
 
 
@@ -419,10 +419,10 @@ func _build_chat() -> void:
 			"label": "Say" if channel.display_name == "" else "Say (%s)" % channel.display_name,
 			"colour": channel.colour,
 			# No teams in this game; what the second key opens is the proximity channel.
-			"team": channel.scope == DotChatChannel.Scope.RADIUS,
+			"team": channel.scope == GSChatChannel.Scope.RADIUS,
 		})
 
-	chat_window = DotChatWindow.new()
+	chat_window = GSChatWindow.new()
 	chat_window.name = "ChatWindow"
 	chat_window.open_action = &"hungry_chat"
 	chat_window.team_action = &"hungry_chat_near"
@@ -459,10 +459,10 @@ func _apply_chat_visibility() -> void:
 
 ## dot-console's kit, built by the platform, plus this game's `quit` and `audio`, ahead of the server's console so a listen server's own `quit` is not the one that answers.
 ## The panel is one of the Escape menu's overlays; the platform blocks the input while it is open.
-func _build_console() -> DotResult:
-	console = platform.console as DotConsoleController
+func _build_console() -> GSResult:
+	console = platform.console as GSConsoleController
 	if console == null:
-		return DotResult.fail(DotError.CODE_STATE, "hungario's console did not build")
+		return GSResult.fail(GSError.CODE_STATE, "hungario's console did not build")
 
 	var server_sources := console.sources().slice(1)
 	for s in server_sources:
@@ -472,13 +472,13 @@ func _build_console() -> DotResult:
 	for s in server_sources:
 		console.add_source(s)
 
-	console_panel = platform.get_node_or_null(^"ConsoleLayer/ConsolePanel") as DotConsolePanel
-	return DotResult.success(null)
+	console_panel = platform.get_node_or_null(^"ConsoleLayer/ConsolePanel") as GSConsolePanel
+	return GSResult.success(null)
 
 
 ## This game's own commands; the kit has `help`, `clear`, `settings` and every setting.
-func _local_commands() -> DotConsoleLocal:
-	var local := DotConsoleLocal.new()
+func _local_commands() -> GSConsoleLocal:
+	var local := GSConsoleLocal.new()
 	local.add_command(&"quit", "Leave", func(_a: PackedStringArray) -> Variant:
 		get_tree().quit()
 		return null

@@ -6,7 +6,7 @@ const HungryContent := preload("../hungry_content.gd")
 
 ## Where an avatar part's scene comes from: the cloud if there is one, the build if not.
 ##
-## [b]This is the seam [DotAvatarCatalogue.resolver] exists for.[/b] The catalogue's two
+## [b]This is the seam [GSAvatarCatalogue.resolver] exists for.[/b] The catalogue's two
 ## built-in answers are "a path under a fixed prefix" and "ask dot-cloud", and this game is
 ## neither: it ships its cosmetics inside its own build [i]and[/i] can be handed a signed
 ## pack of better ones at runtime, and the mounted pack has to win when it is there.
@@ -19,7 +19,7 @@ const HungryContent := preload("../hungry_content.gd")
 ## 3. ""                         <- drawn by HungryRider instead
 ## [/codeblock]
 ##
-## [b]Nothing here imports dot-cloud.[/b] The client is found through [DotRegistry] and
+## [b]Nothing here imports dot-cloud.[/b] The client is found through [GSRegistry] and
 ## duck-typed, so a build without the addon takes step 2 and never notices — which is what
 ## a LAN server, a test and the browser export all do today.
 ##
@@ -44,7 +44,7 @@ const SUFFIX := ".tscn"
 
 ## Mount prefix of the acquired pack, or "" when there is none.
 ##
-## Set from [signal DotCloudClient.content_ready], which is the only thing that knows a
+## Set from [signal GSCloudClient.content_ready], which is the only thing that knows a
 ## pack is mounted and where.
 var mount_prefix: String = ""
 
@@ -57,12 +57,12 @@ var _looked: bool = false
 
 
 ## Binds this as a catalogue's resolver and starts watching for content.
-func install(catalogue: DotAvatarCatalogue) -> void:
+func install(catalogue: GSAvatarCatalogue) -> void:
 	catalogue.resolver = resolve_part
 	_watch_cloud(catalogue)
 
 
-func _watch_cloud(catalogue: DotAvatarCatalogue) -> void:
+func _watch_cloud(catalogue: GSAvatarCatalogue) -> void:
 	var cloud := _cloud_client()
 
 	if cloud == null or not cloud.has_signal("content_ready"):
@@ -85,10 +85,10 @@ func _cloud_client() -> Object:
 		return _cloud
 
 	_looked = true
-	_cloud = DotRegistry.get_service(CLOUD_SERVICE)
+	_cloud = GSRegistry.get_service(CLOUD_SERVICE)
 
 	if _cloud != null:
-		DotLog.debug(CHANNEL, "avatar parts will be resolved through dot-cloud")
+		GSLog.debug(CHANNEL, "avatar parts will be resolved through dot-cloud")
 
 	return _cloud
 
@@ -105,11 +105,11 @@ func adopt_mount(prefix: String) -> void:
 	mount_prefix = prefix if prefix.ends_with("/") else prefix + "/"
 	_cache.clear()
 
-	DotLog.info(CHANNEL, "avatar content mounted", {"prefix": mount_prefix})
+	GSLog.info(CHANNEL, "avatar content mounted", {"prefix": mount_prefix})
 
 
 ## Resolves one part to a scene path, or "" when there is nothing to show.
-func resolve_part(part: DotAvatarPart) -> String:
+func resolve_part(part: GSAvatarPart) -> String:
 	if part == null:
 		return ""
 
@@ -121,15 +121,15 @@ func resolve_part(part: DotAvatarPart) -> String:
 	return path
 
 
-func _lookup(part: DotAvatarPart) -> String:
+func _lookup(part: GSAvatarPart) -> String:
 	var name := String(part.id)
 
-	# The id is bounded to base64url characters plus '.' by DotAvatar.validate, so it
+	# The id is bounded to base64url characters plus '.' by GSAvatar.validate, so it
 	# cannot contain a separator — but this builds a path out of it and a check at the
 	# point of use costs nothing. A part id that got here unvalidated is a content bug,
 	# not a legal request.
 	if name == "" or name.contains("/") or name.contains("\\") or name.contains(".."):
-		DotLog.warn(CHANNEL, "refusing a part id that is not a plain name", {
+		GSLog.warn(CHANNEL, "refusing a part id that is not a plain name", {
 			"id": name
 		})
 		return ""
@@ -145,7 +145,7 @@ func _lookup(part: DotAvatarPart) -> String:
 
 
 ## Whether a part is coming from a downloaded pack rather than from the build.
-func is_mounted(part: DotAvatarPart) -> bool:
+func is_mounted(part: GSAvatarPart) -> bool:
 	return mount_prefix != "" and resolve_part(part).begins_with(mount_prefix)
 
 
@@ -179,8 +179,8 @@ static func publish(
 	signing_key_pem: String,
 	version: String = "1.0.0",
 	mirrors: PackedStringArray = PackedStringArray()
-) -> DotResult:
-	var publisher := DotCloudPublisher.new()
+) -> GSResult:
+	var publisher := GSCloudPublisher.new()
 	publisher.content_id = PACK_ID
 	publisher.version = version
 	publisher.display_name = "hungry riders"

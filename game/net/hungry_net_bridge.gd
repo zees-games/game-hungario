@@ -2,23 +2,23 @@ extends "./hungry_net_bridge_server.gd"
 
 ## Binds a world and a manager to each other and puts the link where RPCs will find it.
 ##
-## [param link_parent] is [DotServer] on a server and [DotClientLink] on a client, and
+## [param link_parent] is [GSServer] on a server and [GSClientLink] on a client, and
 ## both of them are named [code]Server[/code] — see [HungryNetLink] for why that is the
 ## whole of the routing.
 func attach(
 	p_world: HungryWorld,
-	p_net: DotNetManager,
+	p_net: GSNetManager,
 	link_parent: Node = null
-) -> DotResult:
+) -> GSResult:
 	if p_world == null or p_net == null:
-		return DotResult.fail(DotError.CODE_INVALID, "A bridge needs a world and a manager.")
+		return GSResult.fail(GSError.CODE_INVALID, "A bridge needs a world and a manager.")
 
 	if p_world.is_authority != p_net.is_server:
 		# A world that thinks it is authoritative behind a client manager would resolve
 		# its own eating; a server whose world is not authoritative would resolve
 		# nobody's. Both are silent, and both are unplayable.
-		return DotResult.fail(
-			DotError.CODE_STATE,
+		return GSResult.fail(
+			GSError.CODE_STATE,
 			"The world and the manager disagree about who is authoritative.",
 			"world.is_authority=%s, net.is_server=%s"
 				% [p_world.is_authority, p_net.is_server]
@@ -54,7 +54,7 @@ func attach(
 	# exact rather than a heuristic, and it is why neither message type may ever be
 	# declared unreliable.
 	net.send_fn = _send
-	profile_link = DotNetProfileLink.attach(net, ensure_runtime())
+	profile_link = GSNetProfileLink.attach(net, ensure_runtime())
 
 	var registered := _register_messages()
 
@@ -67,19 +67,19 @@ func attach(
 	if link_parent != null:
 		return open_link(link_parent)
 
-	return DotResult.success(self)
+	return GSResult.success(self)
 
 ## Puts the RPC link under the server and, on the server, builds the match entity.
-func open_link(link_parent: Node) -> DotResult:
+func open_link(link_parent: Node) -> GSResult:
 	if link_parent == null or net == null:
-		return DotResult.fail(DotError.CODE_STATE, "Attach the bridge before opening its link.")
+		return GSResult.fail(GSError.CODE_STATE, "Attach the bridge before opening its link.")
 
 	link = HungryNetLink.attached_to(self, net.is_server)
 	# Not link_parent.add_child: the link sits under the server (RPCs route by path) but must
 	# die with this bridge. A bare add_child left a second link after a module reload and
-	# Godot renamed the live one `@Node@n`, so RPCs to clients were lost. DotGameLink frees it
+	# Godot renamed the live one `@Node@n`, so RPCs to clients were lost. GSGameLink frees it
 	# with the bridge without remove_child, which errors on a busy parent.
-	DotGameLink.attach(link, link_parent, self, HungryNetLink.NODE_NAME)
+	GSGameLink.attach(link, link_parent, self, HungryNetLink.NODE_NAME)
 
 	if net.is_server:
 		var built := _build_match_entity()
@@ -87,13 +87,13 @@ func open_link(link_parent: Node) -> DotResult:
 		if not built.ok:
 			return built
 
-	return DotResult.success(self)
+	return GSResult.success(self)
 
 
 ## Moves this bridge onto a new world, keeping every connection. Server side.
 ##
 ## [b]What a game change is, from the netcode's point of view.[/b] The world is a scene
-## that [DotGameManager] frees and replaces; the manager, its peers, its message ids and
+## that [GSGameManager] frees and replaces; the manager, its peers, its message ids and
 ## its clock are not, because rebuilding those would disconnect everybody — which is
 ## precisely what changing the map is supposed to avoid.
 ##
@@ -101,13 +101,13 @@ func open_link(link_parent: Node) -> DotResult:
 ## players, and everyone is resynchronised. The [i]match entity survives[/i]: its net id is
 ## already known to every client and re-spawning it would make each of them mirror a
 ## second one.
-func rebind(new_world: HungryWorld) -> DotResult:
+func rebind(new_world: HungryWorld) -> GSResult:
 	if net == null or not net.is_server:
-		return DotResult.fail(DotError.CODE_FORBIDDEN, "Only the server rebinds.")
+		return GSResult.fail(GSError.CODE_FORBIDDEN, "Only the server rebinds.")
 
 	if new_world == null or not new_world.is_authority:
-		return DotResult.fail(
-			DotError.CODE_INVALID, "A bridge rebinds onto an authoritative world."
+		return GSResult.fail(
+			GSError.CODE_INVALID, "A bridge rebinds onto an authoritative world."
 		)
 
 	# Who is here, before the old world goes. The peer map survives a game change; the
@@ -151,7 +151,7 @@ func rebind(new_world: HungryWorld) -> DotResult:
 		var monster: HungryMonster = added.value
 		var avatar: Variant = row["avatar"]
 
-		if avatar is DotAvatar:
+		if avatar is GSAvatar:
 			monster.avatar = avatar
 
 		var peer_id := int(row["peer"])
@@ -164,7 +164,7 @@ func rebind(new_world: HungryWorld) -> DotResult:
 		world.spawn(int(row["player"]))
 
 	_world_ticked_for = -1
-	return DotResult.success(world)
+	return GSResult.success(world)
 
 func _connect_world() -> void:
 	world.piece_created.connect(_on_piece_created)
@@ -217,12 +217,12 @@ func _release_piece_entity(piece_id: int, announce: bool) -> int:
 
 	return net_id
 
-func _register_messages() -> DotResult:
+func _register_messages() -> GSResult:
 	var event := net.messages.register(
 		HungryEvent.NAME,
 		HungryEvent,
-		DotNetMessage.Delivery.RELIABLE,
-		DotNetMessage.Direction.TO_CLIENT
+		GSNetMessage.Delivery.RELIABLE,
+		GSNetMessage.Direction.TO_CLIENT
 	)
 
 	if not event.ok:
@@ -231,8 +231,8 @@ func _register_messages() -> DotResult:
 	var request := net.messages.register(
 		HungryRequest.NAME,
 		HungryRequest,
-		DotNetMessage.Delivery.RELIABLE,
-		DotNetMessage.Direction.TO_SERVER
+		GSNetMessage.Delivery.RELIABLE,
+		GSNetMessage.Direction.TO_SERVER
 	)
 
 	if not request.ok:
@@ -240,13 +240,13 @@ func _register_messages() -> DotResult:
 
 	net.messages.on(HungryEvent.NAME, _on_event)
 	net.messages.on(HungryRequest.NAME, _on_request)
-	return DotResult.success(true)
+	return GSResult.success(true)
 
 ## The always-relevant entity that carries the match clock.
 ##
 ## Also the thing that keeps an empty server ticking: with no players there are no piece
 ## entities, no behaviour runs, and the warmup of a freshly booted server would never end.
-func _build_match_entity() -> DotResult:
+func _build_match_entity() -> GSResult:
 	var root := Node2D.new()
 	root.name = "Match"
 	_entities.add_child(root)
@@ -257,10 +257,10 @@ func _build_match_entity() -> DotResult:
 	_match_behaviour.bridge = self
 	root.add_child(_match_behaviour)
 
-	# After the behaviour: [DotNetIdentity] collects behaviours in `_ready` by walking the
+	# After the behaviour: [GSNetIdentity] collects behaviours in `_ready` by walking the
 	# entity's subtree, and one added afterwards would never be found — the entity would
 	# register with nothing to replicate and simply never update on any other machine.
-	_match_identity = DotNetIdentity.new()
+	_match_identity = GSNetIdentity.new()
 	_match_identity.name = "Identity"
 	_match_identity.owner_peer_id = net.local_peer_id
 	_match_identity.always_relevant = true
@@ -279,10 +279,10 @@ func add_player(
 	peer_id: int,
 	session_id: int,
 	display_name: String,
-	avatar: DotAvatar = null
-) -> DotResult:
+	avatar: GSAvatar = null
+) -> GSResult:
 	if net == null or not net.is_server:
-		return DotResult.fail(DotError.CODE_FORBIDDEN, "Only the server adds players.")
+		return GSResult.fail(GSError.CODE_FORBIDDEN, "Only the server adds players.")
 
 	var added := world.add_player(session_id, display_name)
 
@@ -316,7 +316,7 @@ func add_player(
 		_ready_unseated.erase(peer_id)
 		_admit(peer_id, session_id)
 
-	return DotResult.success(monster)
+	return GSResult.success(monster)
 
 ## Drops a peer's player from the world and from replication. Server side.
 func remove_peer(peer_id: int) -> void:
@@ -372,7 +372,7 @@ func _on_piece_created(piece: HungryPiece) -> void:
 	var registered := net.registry.register(identity, 0, net.clock.tick, net.config)
 
 	if not registered.ok:
-		DotLog.error(CHANNEL, "could not register a piece", {
+		GSLog.error(CHANNEL, "could not register a piece", {
 			"piece": piece.id, "error": str(registered.error)
 		})
 		return
@@ -401,7 +401,7 @@ func _on_piece_destroyed(piece: HungryPiece) -> void:
 
 ## One authoritative tick. Server side, and it replaces [method HungryWorld.tick].
 ##
-## [method DotNetManager.server_tick] hands each peer's input to the entities it owns,
+## [method GSNetManager.server_tick] hands each peer's input to the entities it owns,
 ## simulates every behaviour, records history and sends snapshots — in that order, and
 ## the world tick has to happen between the first two. It does, from
 ## [method HungryPieceNet._net_simulate] and [method HungryMatchNet._net_simulate],
@@ -439,7 +439,7 @@ func ensure_world_ticked(tick: int) -> void:
 ## Kept per player rather than per piece: a monster's command belongs to the monster, and
 ## sixteen pieces each holding their own copy of it is fifteen chances for them to
 ## disagree.
-func note_command(player_id: int, command: Dot2DCommand) -> void:
+func note_command(player_id: int, command: GS2DCommand) -> void:
 	if command != null:
 		_commands[player_id] = command
 
@@ -448,30 +448,30 @@ func note_command(player_id: int, command: Dot2DCommand) -> void:
 ##
 ## The acknowledgement is applied even when the command is refused: they are independent
 ## claims, and a duplicate or late input says nothing about which snapshots arrived.
-func receive_input(peer_id: int, payload: PackedByteArray) -> DotResult:
+func receive_input(peer_id: int, payload: PackedByteArray) -> GSResult:
 	if net == null or not net.is_server:
-		return DotResult.fail(DotError.CODE_FORBIDDEN, "Only the server takes input.")
+		return GSResult.fail(GSError.CODE_FORBIDDEN, "Only the server takes input.")
 
 	if not _player_of_peer.has(peer_id):
-		return DotResult.fail(DotError.CODE_FORBIDDEN, "That peer has no player.")
+		return GSResult.fail(GSError.CODE_FORBIDDEN, "That peer has no player.")
 
 	if payload.size() <= ACK_BYTES:
-		return DotResult.fail(DotError.CODE_PARSE, "Input packet is too short.")
+		return GSResult.fail(GSError.CODE_PARSE, "Input packet is too short.")
 
 	net.receive_ack_payload(peer_id, payload.slice(0, ACK_BYTES))
 
 	# A batch: this tick's command and the ones before it (see [constant INPUT_COPIES]).
 	# Copies of ticks already simulated are skipped rather than pushed, or each would count
 	# as a late input; the packet's own tick is always pushed, so a late one still counts.
-	var batch := DotNetInput.read_batch(
-		DotNetReader.new(payload.slice(ACK_BYTES)),
-		func() -> DotNetInput: return HungryNetCommand.new()
+	var batch := GSNetInput.read_batch(
+		GSNetReader.new(payload.slice(ACK_BYTES)),
+		func() -> GSNetInput: return HungryNetCommand.new()
 	)
 	if batch.is_empty():
-		return DotResult.fail(DotError.CODE_PARSE, "Input packet carries no command.")
+		return GSResult.fail(GSError.CODE_PARSE, "Input packet carries no command.")
 	var buffer := net.input_buffer_for(peer_id)
 	var newest := batch[batch.size() - 1]
-	var pushed := DotResult.success(false)
+	var pushed := GSResult.success(false)
 	for input in batch:
 		if input != newest and input.tick <= buffer.last_consumed_tick():
 			continue
@@ -482,24 +482,24 @@ func receive_input(peer_id: int, payload: PackedByteArray) -> DotResult:
 ##
 ## [b]Not a [HungryEvent].[/b] Voice is fifty packets a second and every HungryEvent is
 ## reliable, so a talk spurt would put a hundred retransmittable messages in front of a
-## spawn. It also does not go through [DotNetManager]: the registry seals a message set and
+## spawn. It also does not go through [GSNetManager]: the registry seals a message set and
 ## hashes it, and adding a fifty-hertz opaque blob to that buys nothing — the packet has
-## its own header, its own sequence and its own validation in [DotVoicePacket].
-func receive_voice(peer_id: int, payload: PackedByteArray) -> DotResult:
+## its own header, its own sequence and its own validation in [GSVoicePacket].
+func receive_voice(peer_id: int, payload: PackedByteArray) -> GSResult:
 	if payload.is_empty():
-		return DotResult.fail(DotError.CODE_INVALID, "An empty voice frame.")
+		return GSResult.fail(GSError.CODE_INVALID, "An empty voice frame.")
 
 	if net != null and net.is_server:
 		if peer_id <= 0 or not _player_of_peer.has(peer_id):
 			# A peer with nobody in the arena. Refused rather than relayed: the router
 			# stamps the speaker from this id, so relaying one that belongs to nobody
 			# puts a voice in the game with no name on it.
-			return DotResult.fail(
-				DotError.CODE_FORBIDDEN, "That peer has nobody in the game."
+			return GSResult.fail(
+				GSError.CODE_FORBIDDEN, "That peer has nobody in the game."
 			)
 
 		voice_requested.emit(peer_id, payload)
-		return DotResult.success(null)
+		return GSResult.success(null)
 
 	voice_arrived.emit(payload)
-	return DotResult.success(null)
+	return GSResult.success(null)

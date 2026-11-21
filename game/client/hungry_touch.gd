@@ -3,7 +3,7 @@ extends Control
 
 const HungryTouch := preload("hungry_touch.gd")
 
-## The buttons a phone needs: split and throw, plus eject and boost, as a dot-ui [DotTouchButtons].
+## The buttons a phone needs: split and throw, plus eject and boost, as a dot-ui [GSTouchButtons].
 ##
 ## [b]This game is nearly playable on a phone by accident.[/b] There is nothing to aim and
 ## nothing to select: a drag is the pointer, near is slow, far is fast, and
@@ -14,7 +14,7 @@ const HungryTouch := preload("hungry_touch.gd")
 ## and a two-finger tap is undiscoverable. Two large targets in the corners cost a little
 ## screen and are the only control here anybody has to be told about once.
 ##
-## [DotTouchButtons] handles the touch in `_input`, so pressing a button does not also reach
+## [GSTouchButtons] handles the touch in `_input`, so pressing a button does not also reach
 ## [method Node._unhandled_input] and drag the monster across the screen.
 
 # No CHANNEL: buttons that emit signals; what they cause is logged where it happens.
@@ -30,8 +30,8 @@ var throw_held: bool = false
 var eject_held: bool = false
 var boost_held: bool = false
 
-var buttons: DotTouchButtons = null
-## The DotGameClient that fits the buttons; a relabel re-applies through it.
+var buttons: GSTouchButtons = null
+## The GSGameClient that fits the buttons; a relabel re-applies through it.
 var fit_client: Object = null
 
 ## What the throw button says it will throw. Set from the carry list.
@@ -41,7 +41,7 @@ var _carried: StringName = &""
 ## Whether this device wants them. `--touch` forces them on so the layout can be looked at on
 ## a desktop and a headless run can build and drive it.
 static func wanted() -> bool:
-	return DotPlatform.has_touch() or "--touch" in OS.get_cmdline_user_args()
+	return GSPlatform.has_touch() or "--touch" in OS.get_cmdline_user_args()
 
 
 static func make() -> HungryTouch:
@@ -53,8 +53,8 @@ static func make() -> HungryTouch:
 
 ## dot-game's canonical slots, so split sits where every other game's main button does. Throw is disabled
 ## (drawn as its label only) until something is carried.
-static func touch_layout(throw_label: String) -> DotGameTouchLayout:
-	return DotGameTouchLayout.custom() \
+static func touch_layout(throw_label: String) -> GSGameTouchLayout:
+	return GSGameTouchLayout.custom() \
 		.put(&"split", &"primary", "SPLIT") \
 		.put(&"throw", &"secondary", throw_label) \
 		.put(&"eject", &"below", "EJECT") \
@@ -70,7 +70,7 @@ func build() -> void:
 	# Must not eat touches that are not on a button, or steering stops.
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 
-	buttons = DotTouchButtons.new()
+	buttons = GSTouchButtons.new()
 	buttons.name = "Buttons"
 	buttons.only_on_touch = false
 	buttons.margin = EDGE_MARGIN

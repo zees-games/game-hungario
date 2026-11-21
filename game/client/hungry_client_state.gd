@@ -44,12 +44,12 @@ const BOARD_INTERVAL_SEC := 0.5
 @export var offline_preset: StringName = &"classic"
 
 var world: HungryWorld = null
-var net: DotNetManager = null
+var net: GSNetManager = null
 var bridge: HungryNetBridge = null
 ## Asks a server whether this player may edit it (sv_workbench_remote); null offline.
-var workbench_remote: DotGameWorkbenchRemoteClient = null
+var workbench_remote: GSGameWorkbenchRemoteClient = null
 ## The tuning panel's host: F9 solo, the admin's remote panel on a server that allows it.
-var workbench: DotGameWorkbench = null
+var workbench: GSGameWorkbench = null
 var renderer: HungryRenderer = null
 var camera: HungryCamera = null
 var sampler: HungryInput = null
@@ -57,7 +57,7 @@ var hud: HungryHud = null
 
 ## The client half of chat: the channels, the history, the unread counts and the gap
 ## detection. It decides nothing — every rule is the server's.
-var chat: DotChatClient = null
+var chat: GSChatClient = null
 
 ## The client half of voice. Every call on it is guarded, because "there is no microphone"
 ## is a legitimate machine rather than an error.
@@ -71,8 +71,8 @@ var sound: HungrySound = null
 ## Settings, audio, effects and the console. `sound` above is still what makes the noise;
 ## this is what decides whether it should, how many at once and how loud.
 var presentation: HungryPresentation = null
-var screens: DotScreenStack = null
-var ui_config: DotUiConfig = null
+var screens: GSScreenStack = null
+var ui_config: GSUiConfig = null
 
 ## This game's own settings as the game reads them: the presentation layer's config, which
 ## it keeps in step with the player's document. See [HungrySettings].
@@ -83,7 +83,7 @@ var link: Node = null
 
 ## dot-menu's Escape menu ([HungrySettings]): Loadout, Game, the stock pages, Controls,
 ## Help & commands on H, and Leave.
-var menu: DotMenu = null
+var menu: GSMenu = null
 ## The menu's Loadout page.
 var loadout_page: HungryMenus.LoadoutPage = null
 var _offline: bool = false
@@ -109,6 +109,6 @@ const ASKED_WINDOW_MSEC := 750
 var _watching: int = 0
 var _bots: Array[int] = []
 
-## The platform layer ([DotGameClient]): loading cover, settings, Escape menu, console, Tab and M,
+## The platform layer ([GSGameClient]): loading cover, settings, Escape menu, console, Tab and M,
 ## pointer rules and the browser filesystem flush. See [method _ready].
-var platform: DotGameClient = null
+var platform: GSGameClient = null

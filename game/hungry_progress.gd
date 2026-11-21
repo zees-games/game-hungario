@@ -5,15 +5,15 @@ const HungryMonster := preload("hungry_monster.gd")
 ## Boards and achievements over the numbers this game already counts.
 ##
 ## [b]Neither addon is given a new source of truth, and that is the whole design.[/b]
-## [HungryModule] already declares a [DotStatsSchema] and records against it —
+## [HungryModule] already declares a [GSStatsSchema] and records against it —
 ## `food`, `fruit`, `kills`, `deaths`, `mass_eaten`, `top_mass`. dot-achievements takes
-## those readings through [DotAchievementStatsLink], which is a signal connection and
+## those readings through [GSAchievementStatsLink], which is a signal connection and
 ## nothing else; dot-leaderboard takes the ones worth ordering people by. A second count of
 ## how much food somebody ate would be a second number that can disagree with the first,
 ## and the one that is wrong is always the one nobody is looking at.
 ##
 ## [b]The merge rule is deliberately the same four kinds in both places.[/b]
-## `DotAchievementRule.Merge` is dot-stats' set again — dot-achievements' own docs/design.md
+## `GSAchievementRule.Merge` is dot-stats' set again — dot-achievements' own docs/design.md
 ## says so and says why: the two would otherwise disagree about what a new reading does to
 ## an old one, and that disagreement is a wrong number with nothing failing.
 ##
@@ -24,7 +24,7 @@ const HungryMonster := preload("hungry_monster.gd")
 const CHANNEL := "hungry.progress"
 
 ## Where progress is written. A directory per player, which is
-## [DotAchievementStoreFile]'s shape.
+## [GSAchievementStoreFile]'s shape.
 const PROGRESS_DIR := "user://hungry_achievements"
 
 
@@ -32,17 +32,17 @@ const PROGRESS_DIR := "user://hungry_achievements"
 signal earned(player_key: String, id: StringName, title: String, points: int)
 
 
-var boards: DotLeaderboardManager = null
+var boards: GSLeaderboardManager = null
 
 ## Where the boards live; null builds one layered from [constant BOARDS_CONFIG_PATH].
-var boards_config: DotBoardsConfig = null
+var boards_config: GSBoardsConfig = null
 
 const BOARDS_CONFIG_PATH := "user://hungry_boards.json"
-var achievements: DotAchievementTracker = null
-var link: DotAchievementStatsLink = null
+var achievements: GSAchievementTracker = null
+var link: GSAchievementStatsLink = null
 
 ## The stats tracker to take readings from. Set before [method setup].
-var stats: DotStatsTracker = null
+var stats: GSStatsTracker = null
 
 ## The backbone, when an operator has configured one. Null on a LAN server.
 var backbone: Object = null
@@ -54,7 +54,7 @@ var progress_dir: String = PROGRESS_DIR
 ##
 ## [b]Scoped, because a top mass in Frenzy and a top mass in Classic are not the same
 ## number.[/b] Frenzy's arena is smaller and its food denser; one board over both would be
-## a board of who played Frenzy. [method DotLeaderboardDef.scoped] is the call, and it
+## a board of who played Frenzy. [method GSLeaderboardDef.scoped] is the call, and it
 ## round-trips through a dictionary — which is where dot-leaderboard found that
 ## `to_dictionary()` handed out its own dictionary and every scoped board on a server ended
 ## up sharing one object.
@@ -64,10 +64,10 @@ var mode_id: StringName = &"classic"
 # --- The boards ------------------------------------------------------------
 
 ## The three orderings worth keeping, as definitions rather than as code.
-static func board_defs() -> Array[DotLeaderboardDef]:
-	var out: Array[DotLeaderboardDef] = []
+static func board_defs() -> Array[GSLeaderboardDef]:
+	var out: Array[GSLeaderboardDef] = []
 
-	var biggest := DotLeaderboardDef.make(&"top_mass", DotLeaderboardDef.Kind.SCORE)
+	var biggest := GSLeaderboardDef.make(&"top_mass", GSLeaderboardDef.Kind.SCORE)
 	biggest.display_name = "Biggest monster"
 	biggest.description = "The most mass anybody has ever held in one round."
 	biggest.decimals = 0
@@ -79,7 +79,7 @@ static func board_defs() -> Array[DotLeaderboardDef]:
 	biggest.publish = false
 	out.append(biggest)
 
-	var devoured := DotLeaderboardDef.make(&"pieces_eaten", DotLeaderboardDef.Kind.SCORE)
+	var devoured := GSLeaderboardDef.make(&"pieces_eaten", GSLeaderboardDef.Kind.SCORE)
 	devoured.display_name = "Most devoured"
 	devoured.description = "Pieces swallowed, all time."
 	devoured.decimals = 0
@@ -89,8 +89,8 @@ static func board_defs() -> Array[DotLeaderboardDef]:
 	# A PENALTY board, so the "lower is better" half of `beats()` is exercised rather than
 	# only described. Deaths in a round is the only figure here where less is better, and
 	# a board that only ever sorted one way would have half of the comparison unrun.
-	var survivor := DotLeaderboardDef.make(
-		&"fewest_deaths", DotLeaderboardDef.Kind.PENALTY
+	var survivor := GSLeaderboardDef.make(
+		&"fewest_deaths", GSLeaderboardDef.Kind.PENALTY
 	)
 	survivor.display_name = "Hardest to eat"
 	survivor.description = "Deaths in a round. Fewer is better."
@@ -109,9 +109,9 @@ static func board_defs() -> Array[DotLeaderboardDef]:
 ## records.[/b] An achievement watching a stat nothing reports is the family's most
 ## repeated bug wearing a rosette: it never unlocks, nothing errors, and the only symptom
 ## is a player who did the thing and was not told.
-static func catalogue() -> DotAchievementCatalogue:
-	var out := DotAchievementCatalogue.new()
-	var made: Array[DotAchievement] = []
+static func catalogue() -> GSAchievementCatalogue:
+	var out := GSAchievementCatalogue.new()
+	var made: Array[GSAchievement] = []
 
 	# A tier series. The same stat at three thresholds, which is what `series` and `tier`
 	# are for — three separate achievements would each have to be kept in step by hand.
@@ -140,9 +140,9 @@ static func catalogue() -> DotAchievementCatalogue:
 	# A BEST rather than a COUNTER. `top_mass` is the biggest reading ever seen rather
 	# than a running total, and an achievement that summed it would unlock for somebody
 	# who was medium-sized often.
-	var titan := DotAchievement.make(
+	var titan := GSAchievement.make(
 		&"mass_5000", "Titan",
-		[_rule(&"top_mass", 5000.0, DotAchievementRule.Merge.HIGHEST)]
+		[_rule(&"top_mass", 5000.0, GSAchievementRule.Merge.HIGHEST)]
 	)
 	titan.description = "Hold five thousand mass at once."
 	titan.points = 40
@@ -152,8 +152,8 @@ static func catalogue() -> DotAchievementCatalogue:
 	# they know hunters exist. Secret rather than hidden, because the difference is
 	# whether the *name* is shown before it is earned and this one is a joke that only
 	# works afterwards.
-	var snack := DotAchievement.make(
-		&"hunted", "Snack", [_rule(&"hunted", 1.0, DotAchievementRule.Merge.SUM)]
+	var snack := GSAchievement.make(
+		&"hunted", "Snack", [_rule(&"hunted", 1.0, GSAchievementRule.Merge.SUM)]
 	)
 	snack.description = "The arena eats back."
 	snack.points = 15
@@ -173,9 +173,9 @@ static func _counter(
 	points: int,
 	series: StringName,
 	tier: int
-) -> DotAchievement:
-	var out := DotAchievement.make(
-		id, name, [_rule(stat, target, DotAchievementRule.Merge.SUM)]
+) -> GSAchievement:
+	var out := GSAchievement.make(
+		id, name, [_rule(stat, target, GSAchievementRule.Merge.SUM)]
 	)
 	out.description = description
 	out.points = points
@@ -185,19 +185,19 @@ static func _counter(
 
 
 static func _rule(
-	stat: StringName, target: float, merge: DotAchievementRule.Merge
-) -> DotAchievementRule:
-	return DotAchievementRule.make(
-		stat, target, DotAchievementRule.Op.AT_LEAST, merge
+	stat: StringName, target: float, merge: GSAchievementRule.Merge
+) -> GSAchievementRule:
+	return GSAchievementRule.make(
+		stat, target, GSAchievementRule.Op.AT_LEAST, merge
 	)
 
 
 # --- Lifecycle -------------------------------------------------------------
 
-func setup() -> DotResult:
+func setup() -> GSResult:
 	if stats == null:
-		return DotResult.fail(
-			DotError.CODE_STATE, "Progress needs a stats tracker to take readings from."
+		return GSResult.fail(
+			GSError.CODE_STATE, "Progress needs a stats tracker to take readings from."
 		)
 
 	var boarded := _build_boards()
@@ -208,19 +208,19 @@ func setup() -> DotResult:
 	return _build_achievements()
 
 
-func _build_boards() -> DotResult:
-	boards = DotLeaderboardManager.new()
+func _build_boards() -> GSResult:
+	boards = GSLeaderboardManager.new()
 	boards.name = "Boards"
 	boards.report_to_backbone = backbone != null
 
 	if boards_config == null:
-		boards_config = DotBoardsConfig.for_game("hungry", "-")
+		boards_config = GSBoardsConfig.for_game("hungry", "-")
 		var layered := boards_config.load_layered(BOARDS_CONFIG_PATH)
 		if not layered.ok:
-			DotLog.warn(CHANNEL, "the boards configuration is not usable, using memory", {
+			GSLog.warn(CHANNEL, "the boards configuration is not usable, using memory", {
 				"why": str(layered.error),
 			})
-			boards_config = DotBoardsConfig.for_game("hungry", "-")
+			boards_config = GSBoardsConfig.for_game("hungry", "-")
 	boards.backend = boards_config.backend
 
 	if boards.backend == "backbone" and backbone != null:
@@ -237,15 +237,15 @@ func _build_boards() -> DotResult:
 		if not defined.ok:
 			return defined.wrap("A board was refused")
 
-	return DotResult.success(null)
+	return GSResult.success(null)
 
 
-func _build_achievements() -> DotResult:
-	achievements = DotAchievementTracker.new()
+func _build_achievements() -> GSResult:
+	achievements = GSAchievementTracker.new()
 	achievements.name = "Achievements"
 	achievements.catalogue = catalogue()
 	achievements.catalogue_file = ""
-	achievements.store = DotAchievementStoreFile.new(progress_dir)
+	achievements.store = GSAchievementStoreFile.new(progress_dir)
 	achievements.report_to_backbone = backbone != null
 	add_child(achievements)
 
@@ -260,7 +260,7 @@ func _build_achievements() -> DotResult:
 	# dot-achievements' own docs/design.md says the numbers should come from somewhere that
 	# already has them, and dot-stats already does. A tracker fed by hand from twenty call
 	# sites is twenty places to forget one.
-	link = DotAchievementStatsLink.new()
+	link = GSAchievementStatsLink.new()
 	link.name = "StatsLink"
 	link.tracker = achievements
 	link.stats = stats
@@ -269,9 +269,9 @@ func _build_achievements() -> DotResult:
 	return link.start().wrap("The achievement stats link could not start")
 
 
-func _on_unlocked(player: String, achievement: DotAchievement) -> void:
+func _on_unlocked(player: String, achievement: GSAchievement) -> void:
 	# INFO: what an admin keeps. "I did the thing and was not told" is answered from here.
-	DotLog.info(CHANNEL, "an achievement was unlocked", {
+	GSLog.info(CHANNEL, "an achievement was unlocked", {
 		"player": player, "achievement": String(achievement.id), "points": achievement.points,
 	})
 	earned.emit(player, achievement.id, achievement.display_name, achievement.points)
@@ -315,7 +315,7 @@ func _submit(board_id: StringName, key: StringName, value: float, name: String) 
 	# WARN: a round that was played and is not on the board. Nobody reports a missing row;
 	# they conclude the board is broken, and without this line there is no telling why.
 	if not submitted.ok:
-		DotLog.warn(CHANNEL, "a round could not be filed on a board", {
+		GSLog.warn(CHANNEL, "a round could not be filed on a board", {
 			"board": String(board_id), "mode": String(mode_id), "player": String(key),
 			"error": submitted.error.message,
 		})
@@ -326,7 +326,7 @@ func page(board_id: StringName, count: int = 10) -> Array:
 	if boards == null:
 		return []
 
-	var got: DotResult = await boards.page_async(board_id, {"mode": String(mode_id)}, 0, count)
+	var got: GSResult = await boards.page_async(board_id, {"mode": String(mode_id)}, 0, count)
 	return got.value if got.ok else []
 
 

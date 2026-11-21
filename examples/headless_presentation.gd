@@ -7,9 +7,9 @@ const CHECKS := 162
 
 
 func _ready() -> void:
-	DotLog.set_level(
-		DotLog.Level.DEBUG if "--verbose" in OS.get_cmdline_user_args()
-		else DotLog.Level.ERROR
+	GSLog.set_level(
+		GSLog.Level.DEBUG if "--verbose" in OS.get_cmdline_user_args()
+		else GSLog.Level.ERROR
 	)
 	_run.call_deferred()
 
@@ -288,10 +288,10 @@ func _test_console_stops_the_keys() -> void:
 	for id in solo.player_ids():
 		if id >= 100:
 			solo_names.append(solo.monster_for(id).display_name)
-	_check(solo_names.size() == 3 and solo_names.all(func(n: String) -> bool: return DotBotNames.POOL.has(n)),
+	_check(solo_names.size() == 3 and solo_names.all(func(n: String) -> bool: return GSBotNames.POOL.has(n)),
 		"offline bots are named from dot-bot's pool", str(solo_names))
 	var typed := p.console.submit("bot_difficulty nightmare")
-	_check(typed.ok and DotBotSettings.of(solo).difficulty() == "nightmare", "and bot_difficulty at the console sets how they play")
+	_check(typed.ok and GSBotSettings.of(solo).difficulty() == "nightmare", "and bot_difficulty at the console sets how they play")
 	client.world = null
 	remove_child(solo)
 	solo.free()
@@ -300,13 +300,13 @@ func _test_console_stops_the_keys() -> void:
 	Input.action_press(&"hungry_eject")
 
 	var free_run := sampler.sample()
-	_check(free_run.aim.x > 0.5 and free_run.is_pressed(Dot2DCommand.BUTTON_EJECT),
+	_check(free_run.aim.x > 0.5 and free_run.is_pressed(GS2DCommand.BUTTON_EJECT),
 		"with nothing open, the held keys steer and eject (the control)", str(free_run.aim))
 
 	p.console.open()
 	p.platform._refresh_blocked()
 	var typing := sampler.sample()
-	_check(typing.aim == Vector2.ZERO and not typing.is_pressed(Dot2DCommand.BUTTON_EJECT),
+	_check(typing.aim == Vector2.ZERO and not typing.is_pressed(GS2DCommand.BUTTON_EJECT),
 		"with the console open, the held keys do not move the player or eject", str(typing.aim))
 
 	p.chat_window.open()
@@ -337,7 +337,7 @@ func _test_console_stops_the_keys() -> void:
 func _test_party() -> void:
 	_section("A private arena whose host may leave")
 
-	DotP2PSignallerLoopback.reset_all()
+	GSP2PSignallerLoopback.reset_all()
 
 	var party := HungryParty.new()
 	party.name = "Party"
@@ -351,7 +351,7 @@ func _test_party() -> void:
 		"a continuous arena migrates its host, where a round-based deathmatch does not"
 	)
 	_check(
-		party.session.config.trust == DotP2PConfig.Trust.SANDBOXED,
+		party.session.config.trust == GSP2PConfig.Trust.SANDBOXED,
 		"and files nothing anywhere, because this game unlocks achievements and a "
 		+ "peer-to-peer host can lie about how much they ate"
 	)
@@ -364,7 +364,7 @@ func _test_party() -> void:
 	_done()
 
 
-## A stand-in rendezvous: the four routes `DotP2PSignallerHttp` speaks, on a real socket,
+## A stand-in rendezvous: the four routes `GSP2PSignallerHttp` speaks, on a real socket,
 ## answering each request [member delay] frames after it arrives.
 class RendezvousStub:
 	extends Node
@@ -457,7 +457,7 @@ class RendezvousStub:
 
 
 ## `[p2p-await-games]`: a party over the HTTP rendezvous, host and join, each awaited
-## end to end — through `HungryParty`, `DotP2PSession` and `DotP2PSignallerHttp` to a
+## end to end — through `HungryParty`, `GSP2PSession` and `GSP2PSignallerHttp` to a
 ## socket and back.
 func _test_party_over_http() -> void:
 	_section("A party that meets over HTTP waits for the answer")
@@ -485,8 +485,8 @@ func _test_party_over_http() -> void:
 
 	_check(
 		ada.setup().ok and bob.setup().ok
-			and ada.session.signaller is DotP2PSignallerHttp
-			and bob.session.signaller is DotP2PSignallerHttp,
+			and ada.session.signaller is GSP2PSignallerHttp
+			and bob.session.signaller is GSP2PSignallerHttp,
 		"two parties set up with a URL, and both meet over HTTP rather than the loopback"
 	)
 
@@ -494,12 +494,12 @@ func _test_party_over_http() -> void:
 	ada.open.connect(func(code: String) -> void: opened.append(code))
 
 	var before := Engine.get_process_frames()
-	var hosted: DotResult = await ada.host("Ada")
+	var hosted: GSResult = await ada.host("Ada")
 	var took := Engine.get_process_frames() - before
 	var code := str(hosted.value) if hosted != null and hosted.ok else ""
 
 	_check(
-		hosted != null and hosted.ok and DotP2PLobby.is_code_shaped(code, ada.session.config.code_length),
+		hosted != null and hosted.ok and GSP2PLobby.is_code_shaped(code, ada.session.config.code_length),
 		"host() hands back a join code",
 		str(hosted.error.message) if hosted != null and not hosted.ok else "null"
 	)
@@ -521,7 +521,7 @@ func _test_party_over_http() -> void:
 
 func _party_joins(stub: RendezvousStub, url: String, ada: HungryParty, bob: HungryParty, code: String) -> void:
 	var before := Engine.get_process_frames()
-	var joined: DotResult = await bob.join(code.to_lower(), "Bob")
+	var joined: GSResult = await bob.join(code.to_lower(), "Bob")
 	var took := Engine.get_process_frames() - before
 
 	_check(joined != null and joined.ok and took >= stub.delay,
@@ -554,7 +554,7 @@ func _test_cover() -> void:
 	client.offline_bots = 0
 	holder.add_child(client)
 	await get_tree().process_frame
-	var cover := client.platform.cover as DotLoadingCover
+	var cover := client.platform.cover as GSLoadingCover
 	_check(cover != null and cover.get_script().resource_path.ends_with("hungry_cover.gd"), "the platform's cover is the game's own")
 	if cover != null:
 		cover.set_status("Joining")
@@ -579,8 +579,8 @@ func _test_help() -> void:
 		_done()
 		return
 	var keys := p.menu_settings.bindings
-	_check(keys.key_for(DotMenuBindings.HELP_ACTION) == "H" and keys.defaults_on("H").size() == 1
-		and keys.key_for(DotMenuBindings.MAPS_ACTION) == "M" and keys.defaults_on("M").size() == 1,
+	_check(keys.key_for(GSMenuBindings.HELP_ACTION) == "H" and keys.defaults_on("H").size() == 1
+		and keys.key_for(GSMenuBindings.MAPS_ACTION) == "M" and keys.defaults_on("M").size() == 1,
 		"help is on H and the mode list on M, and no key of this game's is on either")
 	menu.config.escape_grace_ms = 0
 	_check(menu.handle_event(_key(KEY_H)) and menu.help.is_open() and menu.help.about != ""
@@ -598,13 +598,13 @@ func _test_help() -> void:
 	# A rebinding is a setting: the Controls page writes it, the table puts it on the action,
 	# and the help screen shows the key it is on now.
 	p.settings.set_value(&"bind_split", "J")
-	_check(DotInputBinding.describe_action(HungryBindings.SPLIT) == "J" and keys.key_for(HungryBindings.SPLIT) == "J",
+	_check(GSInputBinding.describe_action(HungryBindings.SPLIT) == "J" and keys.key_for(HungryBindings.SPLIT) == "J",
 		"a key rebound on the Controls page moves the action, and help shows it")
 	_check(InputMap.action_get_events(HungryBindings.SPLIT_CLICK).size() == 1
 		and InputMap.action_get_events(HungryBindings.SPLIT_CLICK)[0] is InputEventMouseButton,
 		"and the left button still splits: it is a row of its own")
 	p.settings.set_value(&"bind_help", "F1")
-	_check(DotInputBinding.describe_action(DotMenuBindings.HELP_ACTION) == "F1", "help itself is rebindable")
+	_check(GSInputBinding.describe_action(GSMenuBindings.HELP_ACTION) == "F1", "help itself is rebindable")
 	p.settings.reset_value(&"bind_split")
 	p.settings.reset_value(&"bind_help")
 	p.queue_free()
@@ -632,7 +632,7 @@ func _test_chat_box() -> void:
 		return
 
 	_check(
-		DotInputBinding.describe_action(window.open_action) == "Y",
+		GSInputBinding.describe_action(window.open_action) == "Y",
 		"opened by Y, which is where this genre has put it for twenty-five years"
 	)
 
@@ -668,7 +668,7 @@ func _test_chat_box() -> void:
 	p.set_chat_relayed(false)
 	_check(window.enabled, "and auto gives it back")
 
-	# [b]The binding is stored beside the config, never in it.[/b] A `DotConfig` is layered
+	# [b]The binding is stored beside the config, never in it.[/b] A `GSConfig` is layered
 	# from a file, the environment and argv, and a chat key arriving from a server's
 	# command line would rebind every player on it.
 	_check(
@@ -678,7 +678,7 @@ func _test_chat_box() -> void:
 
 	p.settings.set_value(&"chat_open_key", "T")
 	_check(
-		DotInputBinding.describe_action(window.open_action) == "T",
+		GSInputBinding.describe_action(window.open_action) == "T",
 		"rebinding through the settings document moves the key"
 	)
 	_check(
@@ -703,7 +703,7 @@ func _test_the_mode_list() -> void:
 	holder.add_child(client)
 	for _i in 6:
 		await get_tree().process_frame
-	var menu: DotMenu = client.menu
+	var menu: GSMenu = client.menu
 	_check(menu != null and client.mode_rows().size() == 8 and client.mode_rows()[0]["current"],
 		"eight modes, Classic playing", str(client.mode_rows().size()))
 	if menu == null:
@@ -745,7 +745,7 @@ func _test_the_vote_is_heard() -> void:
 	var missing := PackedStringArray()
 	for id in HungryEvents.VOTE_CUES:
 		var d := p.audio.catalogue.find(StringName(id))
-		if d == null or d.priority >= 100 or d.kind != DotAudioDef.Kind.FLAT:
+		if d == null or d.priority >= 100 or d.kind != GSAudioDef.Kind.FLAT:
 			missing.append(id)
 	_check(
 		missing.is_empty(),
@@ -832,7 +832,7 @@ func _test_board_makes_room() -> void:
 	add_child(hud)
 	hud.build(world, null, 1)
 	# A 1280 x 720 HUD in a 64 x 64 headless window: anchored to a corner, or the size is
-	# overridden by the full-rect anchors DotHud gives itself.
+	# overridden by the full-rect anchors GSHud gives itself.
 	hud.set_anchors_preset(Control.PRESET_TOP_LEFT)
 	hud.position = Vector2.ZERO
 	hud.size = Vector2(1280.0, 720.0)
@@ -901,22 +901,22 @@ func _test_a_fall() -> void:
 	falls.alive_fn = func(_id: int) -> bool: return false
 	var piece := HungryPiece.new()
 	piece.owner_id = 5
-	piece.state = Dot2DState.new()
+	piece.state = GS2DState.new()
 	piece.state.position = Vector2(300.0, 200.0)
 	piece.state.radius = 40.0
 	var heard: Array[StringName] = []
 	falls.sound.connect(func(id: StringName, _at: Vector2, _v: float) -> void: heard.append(id))
 
-	var crumple := DotPlayerDeath.new()
-	crumple.reaction = DotPlayerDeathReactions.CRUMPLE
+	var crumple := GSPlayerDeath.new()
+	crumple.reaction = GSPlayerDeathReactions.CRUMPLE
 	falls.note_piece(piece)
 	var down = falls.fall(5, crumple)
-	_check(down != null and down.reaction.id == DotPlayerDeathReactions.CRUMPLE
-			and down.style == DotPlayerRagdollRules.Style.RAGDOLL,
+	_check(down != null and down.reaction.id == GSPlayerDeathReactions.CRUMPLE
+			and down.style == GSPlayerRagdollRules.Style.RAGDOLL,
 		"the last piece goes down with the server's reaction")
 	for _i in range(60):
 		down.advance(1.0 / 30.0)
-	_check(heard.has(DotPlayerDeathReactions.SOUND_SLUMP) and rider.scale.x < 0.9,
+	_check(heard.has(GSPlayerDeathReactions.SOUND_SLUMP) and rider.scale.x < 0.9,
 		"its sound plays when it lands, and the rider sinks with it", str(heard))
 	_check(falls.fall(6, crumple) == null, "a piece this client never saw leave draws nothing")
 
@@ -924,7 +924,7 @@ func _test_a_fall() -> void:
 	var _off := falls.rules.set_cvar("sv_ragdoll", "0")
 	falls.note_piece(piece)
 	var toppled = falls.fall(5, crumple)
-	_check(toppled != null and toppled.style == DotPlayerRagdollRules.Style.TOPPLE,
+	_check(toppled != null and toppled.style == GSPlayerRagdollRules.Style.TOPPLE,
 		"the server's sv_ragdoll 0 is the still fallback")
 	var _on := falls.rules.set_cvar("sv_ragdoll", "1")
 	var _hide := falls.rules.set_cvar("sv_ragdoll_style", "hide")
@@ -949,8 +949,8 @@ func _test_a_fall() -> void:
 	var sink_ids := HungrySoundSink.CUES.keys()
 	var catalogued := HungryPresentation.sound_catalogue()
 	var missing := PackedStringArray()
-	for id: StringName in [DotPlayerDeathReactions.SOUND_THUD, DotPlayerDeathReactions.SOUND_FACE_PLANT,
-			DotPlayerDeathReactions.SOUND_SLUMP, DotPlayerDeathReactions.SOUND_WHOOSH]:
+	for id: StringName in [GSPlayerDeathReactions.SOUND_THUD, GSPlayerDeathReactions.SOUND_FACE_PLANT,
+			GSPlayerDeathReactions.SOUND_SLUMP, GSPlayerDeathReactions.SOUND_WHOOSH]:
 		if not sink_ids.has(String(id)) or catalogued.find(id) == null:
 			missing.append(String(id))
 	_check(missing.is_empty(), "dot-player-char's four death sounds are in the catalogue and the bank", ", ".join(missing))

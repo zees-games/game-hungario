@@ -1,4 +1,4 @@
-extends DotGameCheckSuite
+extends GSGameCheckSuite
 
 ## The exit probe both suites share: the suite run once more in a fresh process.
 

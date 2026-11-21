@@ -181,7 +181,7 @@ const EJECT_TIER := 3
 const EJECT_REACH := 42.0
 
 
-## [member Dot2DState.flags] bits. Sixteen of them are replicated; these are the ones
+## [member GS2DState.flags] bits. Sixteen of them are replicated; these are the ones
 ## that mean something, and they are what a client draws from.
 const FLAG_RIDER := 1 << 0          ## Carries the avatar. Exactly one piece per monster.
 const FLAG_RUSH := 1 << 1
@@ -197,8 +197,8 @@ const EFFECT_MASK := FLAG_RUSH | FLAG_MAW | FLAG_RIND | FLAG_FROSTED | FLAG_PROT
 
 
 ## How a monster moves. Speed falls with mass; radius grows as its square root.
-static func tunables() -> Dot2DTunables:
-	var out := Dot2DTunables.blob()
+static func tunables() -> GS2DTunables:
+	var out := GS2DTunables.blob()
 	out.max_speed = 415.0
 	# The distance over which the cursor goes from "stopped" to "full speed", roughly a body length; much larger and steering feels like a barge.
 	out.full_speed_reach = 105.0
@@ -208,9 +208,9 @@ static func tunables() -> Dot2DTunables:
 	return out
 
 
-## The three relationships the whole game balances on. See [Dot2DMassRules].
-static func mass_rules() -> Dot2DMassRules:
-	var rules := Dot2DMassRules.cell_eating()
+## The three relationships the whole game balances on. See [GS2DMassRules].
+static func mass_rules() -> GS2DMassRules:
+	var rules := GS2DMassRules.cell_eating()
 
 	rules.base_radius = 8.0
 	# Area is radius squared, so twice the mass is root-two the width. This is what
@@ -236,7 +236,7 @@ static func mass_rules() -> Dot2DMassRules:
 	rules.decay_floor = 260.0
 
 	# Sixteen, not eight: a pepper bursts a monster into five and a burst piece can be burst again, so a ceiling of eight would make the
-	# second pepper do nothing and look like it had failed. A setting of 0 means unlimited; Dot2DMassRules has no unlimited (can_split
+	# second pepper do nothing and look like it had failed. A setting of 0 means unlimited; GS2DMassRules has no unlimited (can_split
 	# is `pieces < max_pieces`), so the largest int stands in.
 	var piece_cap := HungryTuning.settings().max_pieces
 	rules.max_pieces = piece_cap if piece_cap > 0 else 9223372036854775807
@@ -273,39 +273,39 @@ static func rules(tick_rate: int = TICK_RATE) -> HungryRules:
 
 
 ## What a monster may throw, as data a server can check without loading anything.
-static func item_catalogue() -> DotItemCatalogue:
-	var pepper := DotItem.make(ITEM_PEPPER, DotItem.KIND_CONSUMABLE, true)
+static func item_catalogue() -> GSItemCatalogue:
+	var pepper := GSItem.make(ITEM_PEPPER, GSItem.KIND_CONSUMABLE, true)
 	pepper.display_name = "Pepper"
 	pepper.tags = [&"throwable", &"burst"] as Array[StringName]
 	pepper.content_id = "hungry/items/pepper"
 
-	var frost := DotItem.make(ITEM_FROST, DotItem.KIND_CONSUMABLE, true)
+	var frost := GSItem.make(ITEM_FROST, GSItem.KIND_CONSUMABLE, true)
 	frost.display_name = "Frostberry"
 	frost.tags = [&"throwable", &"slow"] as Array[StringName]
 	frost.content_id = "hungry/items/frost"
 
-	var lure := DotItem.make(ITEM_LURE, DotItem.KIND_CONSUMABLE, true)
+	var lure := GSItem.make(ITEM_LURE, GSItem.KIND_CONSUMABLE, true)
 	lure.display_name = "Lure"
 	lure.tags = [&"throwable", &"field"] as Array[StringName]
 	lure.content_id = "hungry/items/lure"
 
-	var nimble := DotItem.make(TRAIT_NIMBLE, DotItem.KIND_PERK, true)
+	var nimble := GSItem.make(TRAIT_NIMBLE, GSItem.KIND_PERK, true)
 	nimble.display_name = "Nimble"
 	nimble.tags = [&"trait"] as Array[StringName]
 
-	var sturdy := DotItem.make(TRAIT_STURDY, DotItem.KIND_PERK, true)
+	var sturdy := GSItem.make(TRAIT_STURDY, GSItem.KIND_PERK, true)
 	sturdy.display_name = "Sturdy"
 	sturdy.tags = [&"trait"] as Array[StringName]
 
 	# Not free, and the only thing here that is not. An unwired server permits only what
 	# is marked free, so this is what an unlock looks like from the inside.
-	var greedy := DotItem.make(TRAIT_GREEDY, DotItem.KIND_PERK, false)
+	var greedy := GSItem.make(TRAIT_GREEDY, GSItem.KIND_PERK, false)
 	greedy.display_name = "Greedy"
 	greedy.entitlement_id = TRAIT_GREEDY_UNLOCK
 	greedy.tags = [&"trait"] as Array[StringName]
 
-	var catalogue := DotItemCatalogue.of(
-		[pepper, frost, lure, nimble, sturdy, greedy] as Array[DotItem]
+	var catalogue := GSItemCatalogue.of(
+		[pepper, frost, lure, nimble, sturdy, greedy] as Array[GSItem]
 	)
 	catalogue.id = &"hungry_items"
 	catalogue.reindex()
@@ -314,22 +314,22 @@ static func item_catalogue() -> DotItemCatalogue:
 
 ## What a player brings in, as a document of ids a server can check without loading
 ## anything.
-static func loadout_schema() -> DotLoadoutSchema:
-	var starter := DotLoadoutSlot.make(SLOT_STARTER, true, ITEM_PEPPER)
+static func loadout_schema() -> GSLoadoutSchema:
+	var starter := GSLoadoutSlot.make(SLOT_STARTER, true, ITEM_PEPPER)
 	starter.display_name = "Starting throwable"
-	starter.kinds = [DotItem.KIND_CONSUMABLE] as Array[StringName]
+	starter.kinds = [GSItem.KIND_CONSUMABLE] as Array[StringName]
 	# The tag rather than the kind alone: a consumable that is not a throwable would fit a
 	# slot checked only by kind, and the slot is "what you spawn holding".
 	starter.require_tags = [&"throwable"] as Array[StringName]
 
-	var trait_slot := DotLoadoutSlot.make(SLOT_TRAIT, true, TRAIT_NIMBLE)
+	var trait_slot := GSLoadoutSlot.make(SLOT_TRAIT, true, TRAIT_NIMBLE)
 	trait_slot.display_name = "Trait"
-	trait_slot.kinds = [DotItem.KIND_PERK] as Array[StringName]
+	trait_slot.kinds = [GSItem.KIND_PERK] as Array[StringName]
 	trait_slot.require_tags = [&"trait"] as Array[StringName]
 
-	var schema := DotLoadoutSchema.of(
+	var schema := GSLoadoutSchema.of(
 		&"hungry_loadout",
-		[starter, trait_slot] as Array[DotLoadoutSlot],
+		[starter, trait_slot] as Array[GSLoadoutSlot],
 		item_catalogue()
 	)
 	schema.display_name = "Monster"
@@ -384,26 +384,26 @@ static func colour_for(id: int) -> Color:
 
 
 ## The avatar schema a monster's rider is dressed from.
-static func avatar_schema() -> DotAvatarSchema:
-	var schema := DotAvatarSchema.new()
+static func avatar_schema() -> GSAvatarSchema:
+	var schema := GSAvatarSchema.new()
 	schema.id = &"hungry_rider"
 	schema.version = 1
 
-	var body := DotAvatarSlot.make(&"body", true, &"rider_pip")
+	var body := GSAvatarSlot.make(&"body", true, &"rider_pip")
 	body.display_name = "Body"
 	body.layer = 20
 
-	var hat := DotAvatarSlot.make(&"hat")
+	var hat := GSAvatarSlot.make(&"hat")
 	hat.display_name = "Hat"
 	hat.layer = 60
 
-	var trail := DotAvatarSlot.make(&"trail")
+	var trail := GSAvatarSlot.make(&"trail")
 	trail.display_name = "Trail"
 	trail.layer = 10
 
 	schema.slots = [body, hat, trail]
 
-	var parts: Array[DotAvatarPart] = []
+	var parts: Array[GSAvatarPart] = []
 
 	for entry in [
 		[&"rider_pip", &"body", true, 2, "hungry/avatar/rider_pip"],
@@ -415,7 +415,7 @@ static func avatar_schema() -> DotAvatarSchema:
 		[&"trail_ember", &"trail", false, 1, "hungry/avatar/trail_ember"],
 	]:
 		var row: Array = entry
-		var part := DotAvatarPart.make(row[0], row[1], bool(row[2]))
+		var part := GSAvatarPart.make(row[0], row[1], bool(row[2]))
 		part.colour_channels = int(row[3])
 		part.content_id = String(row[4])
 		# Everything in the body slot falls back to the free rider, so undownloaded content draws a plain rider; the free rider itself has no fallback, since the schema refuses a resolution loop.
@@ -430,8 +430,8 @@ static func avatar_schema() -> DotAvatarSchema:
 
 
 ## A deterministic avatar for a player who has none. The look of a guest.
-static func default_avatar(id: int) -> DotAvatar:
-	var avatar := DotAvatar.make(&"hungry_rider")
+static func default_avatar(id: int) -> GSAvatar:
+	var avatar := GSAvatar.make(&"hungry_rider")
 	avatar.set_part(&"body", &"rider_pip" if (id % 2) == 0 else &"rider_blob")
 	avatar.set_colour(&"body", 0, colour_for(id))
 	avatar.set_colour(&"body", 1, Color.WHITE)

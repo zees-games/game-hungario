@@ -27,8 +27,8 @@ static func map_for(id: StringName) -> Variant:
 	return null
 
 
-static func make_rules() -> DotAmbienceRules:
-	var r := DotAmbienceRules.new()
+static func make_rules() -> GSAmbienceRules:
+	var r := GSAmbienceRules.new()
 	r.prefix = PREFIX
 	r.volume = LEVEL
 	r.frequency = RATE
@@ -39,7 +39,7 @@ static func make_rules() -> DotAmbienceRules:
 static func cvar_types() -> Dictionary:
 	var rules := make_rules()
 	var out := {}
-	for key: String in DotAmbienceRules.VARS:
-		var row: Array = DotAmbienceRules.VARS[key]
+	for key: String in GSAmbienceRules.VARS:
+		var row: Array = GSAmbienceRules.VARS[key]
 		out[rules.cvar_of(row)] = "string" if row[2] == null else "float"
 	return out

@@ -152,7 +152,7 @@ func build() -> void:
 ## noise.
 ##
 ## [b]Deterministic, and that matters more than it sounds.[/b] The noise comes from
-## [method Dot2DScatter._hash] rather than from [method @GlobalScope.randf], so the bank is
+## [method GS2DScatter._hash] rather than from [method @GlobalScope.randf], so the bank is
 ## byte-identical on every machine and every run — which is what makes it something a test
 ## can assert about rather than listen to.
 static func bake(
@@ -182,7 +182,7 @@ static func bake(
 		var envelope := attack * pow(1.0 - t, 1.8)
 
 		var tone := sin(phase)
-		var grit := Dot2DScatter._unit(Dot2DScatter._hash(index, 0x51D)) * 2.0 - 1.0
+		var grit := GS2DScatter._unit(GS2DScatter._hash(index, 0x51D)) * 2.0 - 1.0
 		var sample := lerpf(tone, grit, clampf(noise, 0.0, 1.0)) * envelope * amplitude
 
 		var value := clampi(int(sample * 32767.0), -32768, 32767)

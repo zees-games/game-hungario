@@ -1,6 +1,6 @@
 extends RefCounted
 
-## Hungry's per-map settings: dot-game's [DotGameMapConfig] over the rule cvars a map may change.
+## Hungry's per-map settings: dot-game's [GSGameMapConfig] over the rule cvars a map may change.
 ##
 ## The map id is the mode's preset id (`frenzy`, `warrens`). Files: `cfg/game/game-hungario/dot_map/map/<name>.yml` (a glob covers a class of maps), overridable from `cfg/server/...`. Only [constant KEYS] are accepted; this game has no imported BSP maps, so no starter files ship. A value under a key's `min` is refused (key and value in the warning), never clamped; the only `max` is `hungry_hunters_on` 0/1, a switch.
 
@@ -23,5 +23,5 @@ const KEYS := {
 
 
 ## The applier over [param console]'s cvars. Call `apply(map_id)` on every map load.
-static func build(console: Object) -> DotGameMapConfig:
-	return DotGameMapConfig.for_console(GAME_ID, console, KEYS)
+static func build(console: Object) -> GSGameMapConfig:
+	return GSGameMapConfig.for_console(GAME_ID, console, KEYS)

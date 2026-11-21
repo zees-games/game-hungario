@@ -1,7 +1,7 @@
 extends Node2D
 
 ## One eaten monster going down, in 2D: the last piece and its rider doing what the server's
-## death reaction says (dot-player-char's [DotPlayerDeath] and [DotPlayerDeathReaction]),
+## death reaction says (dot-player-char's [GSPlayerDeath] and [GSPlayerDeathReaction]),
 ## drawn the way the renderer draws a living piece. Built by [HungryFalls]; client only.
 ##
 ## [b]The 3D ragdoll does not apply, and its rule does.[/b] dot-player-char's bodies are rigid
@@ -21,7 +21,7 @@ extends Node2D
 ##   goes flat with it.
 ## - [b]LAUNCH[/b]: the cell bursts into pieces and the rider is thrown, rising toward the
 ##   viewer (drawn bigger, its shadow left behind) and coming down [member
-##   DotPlayerDeathReaction.launch_along] further on: a headshot launch goes high and short,
+##   GSPlayerDeathReaction.launch_along] further on: a headshot launch goes high and short,
 ##   a power launch long and flat, scattering the pieces along with it.
 ##
 ## The styles map the same way: STIFF moves the cell and rider as one disc (no folding, no
@@ -44,9 +44,9 @@ const REMAINS_MAX_SEC := 4.0
 ## The smallest radius a fall is sized from, so a crumb's death is still visible.
 const MIN_RADIUS := 26.0
 
-var reaction: DotPlayerDeathReaction = null
-var death: DotPlayerDeath = null
-var style: int = DotPlayerRagdollRules.Style.RAGDOLL
+var reaction: GSPlayerDeathReaction = null
+var death: GSPlayerDeath = null
+var style: int = GSPlayerRagdollRules.Style.RAGDOLL
 var player_id: int = 0
 
 ## Where the piece was, how big, and its colour.
@@ -83,9 +83,9 @@ var _released: bool = false
 
 
 ## Sets the fall up. [param rules] are the ones in force on this client (the server's).
-func start(rules: DotPlayerRagdollRules) -> void:
+func start(rules: GSPlayerRagdollRules) -> void:
 	_rng.seed = death.roll_seed if death != null else 0
-	style = rules.effective_style() if rules != null else DotPlayerRagdollRules.Style.RAGDOLL
+	style = rules.effective_style() if rules != null else GSPlayerRagdollRules.Style.RAGDOLL
 	force = rules.force_scale if rules != null else 1.0
 	lifetime = minf(rules.lifetime if rules != null else REMAINS_MAX_SEC, REMAINS_MAX_SEC)
 	fade = rules.fade if rules != null else 1.0
@@ -105,8 +105,8 @@ func start(rules: DotPlayerRagdollRules) -> void:
 	for i in range(_folds.size()):
 		_folds[i] = _rng.randf_range(0.0, 1.0)
 
-	if style == DotPlayerRagdollRules.Style.RAGDOLL and reaction != null \
-			and reaction.pose == DotPlayerDeathReaction.Pose.LAUNCH:
+	if style == GSPlayerRagdollRules.Style.RAGDOLL and reaction != null \
+			and reaction.pose == GSPlayerDeathReaction.Pose.LAUNCH:
 		# The cell's pieces: thrown along the push, more of them the harder it was.
 		var count := 6 + int(clampf(reaction.launch_along, 0.0, 9.0) * 0.45)
 		for i in range(count):
@@ -118,12 +118,12 @@ func start(rules: DotPlayerRagdollRules) -> void:
 				"r": radius * _rng.randf_range(0.11, 0.22),
 			})
 
-	if reaction != null and reaction.start_sound != &"" and style != DotPlayerRagdollRules.Style.TOPPLE:
+	if reaction != null and reaction.start_sound != &"" and style != GSPlayerRagdollRules.Style.TOPPLE:
 		sound.emit.call_deferred(reaction.start_sound, at, 1.0)
 
-	DotLog.debug(CHANNEL, "down", {
+	GSLog.debug(CHANNEL, "down", {
 		"player": player_id, "reaction": String(reaction.id) if reaction != null else "-",
-		"style": DotPlayerRagdollRules.style_name(style),
+		"style": GSPlayerRagdollRules.style_name(style),
 	})
 
 
@@ -167,16 +167,16 @@ func advance(delta: float) -> void:
 
 ## When the body is down: the moment its land sound plays.
 func _land_time() -> float:
-	if style == DotPlayerRagdollRules.Style.TOPPLE:
+	if style == GSPlayerRagdollRules.Style.TOPPLE:
 		return 0.3
-	if style == DotPlayerRagdollRules.Style.STIFF or reaction == null:
+	if style == GSPlayerRagdollRules.Style.STIFF or reaction == null:
 		return 0.4
 	match reaction.pose:
-		DotPlayerDeathReaction.Pose.FACE_PLANT:
+		GSPlayerDeathReaction.Pose.FACE_PLANT:
 			return 0.22
-		DotPlayerDeathReaction.Pose.CRUMPLE:
+		GSPlayerDeathReaction.Pose.CRUMPLE:
 			return 0.55
-		DotPlayerDeathReaction.Pose.LAUNCH:
+		GSPlayerDeathReaction.Pose.LAUNCH:
 			return _air_time()
 	return 0.42
 
@@ -213,18 +213,18 @@ func _launch_distance() -> float:
 
 ## Where the rider is now (and where its sound comes from).
 func _rider_point() -> Vector2:
-	if style == DotPlayerRagdollRules.Style.TOPPLE:
+	if style == GSPlayerRagdollRules.Style.TOPPLE:
 		return at
-	if style == DotPlayerRagdollRules.Style.STIFF or reaction == null:
+	if style == GSPlayerRagdollRules.Style.STIFF or reaction == null:
 		return at + _dir * _slide() * _ease(0.5)
 	match reaction.pose:
-		DotPlayerDeathReaction.Pose.LIMP:
+		GSPlayerDeathReaction.Pose.LIMP:
 			return at + _dir * (_slide() + radius * 0.55) * _ease(0.5)
-		DotPlayerDeathReaction.Pose.CRUMPLE:
+		GSPlayerDeathReaction.Pose.CRUMPLE:
 			return at + _dir * radius * 0.1 * _ease(0.6)
-		DotPlayerDeathReaction.Pose.FACE_PLANT:
+		GSPlayerDeathReaction.Pose.FACE_PLANT:
 			return at + _dir * radius * 0.35 * _ease(0.22)
-		DotPlayerDeathReaction.Pose.LAUNCH:
+		GSPlayerDeathReaction.Pose.LAUNCH:
 			var u := clampf(age / _air_time(), 0.0, 1.0)
 			var travelled := _launch_distance() * u + _slide() * 0.4 * _ease(_air_time() + 0.4) * float(age > _air_time())
 			return at + _dir * travelled
@@ -233,8 +233,8 @@ func _rider_point() -> Vector2:
 
 ## How high a launched rider is, 0 to 1: drawn as size, toward the viewer.
 func _height() -> float:
-	if style != DotPlayerRagdollRules.Style.RAGDOLL or reaction == null \
-			or reaction.pose != DotPlayerDeathReaction.Pose.LAUNCH:
+	if style != GSPlayerRagdollRules.Style.RAGDOLL or reaction == null \
+			or reaction.pose != GSPlayerDeathReaction.Pose.LAUNCH:
 		return 0.0
 	var u := clampf(age / _air_time(), 0.0, 1.0)
 	return sin(u * PI) * clampf(reaction.launch_up / 6.5, 0.3, 1.2)
@@ -251,24 +251,24 @@ func _drive_rider() -> void:
 	var lie := _rider_spin * PI * 0.5
 	var turn := 0.0
 	var size := Vector2.ONE
-	if style == DotPlayerRagdollRules.Style.TOPPLE:
+	if style == GSPlayerRagdollRules.Style.TOPPLE:
 		size = Vector2.ONE * lerpf(1.0, 0.6, _ease(0.3))
-	elif style == DotPlayerRagdollRules.Style.STIFF or reaction == null:
+	elif style == GSPlayerRagdollRules.Style.STIFF or reaction == null:
 		turn = lie * 0.6 * _ease(0.5)
 		size = Vector2.ONE * lerpf(1.0, 0.85, _ease(0.5))
 	else:
 		match reaction.pose:
-			DotPlayerDeathReaction.Pose.LIMP:
+			GSPlayerDeathReaction.Pose.LIMP:
 				turn = lie * _ease(0.5)
 				size = Vector2.ONE * lerpf(1.0, 0.85, _ease(0.5))
-			DotPlayerDeathReaction.Pose.CRUMPLE:
+			GSPlayerDeathReaction.Pose.CRUMPLE:
 				turn = lie * 0.3 * _ease(0.7)
 				size = Vector2.ONE * lerpf(1.0, 0.62, _ease(0.7))
-			DotPlayerDeathReaction.Pose.FACE_PLANT:
+			GSPlayerDeathReaction.Pose.FACE_PLANT:
 				# Face down along the push: the rider's "up" turns to the push and flattens.
 				turn = (_dir.angle() + PI * 0.5) * _ease(0.22)
 				size = Vector2(lerpf(1.0, 1.2, _ease(0.22)), lerpf(1.0, 0.4, _ease(0.22)))
-			DotPlayerDeathReaction.Pose.LAUNCH:
+			GSPlayerDeathReaction.Pose.LAUNCH:
 				var u := clampf(age / _air_time(), 0.0, 1.0)
 				turn = _rider_spin * TAU * (0.6 + reaction.launch_up * 0.1) * (1.0 - pow(1.0 - u, 1.6))
 				size = Vector2.ONE * (1.0 + _height() * 0.8) * lerpf(1.0, 0.85, u)
@@ -303,23 +303,23 @@ func _draw() -> void:
 	# The fade closes in on one point, as dot-player-char's does: the parts together.
 	var closing := lerpf(1.0, 0.35, 1.0 - a) if expiring else 1.0
 
-	if style == DotPlayerRagdollRules.Style.TOPPLE:
+	if style == GSPlayerRagdollRules.Style.TOPPLE:
 		_disc(at, radius * lerpf(1.0, 0.55, _ease(0.3)) * closing, body, rim, a)
 		return
-	if style == DotPlayerRagdollRules.Style.STIFF or reaction == null:
+	if style == GSPlayerRagdollRules.Style.STIFF or reaction == null:
 		_disc(at + _dir * _slide() * _ease(0.5), radius * lerpf(1.0, 0.8, _ease(0.5)) * closing, body, rim, a)
 		return
 
 	match reaction.pose:
-		DotPlayerDeathReaction.Pose.LIMP:
+		GSPlayerDeathReaction.Pose.LIMP:
 			# Deflating: smaller, softer, slid on along the push.
 			var r := radius * lerpf(1.0, 0.62, _ease(0.45)) * closing
 			_disc(at + _dir * _slide() * _ease(0.5), r, body, rim, a)
-		DotPlayerDeathReaction.Pose.CRUMPLE:
+		GSPlayerDeathReaction.Pose.CRUMPLE:
 			_crumpled(at + _dir * radius * 0.1 * _ease(0.6), radius * lerpf(1.0, 0.55, _ease(0.7)) * closing, body, rim)
-		DotPlayerDeathReaction.Pose.FACE_PLANT:
+		GSPlayerDeathReaction.Pose.FACE_PLANT:
 			_flattened(at + _dir * radius * 0.35 * _ease(0.22), radius * closing, body, rim)
-		DotPlayerDeathReaction.Pose.LAUNCH:
+		GSPlayerDeathReaction.Pose.LAUNCH:
 			# The cell bursts: a ring going out, and its pieces thrown along the push.
 			var pop := clampf(age / 0.3, 0.0, 1.0)
 			if pop < 1.0:
@@ -376,7 +376,7 @@ func describe() -> Dictionary:
 	return {
 		"player": player_id,
 		"reaction": String(reaction.id) if reaction != null else "-",
-		"style": DotPlayerRagdollRules.style_name(style),
+		"style": GSPlayerRagdollRules.style_name(style),
 		"age": snappedf(age, 0.01),
 		"pieces": _bits.size(),
 		"landed": _landed,

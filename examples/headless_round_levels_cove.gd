@@ -63,7 +63,7 @@ func _test_the_cove() -> void:
 
 
 ## The doors, which are the level.
-func _the_cove_the_doors_which_are_the_leve(leader_mass: float, world: HungryWorld, bounds: Rect2, layout: HungryLayout, rules: Dot2DMassRules, short_half: float, fore: Array[Dictionary], across: Vector2, outward: Vector2, wall: float, fore_line: float, sea: Vector3, reefward: Vector3, sea_at: Vector2, reef_at: Vector2, won: float, start: float) -> void:
+func _the_cove_the_doors_which_are_the_leve(leader_mass: float, world: HungryWorld, bounds: Rect2, layout: HungryLayout, rules: GS2DMassRules, short_half: float, fore: Array[Dictionary], across: Vector2, outward: Vector2, wall: float, fore_line: float, sea: Vector3, reefward: Vector3, sea_at: Vector2, reef_at: Vector2, won: float, start: float) -> void:
 	var door := HungryLayout.cove_door(short_half)
 	var doors := PackedFloat32Array([
 		wall - sea_at.dot(outward) - sea.z,
@@ -119,7 +119,7 @@ func _the_cove_the_doors_which_are_the_leve(leader_mass: float, world: HungryWor
 
 
 ## A room: it holds more than it lets out.
-func _the_cove_a_room_it_holds_more_than_it(leader_mass: float, world: HungryWorld, bounds: Rect2, layout: HungryLayout, rules: Dot2DMassRules, fore: Array[Dictionary], across: Vector2, outward: Vector2, wall: float, sea: Vector3, reefward: Vector3, sea_at: Vector2, reef_at: Vector2, won: float, start: float, door: float, mouth: Vector2, to_spit: float, to_reef: float) -> void:
+func _the_cove_a_room_it_holds_more_than_it(leader_mass: float, world: HungryWorld, bounds: Rect2, layout: HungryLayout, rules: GS2DMassRules, fore: Array[Dictionary], across: Vector2, outward: Vector2, wall: float, sea: Vector3, reefward: Vector3, sea_at: Vector2, reef_at: Vector2, won: float, start: float, door: float, mouth: Vector2, to_spit: float, to_reef: float) -> void:
 	var inside := mouth + outward * ((wall - mouth.dot(outward)) * 0.5)
 	var holds := minf(
 		wall - inside.dot(outward),
@@ -180,7 +180,7 @@ func _the_cove_a_room_it_holds_more_than_it(leader_mass: float, world: HungryWor
 
 
 ## Driven: a starting monster in, a leader past.
-func _the_cove_driven_a_starting_monster_in(leader_mass: float, world: HungryWorld, bounds: Rect2, layout: HungryLayout, rules: Dot2DMassRules, across: Vector2, outward: Vector2, wall: float, sea: Vector3, reefward: Vector3, reef_at: Vector2, won: float, start: float, door: float, mouth: Vector2, to_spit: float, to_reef: float, inside: Vector2, holds: float, open_sea: Vector2) -> void:
+func _the_cove_driven_a_starting_monster_in(leader_mass: float, world: HungryWorld, bounds: Rect2, layout: HungryLayout, rules: GS2DMassRules, across: Vector2, outward: Vector2, wall: float, sea: Vector3, reefward: Vector3, reef_at: Vector2, won: float, start: float, door: float, mouth: Vector2, to_spit: float, to_reef: float, inside: Vector2, holds: float, open_sea: Vector2) -> void:
 	world.spawn(1, open_sea)
 	_run_ticks(world, 2)
 
@@ -248,7 +248,7 @@ func _the_cove_driven_a_starting_monster_in(leader_mass: float, world: HungryWor
 
 
 ## Straight at the door between the posts.
-func _the_cove_straight_at_the_door_between(world: HungryWorld, bounds: Rect2, layout: HungryLayout, rules: Dot2DMassRules, outward: Vector2, wall: float, sea: Vector3, won: float, start: float, door: float, mouth: Vector2, to_spit: float, to_reef: float, holds: float, monster: HungryMonster) -> void:
+func _the_cove_straight_at_the_door_between(world: HungryWorld, bounds: Rect2, layout: HungryLayout, rules: GS2DMassRules, outward: Vector2, wall: float, sea: Vector3, won: float, start: float, door: float, mouth: Vector2, to_spit: float, to_reef: float, holds: float, monster: HungryMonster) -> void:
 	var from_sea := mouth - outward * 500.0
 	var to_wall := mouth + outward * 1000.0
 	var line := mouth.dot(outward)
@@ -326,7 +326,7 @@ func _test_the_shallows() -> void:
 
 
 ## The lines, measured off the discs.
-func _the_shallows_the_lines_measured_off_the_d(leader_mass: float, world: HungryWorld, bounds: Rect2, layout: HungryLayout, rules: Dot2DMassRules, lines: int, short_half: float, widths: PackedFloat32Array, won: float, line_x: PackedFloat32Array, post_r: PackedFloat32Array) -> void:
+func _the_shallows_the_lines_measured_off_the_d(leader_mass: float, world: HungryWorld, bounds: Rect2, layout: HungryLayout, rules: GS2DMassRules, lines: int, short_half: float, widths: PackedFloat32Array, won: float, line_x: PackedFloat32Array, post_r: PackedFloat32Array) -> void:
 	var wrong := PackedStringArray()
 
 	for line in range(lines):
@@ -373,7 +373,7 @@ func _the_shallows_the_lines_measured_off_the_d(leader_mass: float, world: Hungr
 
 
 ## The bands: never narrower than the gap that lets you in.
-func _the_shallows_the_bands_never_narrower_tha(leader_mass: float, world: HungryWorld, bounds: Rect2, layout: HungryLayout, rules: Dot2DMassRules, lines: int, short_half: float, widths: PackedFloat32Array, won: float, line_x: PackedFloat32Array, post_r: PackedFloat32Array) -> void:
+func _the_shallows_the_bands_never_narrower_tha(leader_mass: float, world: HungryWorld, bounds: Rect2, layout: HungryLayout, rules: GS2DMassRules, lines: int, short_half: float, widths: PackedFloat32Array, won: float, line_x: PackedFloat32Array, post_r: PackedFloat32Array) -> void:
 	var waters := PackedFloat32Array()
 	var slots := PackedStringArray()
 
@@ -406,7 +406,7 @@ func _the_shallows_the_bands_never_narrower_tha(leader_mass: float, world: Hungr
 
 
 ## Reach: the floor recedes one band per line as a monster grows.
-func _the_shallows_reach_the_floor_recedes_one_(leader_mass: float, world: HungryWorld, bounds: Rect2, layout: HungryLayout, rules: Dot2DMassRules, lines: int, short_half: float, widths: PackedFloat32Array, won: float, line_x: PackedFloat32Array, post_r: PackedFloat32Array, waters: PackedFloat32Array) -> void:
+func _the_shallows_reach_the_floor_recedes_one_(leader_mass: float, world: HungryWorld, bounds: Rect2, layout: HungryLayout, rules: GS2DMassRules, lines: int, short_half: float, widths: PackedFloat32Array, won: float, line_x: PackedFloat32Array, post_r: PackedFloat32Array, waters: PackedFloat32Array) -> void:
 	# The middle bay in front of the inlet: the open wall's own middle is the inlet's room.
 	var open_water := _shallows_open_water(layout, bounds)
 	var all := layout.reach(bounds, open_water, widths[0] * 0.5 - 16.0)
@@ -462,7 +462,7 @@ func _the_shallows_reach_the_floor_recedes_one_(leader_mass: float, world: Hungr
 
 
 ## Hunters: the deepest band is refused them.
-func _the_shallows_hunters_the_deepest_band_is_(leader_mass: float, world: HungryWorld, bounds: Rect2, layout: HungryLayout, rules: Dot2DMassRules, lines: int, widths: PackedFloat32Array, won: float, line_x: PackedFloat32Array, post_r: PackedFloat32Array, waters: PackedFloat32Array, open_water: Vector2) -> void:
+func _the_shallows_hunters_the_deepest_band_is_(leader_mass: float, world: HungryWorld, bounds: Rect2, layout: HungryLayout, rules: GS2DMassRules, lines: int, widths: PackedFloat32Array, won: float, line_x: PackedFloat32Array, post_r: PackedFloat32Array, waters: PackedFloat32Array, open_water: Vector2) -> void:
 	var lurker := HungryHunters.largest_radius()
 	var region := layout.main_region(bounds, lurker)
 	var deep := Vector2(bounds.position.x + waters[0] * 0.5, bounds.get_center().y)
@@ -513,7 +513,7 @@ func _the_shallows_hunters_the_deepest_band_is_(leader_mass: float, world: Hungr
 
 
 ## A middling monster: as far as its size allows.
-func _the_shallows_a_middling_monster_as_far_as(leader_mass: float, world: HungryWorld, bounds: Rect2, layout: HungryLayout, rules: Dot2DMassRules, lines: int, widths: PackedFloat32Array, won: float, line_x: PackedFloat32Array, post_r: PackedFloat32Array, open_water: Vector2, monster: HungryMonster, small_drive: Dictionary) -> void:
+func _the_shallows_a_middling_monster_as_far_as(leader_mass: float, world: HungryWorld, bounds: Rect2, layout: HungryLayout, rules: GS2DMassRules, lines: int, widths: PackedFloat32Array, won: float, line_x: PackedFloat32Array, post_r: PackedFloat32Array, open_water: Vector2, monster: HungryMonster, small_drive: Dictionary) -> void:
 	# Just over the second line's limit rather than halfway to the third's: halfway leaves
 	# 28 units a side in the third line's gaps, less than the 40 short of a waypoint that
 	# counts as reaching it, and a route pulled tight past a post then clips it.

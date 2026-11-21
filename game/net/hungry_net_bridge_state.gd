@@ -1,4 +1,4 @@
-extends DotGameNetIo
+extends GSGameNetIo
 
 const HungryContent := preload("../hungry_content.gd")
 
@@ -28,16 +28,16 @@ const HungryWorld := preload("../hungry_world.gd")
 
 ## How far a reconcile has to move the owning client's monster before dot-net counts a correction, in
 ## [b]pixels[/b]. The 0.01 default is below the 1/128 the wire quantises a position to, so every replay
-## read as a correction; half a pixel is the least a screen shows. Every DotNetConfig here sets it.
+## read as a correction; half a pixel is the least a screen shows. Every GSNetConfig here sets it.
 const RECONCILE_EPSILON := 0.5
 
-## Joins a [HungryWorld] to a [DotNetManager]: the netcode seam, and the only file naming both.
+## Joins a [HungryWorld] to a [GSNetManager]: the netcode seam, and the only file naming both.
 ## dot-net ticks per entity but this game's tick order is whole-world; [method ensure_world_ticked]
 ## reconciles the two. Server drives `server_tick(tick)` instead of `world.tick()`, client `client_tick`.
 
 const CHANNEL := "hungry.net"
 
-## Bytes [method DotNetManager.encode_ack] produces, and the prefix of every input
+## Bytes [method GSNetManager.encode_ack] produces, and the prefix of every input
 ## packet. Fixed width, so the command that follows starts at a known offset.
 const ACK_BYTES := 4
 
@@ -66,21 +66,21 @@ signal roster_changed(player_id: int)
 signal cue(kind: int, data: Dictionary)
 
 ## Somebody pressed Enter. Server side, and the only thing this bridge does with chat.
-## The bridge carries chat and decides nothing: [DotChatRouter] owns the rules, [HungryModule] joins
+## The bridge carries chat and decides nothing: [GSChatRouter] owns the rules, [HungryModule] joins
 ## the two.
 signal say_requested(peer_id: int, channel_id: StringName, text: String)
 
-## Somebody typed a vote command. Server side; the token is resolved by a [DotVoteSource].
+## Somebody typed a vote command. Server side; the token is resolved by a [GSVoteSource].
 signal vote_requested(peer_id: int, token: String)
 
 ## A voice frame arrived. Server side; the payload has not been parsed and must not be
-## trusted — [method DotVoiceRouter.relay] is what stamps the speaker.
+## trusted — [method GSVoiceRouter.relay] is what stamps the speaker.
 signal voice_requested(peer_id: int, payload: PackedByteArray)
 
-## A chat line landed. Client side, for [DotChatClient].
+## A chat line landed. Client side, for [GSChatClient].
 signal chat_received(wire: Dictionary)
 
-## A voice frame landed. Client side, for [DotVoiceManager].
+## A voice frame landed. Client side, for [GSVoiceManager].
 signal voice_arrived(payload: PackedByteArray)
 
 ## A hunter's state landed. Client side; see [HungryHunters].
@@ -99,19 +99,19 @@ signal vote_cue_received(state: Dictionary)
 var world: HungryWorld = null
 
 ## The schema both ends dress a rider from. Content, delivered like the meshes are.
-var avatar_schema: DotAvatarSchema = null
+var avatar_schema: GSAvatarSchema = null
 
 ## What a player may bring in. The same schema on both ends, and the whole of what a
 ## server checks a loadout against.
-var loadout_schema: DotLoadoutSchema = null
+var loadout_schema: GSLoadoutSchema = null
 
-## `func(player_id: int, loadout: DotLoadout) -> DotResult`. Where a published loadout goes. Server side.
-## A [Callable], not a [DotLoadoutManager], because the store is a deployment decision. Unset, a
+## `func(player_id: int, loadout: GSLoadout) -> GSResult`. Where a published loadout goes. Server side.
+## A [Callable], not a [GSLoadoutManager], because the store is a deployment decision. Unset, a
 ## loadout is validated and applied for the session without being saved.
 var loadout_sink: Callable = Callable()
 
 ## What each player is entitled to. Server side.
-## `func(player_id: int) -> DotLoadoutEntitlements`. Unset, only items marked free are permitted,
+## `func(player_id: int) -> GSLoadoutEntitlements`. Unset, only items marked free are permitted,
 ## a safe default that is wrong within thirty seconds rather than shipping free unlocks.
 var entitlement_source: Callable = Callable()
 
@@ -133,7 +133,7 @@ var _entities: Node = null
 
 var _match_behaviour: HungryMatchNet = null
 
-var _match_identity: DotNetIdentity = null
+var _match_identity: GSNetIdentity = null
 
 ## peer id -> player id, and back.
 var _player_of_peer: Dictionary = {}
@@ -156,7 +156,7 @@ var _behaviours: Dictionary = {}
 ## net id -> piece id.
 var _piece_of_net: Dictionary = {}
 
-## player id -> the [Dot2DCommand] their last input carried. Server side.
+## player id -> the [GS2DCommand] their last input carried. Server side.
 var _commands: Dictionary = {}
 
 var _tick: int = 0
@@ -171,14 +171,14 @@ var _field_dirty: bool = false
 
 
 ## Carries the workbench's profile runtime over this manager (rows down, for a remote admin's panel).
-var profile_link: DotNetProfileLink = null
+var profile_link: GSNetProfileLink = null
 
 ## The workbench's rows, made on first ask: the link must exist before the netcode seals, the workbench after.
-var profile_runtime: DotProfileRuntime = null
+var profile_runtime: GSProfileRuntime = null
 
-func ensure_runtime() -> DotProfileRuntime:
+func ensure_runtime() -> GSProfileRuntime:
 	if profile_runtime == null:
-		profile_runtime = DotProfileRuntime.new()
+		profile_runtime = GSProfileRuntime.new()
 		# A method, not a lambda: a static binder may keep the runtime past the tree (see HungryModule).
 		profile_runtime.permit = _local_permit
 	return profile_runtime
@@ -192,7 +192,7 @@ func _exit_tree() -> void:
 		profile_link.release()
 		profile_link = null
 
-func mass_rules() -> Dot2DMassRules:
+func mass_rules() -> GS2DMassRules:
 	var live := _live_world()
 	return live.tunables.mass_rules if live != null and live.tunables != null else null
 
@@ -201,7 +201,7 @@ func match_behaviour() -> HungryMatchNet:
 
 
 ## Sends an event to everybody who can receive one.
-## Peer by peer, not [method DotNetManager.send]'s broadcast, which also reaches peers that have not
+## Peer by peer, not [method GSNetManager.send]'s broadcast, which also reaches peers that have not
 ## built their scene ("Node not found", event lost). The cost is encoding the body once per peer.
 func _broadcast(kind: int, body: PackedByteArray) -> void:
 	if net == null or not net.is_server:
@@ -237,7 +237,7 @@ func player_for_peer(peer_id: int) -> int:
 	return int(_player_of_peer.get(peer_id, 0))
 
 ## Everybody who has said they can receive. Server side.
-## The set chat and voice are addressed against, not [method DotServer.sessions]: a session exists from
+## The set chat and voice are addressed against, not [method GSServer.sessions]: a session exists from
 ## the socket connecting, a ready peer can be sent to.
 func ready_peers() -> PackedInt32Array:
 	var out := PackedInt32Array()
@@ -273,14 +273,14 @@ func piece_count() -> int:
 	return _behaviours.size()
 
 
-func _entitlements_for(player_id: int) -> DotLoadoutEntitlements:
+func _entitlements_for(player_id: int) -> GSLoadoutEntitlements:
 	if not entitlement_source.is_valid():
-		return DotLoadoutEntitlements.none()
+		return GSLoadoutEntitlements.none()
 
 	var owned: Variant = entitlement_source.call(player_id)
 
-	return owned as DotLoadoutEntitlements if owned is DotLoadoutEntitlements \
-		else DotLoadoutEntitlements.none()
+	return owned as GSLoadoutEntitlements if owned is GSLoadoutEntitlements \
+		else GSLoadoutEntitlements.none()
 
 func describe() -> Dictionary:
 	return {

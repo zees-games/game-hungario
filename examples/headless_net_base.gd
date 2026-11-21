@@ -1,4 +1,4 @@
-extends DotGameCheckSuite
+extends GSGameCheckSuite
 
 const HungryContent := preload("../game/hungry_content.gd")
 
@@ -54,9 +54,9 @@ var _server_world: HungryWorld = null
 
 var _client_world: HungryWorld = null
 
-var _server_net: DotNetManager = null
+var _server_net: GSNetManager = null
 
-var _client_net: DotNetManager = null
+var _client_net: GSNetManager = null
 
 var _server_bridge: HungryNetBridge = null
 
@@ -107,8 +107,8 @@ func _make_world(authority: bool, scope: StringName) -> HungryWorld:
 
 	return world
 
-func _make_manager(server: bool, scope: StringName, peer_id: int) -> DotNetManager:
-	var manager := DotNetManager.new()
+func _make_manager(server: bool, scope: StringName, peer_id: int) -> GSNetManager:
+	var manager := GSNetManager.new()
 	manager.name = "Server" if server else "Client"
 	manager.is_server = server
 	manager.local_peer_id = peer_id
@@ -116,12 +116,12 @@ func _make_manager(server: bool, scope: StringName, peer_id: int) -> DotNetManag
 	manager.auto_tick = false
 	manager.config_file = ""
 
-	var config := DotNetConfig.new()
+	var config := GSNetConfig.new()
 	config.tick_rate = TICK_RATE
 	config.snapshot_rate = SNAPSHOT_RATE
 	config.enable_lag_compensation = false
 	config.max_entities_per_snapshot = 0
-	config.world_extent = Dot2DNetSync.WORLD_EXTENT
+	config.world_extent = GS2DNetSync.WORLD_EXTENT
 	config.reconcile_position_epsilon = HungryNetBridge.RECONCILE_EPSILON
 	manager.config = config
 
@@ -237,12 +237,12 @@ func _flush() -> void:
 		_server_bridge.link.deliver(entry["method"], CLIENT_PEER, entry["payload"])
 
 ## How far ahead of the server the client stamps its inputs, roughly.
-## A command for tick N must reach the server before it simulates N; [DotNetClock]'s input margin
+## A command for tick N must reach the server before it simulates N; [GSNetClock]'s input margin
 ## provides that, so the harness only drives the clock.
 const INPUT_LEAD := 2
 
 ## One tick of both halves, with the wire drained in between.
-func _step(command: Dot2DCommand = null) -> void:
+func _step(command: GS2DCommand = null) -> void:
 	_tick += 1
 	_server_bridge.server_tick(_tick)
 	_flush()
@@ -251,7 +251,7 @@ func _step(command: Dot2DCommand = null) -> void:
 
 ## One tick of the client, driven as `HungryClient._physics_process` drives it: advance the clock,
 ## predict and stamp every tick it moved through. Returns the last tick predicted, or -1.
-func _client_step(command: Dot2DCommand = null) -> int:
+func _client_step(command: GS2DCommand = null) -> int:
 	var clock := _client_net.clock
 	var ticks := clock.advance(1.0 / float(TICK_RATE))
 	var last := -1
@@ -261,12 +261,12 @@ func _client_step(command: Dot2DCommand = null) -> int:
 			continue
 		last = clock.input_tick() - (ticks - 1 - i)
 		_client_bridge.client_tick(
-			last, command if command != null else Dot2DCommand.new()
+			last, command if command != null else GS2DCommand.new()
 		)
 
 	return last
 
-func _steps(count: int, command: Dot2DCommand = null) -> void:
+func _steps(count: int, command: GS2DCommand = null) -> void:
 	for _i in range(count):
 		_step(command)
 
@@ -287,7 +287,7 @@ func _back_to(at: Vector2) -> void:
 ## [param ticks] more ticks holding [param command], comparing where the client predicted
 ## its monster at each tick with where the server had it at the SAME tick:
 ## `{worst, over}`, the second counting ticks more than eight units apart.
-func _admin_window(ticks: int, command: Dot2DCommand) -> Dictionary:
+func _admin_window(ticks: int, command: GS2DCommand) -> Dictionary:
 	var client_at := {}
 	var server_at := {}
 
@@ -336,7 +336,7 @@ func _put(world: HungryWorld, at: Vector2) -> void:
 ## [method _admin_window] against a named world and a rock: where the client predicted
 ## monster 7 at each tick against where [param world] had it at the SAME tick, and how many
 ## ticks the server's monster spent touching [param rock].
-func _rock_window(world: HungryWorld, ticks: int, command: Dot2DCommand, rock: Vector3) -> Dictionary:
+func _rock_window(world: HungryWorld, ticks: int, command: GS2DCommand, rock: Vector3) -> Dictionary:
 	var client_at := {}
 	var server_at := {}
 	var contact := 0

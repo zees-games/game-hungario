@@ -1,4 +1,4 @@
-extends DotGameCheckSuite
+extends GSGameCheckSuite
 
 const HungryContent := preload("../game/hungry_content.gd")
 const HungryContentSource := preload("../game/client/hungry_content_source.gd")
@@ -16,7 +16,7 @@ const HungryRider := preload("../game/client/hungry_rider.gd")
 ## [b]This is the "through the cloud" half of the avatar.[/b] Everywhere else in this
 ## project a rider's parts come out of the build, which is the fallback; here they are
 ## signed, hashed, fetched, verified and mounted at a version-namespaced path, and the
-## same [DotAvatarCatalogue] the renderer uses prefers them over what shipped.
+## same [GSAvatarCatalogue] the renderer uses prefers them over what shipped.
 ##
 ## The negative checks are the point of the file. A signature routine that always returned
 ## true, or a client that mounted whatever it was sent, would pass every positive check
@@ -30,15 +30,15 @@ const VERSION := "1.0.0"
 const CHECKS := 45
 const SECTIONS := 7
 
-var _client: DotCloudClient = null
+var _client: GSCloudClient = null
 var _keys: Dictionary = {}
-var _manifest: DotCloudManifest = null
+var _manifest: GSCloudManifest = null
 
 
 func _ready() -> void:
-	DotLog.set_level(
-		DotLog.Level.DEBUG if "--verbose" in OS.get_cmdline_user_args()
-		else DotLog.Level.ERROR
+	GSLog.set_level(
+		GSLog.Level.DEBUG if "--verbose" in OS.get_cmdline_user_args()
+		else GSLog.Level.ERROR
 	)
 	_run.call_deferred()
 
@@ -47,7 +47,7 @@ func _run() -> void:
 	print("game-hungario: avatar content, through the cloud")
 	print("")
 
-	DotPaths.remove_tree(WORK)
+	GSPaths.remove_tree(WORK)
 
 	if await _test_publish():
 		_test_signature()
@@ -60,7 +60,7 @@ func _run() -> void:
 		_test_refusals()
 
 	_teardown()
-	DotPaths.remove_tree(WORK)
+	GSPaths.remove_tree(WORK)
 
 	_report_sections(_entered, _completed, SECTIONS, CHECKS)
 
@@ -102,7 +102,7 @@ func _publish_dir() -> String:
 func _test_publish() -> bool:
 	_section("publishing")
 
-	var pair := DotCloudSignature.generate_keypair(2048)
+	var pair := GSCloudSignature.generate_keypair(2048)
 
 	if not _check(pair.ok, "a signing keypair is generated", str(pair.error)):
 		_done()
@@ -134,13 +134,13 @@ func _test_publish() -> bool:
 	# Godot pack *can* contain scripts — so a client that mounted content from an unsigned
 	# manifest would run whatever it was sent.
 
-	var bytes := DotPaths.read_bytes(str(result["manifest_path"]))
+	var bytes := GSPaths.read_bytes(str(result["manifest_path"]))
 
 	if not _check(bytes.ok, "the manifest is on disk", str(bytes.error)):
 		_done()
 		return false
 
-	var parsed := DotCloudManifest.from_json_bytes(bytes.value)
+	var parsed := GSCloudManifest.from_json_bytes(bytes.value)
 
 	if not _check(parsed.ok, "and parses", str(parsed.error)):
 		_done()
@@ -181,7 +181,7 @@ func _test_publish() -> bool:
 func _test_signature() -> void:
 	_section("the signature")
 
-	var good := DotCloudSignature.verify(
+	var good := GSCloudSignature.verify(
 		_manifest.raw_bytes, _manifest.signature, str(_keys["public"])
 	)
 	_check(good.ok, "verifies against the public key", str(good.error))
@@ -191,18 +191,18 @@ func _test_signature() -> void:
 	tampered[tampered.size() - 2] = 0x20
 
 	_check(
-		not DotCloudSignature.verify(
+		not GSCloudSignature.verify(
 			tampered, _manifest.signature, str(_keys["public"])
 		).ok,
 		"and a tampered manifest is refused"
 	)
 
 	# A different key is the realistic attack: somebody else's perfectly valid signature.
-	var other := DotCloudSignature.generate_keypair(2048)
+	var other := GSCloudSignature.generate_keypair(2048)
 
 	if other.ok:
 		_check(
-			not DotCloudSignature.verify(
+			not GSCloudSignature.verify(
 				_manifest.raw_bytes, _manifest.signature, str((other.value)["public"])
 			).ok,
 			"and so is a valid signature from the wrong key"
@@ -224,13 +224,13 @@ func _test_signature() -> void:
 func _test_acquire() -> bool:
 	_section("acquiring")
 
-	var config := DotCloudConfig.new()
+	var config := GSCloudConfig.new()
 	config.cache_dir = WORK.path_join("cache")
 	config.require_signed_manifests = true
 	config.trusted_keys = {"default": str(_keys["public"])}
 	config.verify_before_mount = true
 
-	_client = DotCloudClient.new()
+	_client = GSCloudClient.new()
 	_client.name = "Cloud"
 	_client.config = config
 	# Empty, or start() layers a stale file over the settings above.
@@ -241,14 +241,14 @@ func _test_acquire() -> bool:
 	_client.allow_netchan_fallback = false
 	add_child(_client)
 
-	var started: DotResult = await _client.start()
+	var started: GSResult = await _client.start()
 
 	if not _check(started.ok, "the client starts", str(started.error)):
 		_done()
 		return false
 
 	_check(
-		DotRegistry.get_service(HungryContentSource.CLOUD_SERVICE) != null,
+		GSRegistry.get_service(HungryContentSource.CLOUD_SERVICE) != null,
 		"and registers itself where this game looks for it"
 	)
 
@@ -261,7 +261,7 @@ func _test_acquire() -> bool:
 		"nothing is cached yet (%d missing)" % int(plan["missing_files"])
 	)
 
-	var acquired: DotResult = await _client.acquire_manifest(_manifest)
+	var acquired: GSResult = await _client.acquire_manifest(_manifest)
 
 	if not _check(acquired.ok, "and it acquires", str(acquired.error)):
 		_done()
@@ -274,7 +274,7 @@ func _test_acquire() -> bool:
 
 	# Second time round it must be free. A client that re-downloaded on every acquire
 	# would work perfectly and cost a player their data allowance.
-	var again: DotResult = await _client.acquire_manifest(_manifest)
+	var again: GSResult = await _client.acquire_manifest(_manifest)
 	_check(again.ok, "and acquiring it again is idempotent")
 
 	_done()
@@ -323,7 +323,7 @@ func _test_resolution() -> void:
 	_section("resolving through the catalogue")
 
 	var schema := HungryContent.avatar_schema()
-	var catalogue := DotAvatarCatalogue.new()
+	var catalogue := GSAvatarCatalogue.new()
 	var source := HungryContentSource.new()
 	source.install(catalogue)
 
@@ -353,7 +353,7 @@ func _test_resolution() -> void:
 	# A part id is a name, not a path. The avatar schema bounds ids to base64url characters
 	# so one cannot contain a separator, but this builds a path out of it and the check is
 	# where the path is built.
-	var hostile := DotAvatarPart.make(&"x", &"body", true)
+	var hostile := GSAvatarPart.make(&"x", &"body", true)
 	hostile.id = StringName("../../../addons/dot_core/dot_core_plugin")
 	_check(
 		source.resolve_part(hostile) == "",
@@ -366,12 +366,12 @@ func _test_rider() -> void:
 	_section("a rider dressed from the pack")
 
 	var schema := HungryContent.avatar_schema()
-	var catalogue := DotAvatarCatalogue.new()
+	var catalogue := GSAvatarCatalogue.new()
 	var source := HungryContentSource.new()
 	source.install(catalogue)
 	source.adopt_mount(_manifest.mount_prefix())
 
-	var avatar := DotAvatar.make(schema.id)
+	var avatar := GSAvatar.make(schema.id)
 	avatar.set_part(&"body", &"rider_spike")
 	avatar.set_part(&"hat", &"hat_crown")
 	avatar.set_part(&"trail", &"trail_ember")
@@ -420,7 +420,7 @@ func _test_rider() -> void:
 		)
 		_check(
 			(built.get("tint_a") as Color).is_equal_approx(
-				DotAvatar.quantise(Color(0.2, 0.9, 0.5))
+				GSAvatar.quantise(Color(0.2, 0.9, 0.5))
 			),
 			"tinted from the document"
 		)
@@ -443,15 +443,15 @@ func _test_refusals() -> void:
 
 	# A manifest signed by a key the client does not trust. This is the whole trust
 	# boundary: everything downstream believes the hashes and the paths in it.
-	var stranger := DotCloudSignature.generate_keypair(2048)
+	var stranger := GSCloudSignature.generate_keypair(2048)
 
 	if stranger.ok:
-		var config := DotCloudConfig.new()
+		var config := GSCloudConfig.new()
 		config.cache_dir = WORK.path_join("cache2")
 		config.require_signed_manifests = true
 		config.trusted_keys = {"default": str((stranger.value)["public"])}
 
-		var wary := DotCloudClient.new()
+		var wary := GSCloudClient.new()
 		wary.name = "Wary"
 		wary.config = config
 		wary.config_file = ""
@@ -474,10 +474,10 @@ func _test_refusals() -> void:
 	var unsigned := HungryContentSource.publish(unsigned_dir, "", "9.9.9")
 
 	if _check(unsigned.ok, "an unsigned pack publishes", str(unsigned.error)):
-		var bytes := DotPaths.read_bytes(
+		var bytes := GSPaths.read_bytes(
 			str((unsigned.value as Dictionary)["manifest_path"])
 		)
-		var parsed := DotCloudManifest.from_json_bytes(bytes.value)
+		var parsed := GSCloudManifest.from_json_bytes(bytes.value)
 
 		if parsed.ok:
 			var refused_unsigned := _client.verify_manifest(parsed.value)
@@ -491,7 +491,7 @@ func _test_refusals() -> void:
 	# non-empty, and the mount prefix interpolates the raw string — so a manifest
 	# declaring one used to validate cleanly and mount at res://, which is exactly the
 	# shadowing the namespace exists to prevent.
-	var escaped := DotCloudManifest.new()
+	var escaped := GSCloudManifest.new()
 	escaped.content_id = HungryContentSource.PACK_ID
 	escaped.version = "../.."
 	escaped.mount_root = "dot_cloud"

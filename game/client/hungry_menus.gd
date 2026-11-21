@@ -10,25 +10,25 @@ const HungryWorld := preload("../hungry_world.gd")
 ## [b]The Escape menu is dot-menu's[/b] ([HungrySettings]): Loadout, Game, the stock pages,
 ## the Controls page over [HungryBindings], Help & commands and Leave, as in every game of
 ## the family. Until 2026-10-12 this file built dot-ui's pause, settings, controls and
-## loadout screens over a `DotConfig` and a bindings file of their own; the settings and keys
+## loadout screens over a `GSConfig` and a bindings file of their own; the settings and keys
 ## moved into the menu's document, and [HungrySettings] migrated the files.
 
-## Dresses dot-menu's Tab board (the one [DotGameClient] holds on Tab) for this game: the
+## Dresses dot-menu's Tab board (the one [GSGameClient] holds on Tab) for this game: the
 ## columns, the world's own rank order, and the rows from the world. [param bridge] names the
 ## local player; null draws no "you".
 ##
 ## The rows are the world's, every monster, bots included, ranked by mass, with the server's
 ## time and ping merged in for the ones that are people. The roster the link feeds carries
 ## those; solo the platform's snapshot is empty and `prepare` fills the rows.
-static func dress_board(board: DotMenuScoreboard, world: HungryWorld, bridge: HungryNetBridge) -> void:
+static func dress_board(board: GSMenuScoreboard, world: HungryWorld, bridge: HungryNetBridge) -> void:
 	board.title_text = "Hungario"
 	board.columns = [
-		{"key": &"rank", "title": "#", "width": 0.4, "kind": DotMenuScoreboard.KIND_NUMBER},
+		{"key": &"rank", "title": "#", "width": 0.4, "kind": GSMenuScoreboard.KIND_NUMBER},
 		{"key": &"name", "title": "Monster", "width": 3.0},
-		{"key": &"mass", "title": "Mass", "kind": DotMenuScoreboard.KIND_NUMBER},
-		{"key": &"pieces", "title": "Pieces", "kind": DotMenuScoreboard.KIND_NUMBER},
-		{"key": &"seconds", "title": "Time", "kind": DotMenuScoreboard.KIND_DURATION},
-		{"key": &"ping", "title": "Ping", "kind": DotMenuScoreboard.KIND_PING},
+		{"key": &"mass", "title": "Mass", "kind": GSMenuScoreboard.KIND_NUMBER},
+		{"key": &"pieces", "title": "Pieces", "kind": GSMenuScoreboard.KIND_NUMBER},
+		{"key": &"seconds", "title": "Time", "kind": GSMenuScoreboard.KIND_DURATION},
+		{"key": &"ping", "title": "Ping", "kind": GSMenuScoreboard.KIND_PING},
 	]
 	board.sort_with = func(a: Dictionary, b: Dictionary) -> bool: return int(a.get("rank", 0)) < int(b.get("rank", 0))
 	board.prepare = func(snap: Dictionary) -> void: _rows_from_world(snap, world, bridge)
@@ -66,7 +66,7 @@ static func _rows_from_world(snap: Dictionary, world: HungryWorld, bridge: Hungr
 ## What you bring in: a starting throwable and a trait, as the Escape menu's first page.
 ##
 ## [b]The page never decides what is legal.[/b] It offers what
-## [method DotLoadoutSchema.choices_for] says this player may take — which is the schema
+## [method GSLoadoutSchema.choices_for] says this player may take — which is the schema
 ## and their entitlements, and nothing else — and the server validates the result anyway.
 ## A page that filtered on its own would drift from the server the first time an unlock
 ## changed, and a page the server trusted would be a client choosing its own stats.
@@ -75,9 +75,9 @@ static func _rows_from_world(snap: Dictionary, world: HungryWorld, bridge: Hungr
 ## the player's document; each choice is sent as it is made ([method on_chosen]) and takes
 ## effect at the next spawn.
 class LoadoutPage extends RefCounted:
-	var schema: DotLoadoutSchema = null
-	var entitlements: DotLoadoutEntitlements = null
-	var page: DotMenuPage = null
+	var schema: GSLoadoutSchema = null
+	var entitlements: GSLoadoutEntitlements = null
+	var page: GSMenuPage = null
 
 	# What the rows read and write. A dictionary the rows' callables capture, never this
 	# object: a row holding a callable bound to its own page's owner is a cycle of
@@ -86,30 +86,30 @@ class LoadoutPage extends RefCounted:
 	var _state: Dictionary = {"picked": {}, "chosen": Callable(), "redraw": Callable()}
 	var _rows: Dictionary = {}
 
-	func _init(p_schema: DotLoadoutSchema) -> void:
+	func _init(p_schema: GSLoadoutSchema) -> void:
 		schema = p_schema
 		# Nothing owned until a server says otherwise. Offering everything and letting the
 		# server refuse it is a page that offers things it cannot deliver.
-		entitlements = DotLoadoutEntitlements.none()
-		page = DotMenuPage.make(&"loadout", "Loadout",
+		entitlements = GSLoadoutEntitlements.none()
+		page = GSMenuPage.make(&"loadout", "Loadout",
 			"What you bring in. The server checks it, and it takes effect the next time you spawn.")
 		var section := page.section("What you bring in")
 		var state := _state
 		var s := schema
 		for slot in schema.ordered_slots():
 			var id: StringName = slot.id
-			var row := DotMenuRow.live_select(slot.display_name, "", [],
+			var row := GSMenuRow.live_select(slot.display_name, "", [],
 				func() -> Variant: return (state["picked"] as Dictionary).get(id, &""),
 				func(value: Variant) -> void: LoadoutPage._choose(state, s, id, StringName(str(value)))
 			).named(StringName("loadout_%s" % id))
 			_rows[id] = row
 			section.add(row)
-		section.add(DotMenuRow.note("").described_by(
+		section.add(GSMenuRow.note("").described_by(
 			func() -> String: return LoadoutPage.describe(state["picked"])
 		).named(&"loadout_summary"))
 		refresh()
 
-	## [param fn] is `func(loadout: DotLoadout)`, called with each choice as it is made.
+	## [param fn] is `func(loadout: GSLoadout)`, called with each choice as it is made.
 	func on_chosen(fn: Callable) -> void:
 		_state["chosen"] = fn
 
@@ -127,22 +127,22 @@ class LoadoutPage extends RefCounted:
 			for item in schema.choices_for(slot.id, entitlements):
 				options.append([item.id, item.display_name])
 				still = still or item.id == picked.get(slot.id, &"")
-			(_rows[slot.id] as DotMenuRow).options = options
+			(_rows[slot.id] as GSMenuRow).options = options
 			if not still:
 				picked[slot.id] = options[0][0] if not options.is_empty() else &""
 
 	## Takes what a server says this player owns, and re-offers accordingly.
-	func allow(owned: DotLoadoutEntitlements) -> void:
-		entitlements = owned if owned != null else DotLoadoutEntitlements.none()
+	func allow(owned: GSLoadoutEntitlements) -> void:
+		entitlements = owned if owned != null else GSLoadoutEntitlements.none()
 		refresh()
 
 	## Shows a loadout the player already has, so the page opens on what they are wearing.
-	func show_loadout(loadout: DotLoadout) -> void:
+	func show_loadout(loadout: GSLoadout) -> void:
 		if loadout == null:
 			return
 		for slot in schema.ordered_slots():
 			var wanted := loadout.item_in(slot.id)
-			for option in (_rows[slot.id] as DotMenuRow).options:
+			for option in (_rows[slot.id] as GSMenuRow).options:
 				if option[0] == wanted:
 					_state["picked"][slot.id] = wanted
 
@@ -150,14 +150,14 @@ class LoadoutPage extends RefCounted:
 		return (_state["picked"] as Dictionary).get(slot_id, &"")
 
 	## The loadout the page currently describes.
-	func current() -> DotLoadout:
+	func current() -> GSLoadout:
 		return LoadoutPage.loadout_of(schema, _state["picked"])
 
 	func summary() -> String:
 		return LoadoutPage.describe(_state["picked"])
 
-	static func loadout_of(p_schema: DotLoadoutSchema, picked_items: Dictionary) -> DotLoadout:
-		var loadout := DotLoadout.empty(p_schema.id)
+	static func loadout_of(p_schema: GSLoadoutSchema, picked_items: Dictionary) -> GSLoadout:
+		var loadout := GSLoadout.empty(p_schema.id)
 		for slot in p_schema.ordered_slots():
 			var item: StringName = picked_items.get(slot.id, &"")
 			if item != &"":
@@ -176,7 +176,7 @@ class LoadoutPage extends RefCounted:
 			String(picked_items.get(HungryContent.SLOT_STARTER, &"")),
 		]
 
-	static func _choose(state: Dictionary, p_schema: DotLoadoutSchema, slot_id: StringName, item: StringName) -> void:
+	static func _choose(state: Dictionary, p_schema: GSLoadoutSchema, slot_id: StringName, item: StringName) -> void:
 		var picked_items: Dictionary = state["picked"]
 		if picked_items.get(slot_id, &"") == item:
 			return

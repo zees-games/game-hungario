@@ -1,4 +1,4 @@
-extends DotNetBehaviour
+extends GSNetBehaviour
 
 const HungryNetBridge := preload("hungry_net_bridge.gd")
 const HungryWorld := preload("../hungry_world.gd")
@@ -7,7 +7,7 @@ const HungryWorld := preload("../hungry_world.gd")
 ##
 ## [b]Why an entity of its own.[/b] Every client needs the round state and the clock
 ## whether or not it can see anybody, and there is no piece that is always in view — a
-## dead player has none at all. [member DotNetIdentity.always_relevant] is exactly the
+## dead player has none at all. [member GSNetIdentity.always_relevant] is exactly the
 ## exemption this wants, and it costs about fifty bits a snapshot.
 ##
 ## It is also the thing that keeps an empty server's match running: it is the only entity
@@ -19,7 +19,7 @@ const HungryWorld := preload("../hungry_world.gd")
 var world: HungryWorld = null
 var bridge: HungryNetBridge = null
 
-# --- From DotMatchNetSync.specs() ---
+# --- From GSMatchNetSync.specs() ---
 var net_state: int = 0
 var net_round: int = 0
 var net_ends_at: int = 0
@@ -36,8 +36,8 @@ var last_state_tick: int = -1
 
 
 func _register_net_vars() -> void:
-	for spec in DotMatchNetSync.specs():
-		var declaration := replicate(spec["property"], DotNetVar.Type[spec["type"]])
+	for spec in GSMatchNetSync.specs():
+		var declaration := replicate(spec["property"], GSNetVar.Type[spec["type"]])
 
 		if int(spec["bits"]) > 0:
 			declaration.bits(int(spec["bits"]))
@@ -59,7 +59,7 @@ func _net_simulate(tick: int, _delta: float) -> void:
 		bridge.ensure_world_ticked(tick)
 
 	if world != null:
-		DotMatchNetSync.pull(world.match_node, self, tick)
+		GSMatchNetSync.pull(world.match_node, self, tick)
 
 
 func _net_state_applied(tick: int) -> void:
@@ -68,14 +68,14 @@ func _net_state_applied(tick: int) -> void:
 
 ## Seconds left on the clock, from the replicated end tick and this client's own tick.
 ##
-## Returns -1 when there is no clock, matching [method DotMatch.seconds_remaining], so a
+## Returns -1 when there is no clock, matching [method GSMatch.seconds_remaining], so a
 ## HUD has one branch rather than two.
 func seconds_remaining(current_tick: int, tick_rate: int) -> float:
-	return DotMatchNetSync.seconds_remaining(self, current_tick, tick_rate)
+	return GSMatchNetSync.seconds_remaining(self, current_tick, tick_rate)
 
 
 func state_name() -> String:
-	var names := DotMatch.State.keys()
+	var names := GSMatch.State.keys()
 	return String(names[net_state]) if net_state < names.size() else "?"
 
 

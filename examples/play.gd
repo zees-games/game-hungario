@@ -17,7 +17,7 @@ const HungryClient := preload("../game/client/hungry_client.gd")
 ## every client to load any scene in their build — so a game that ships inside its own
 ## build cannot be handed its client scene by the server. It loads its own, and this is
 ## the file that does it. A game delivered through dot-cloud puts a relative path in
-## [member DotGameDescriptor.client_scene] instead and never writes this.
+## [member GSGameDescriptor.client_scene] instead and never writes this.
 ##
 ## In a browser the address comes from the query string, so one export serves every
 ## server. See `web/embed.html`.
@@ -30,11 +30,11 @@ const CLIENT_SCENE := "res://game/client/hungry_client.tscn"
 ##
 ## [b]Named "Server", which looks wrong and is not.[/b] Godot routes an RPC by the
 ## receiver's node path relative to its [MultiplayerAPI] root, so a call from the server's
-## node arrives addressed to whatever that node is called. [DotClientLink] therefore has
-## to sit at the same relative path as [DotServer], and both of them are "Server".
+## node arrives addressed to whatever that node is called. [GSClientLink] therefore has
+## to sit at the same relative path as [GSServer], and both of them are "Server".
 const LINK_NAME := &"Server"
 
-var link: DotClientLink = null
+var link: GSClientLink = null
 var client: HungryClient = null
 
 var _root: Node = null
@@ -45,12 +45,12 @@ var _status: Label = null
 var _connect_button: Button = null
 
 ## The server list. Built on demand: somebody who followed a link straight into a game
-## never opens it, and a [DotBrowser] that exists is one sending packets on a timer.
+## never opens it, and a [GSBrowser] that exists is one sending packets on a timer.
 var _browser: HungryBrowser = null
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.INFO)
+	GSLog.set_level(GSLog.Level.INFO)
 
 	_arm_exit_timer()
 
@@ -76,8 +76,8 @@ func _ready() -> void:
 func _wanted_address() -> String:
 	# The query string first, because in a browser it is the only one a link can set and
 	# it is what makes one export serve every server.
-	if DotPlatform.is_web():
-		var from_page := DotWeb.query_param("server")
+	if GSPlatform.is_web():
+		var from_page := GSWeb.query_param("server")
 
 		if from_page != "":
 			return from_page
@@ -160,13 +160,13 @@ func _build_menu() -> void:
 
 	# A browser tab cannot listen, so there is nothing to host from here — and saying so
 	# once is better than a Host button that fails.
-	if DotPlatform.is_web():
+	if GSPlatform.is_web():
 		_status.text = "Browser build: client only."
 
 
 ## Opens the server list, building it the first time.
 ##
-## Built on demand, and it is not laziness: a [DotBrowser] that exists refreshes itself on
+## Built on demand, and it is not laziness: a [GSBrowser] that exists refreshes itself on
 ## a timer, which is a packet to every server it knows about — and somebody who followed a
 ## link straight into a game never opens this at all.
 func _open_browser() -> void:
@@ -196,12 +196,12 @@ func _connect() -> void:
 	_connect_button.disabled = true
 	_status.text = "Connecting…"
 
-	link = DotClientLink.new()
+	link = GSClientLink.new()
 	link.name = String(LINK_NAME)
 	link.player_name = _player_name.text.strip_edges()
 	_root.add_child(link)
 
-	link.phase_changed.connect(func(_phase: DotClientLink.Phase, text: String) -> void:
+	link.phase_changed.connect(func(_phase: GSClientLink.Phase, text: String) -> void:
 		if text != "":
 			_status.text = text
 	)
@@ -211,7 +211,7 @@ func _connect() -> void:
 	link.spawned.connect(_on_spawned)
 	link.disconnected.connect(_on_disconnected)
 
-	var connecting: DotResult = await link.connect_to_server(_address.text.strip_edges())
+	var connecting: GSResult = await link.connect_to_server(_address.text.strip_edges())
 
 	if not connecting.ok:
 		_status.text = str(connecting.error)
@@ -265,7 +265,7 @@ func _spawn_client(offline: bool) -> void:
 	_root.add_child(client)
 	_follow(client)
 
-	DotLog.info(CHANNEL, "playing", {"offline": offline})
+	GSLog.info(CHANNEL, "playing", {"offline": offline})
 
 
 ## Keeps [member client] on the client playing: solo, M's mode change puts a fresh one in

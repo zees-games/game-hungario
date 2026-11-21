@@ -51,7 +51,7 @@ var _booted := false
 
 
 func _initialize() -> void:
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.ERROR)
 	DirAccess.make_dir_recursive_absolute(OUT_DIR)
 
 	var wanted := &"warrens"
@@ -116,7 +116,7 @@ func _initialize() -> void:
 	_stand_at = at
 
 	# [b]Everything past this point waits for the first frame.[/b] `setup()` adds the
-	# world's `DotMatch` as a child, and a node added from `SceneTree._initialize` does not
+	# world's `GSMatch` as a child, and a node added from `SceneTree._initialize` does not
 	# get `_ready` until the tree's first iteration — the root is not inside the tree yet —
 	# so the match has built no scoreboard, and starting it, adding a player and ticking
 	# died on four "Nonexistent function ... in base 'Nil'" errors at every startup. They
@@ -233,10 +233,10 @@ func _workshop_preset() -> HungryPreset:
 		[0.1, -0.6, 0.06], [0.0, 0.0, 0.09],
 	]}))
 	doc.close()
-	var index := DotContentIndex.new()
-	index.set_session(DotContentIndex.SESSION_SOLO)
+	var index := GSContentIndex.new()
+	index.set_session(GSContentIndex.SESSION_SOLO)
 	index.add_pack({"content_id": "fixture/ruins", "version": "1.0.0", "prefix": "user://ws_shot/",
-		"session": DotContentIndex.SESSION_SOLO, "source": &"subscription",
+		"session": GSContentIndex.SESSION_SOLO, "source": &"subscription",
 		"provides": {"schema": 1, "title": "Fixture Pack", "kinds": ["map"], "entries": [
 			{"kind": "map", "id": "ruin", "name": "Ruin", "scene": "ruin.json", "map_kind": "arena"}]}})
 	var shop := HungryWorkshop.new()
@@ -295,7 +295,7 @@ func _boot() -> void:
 
 	if _touch:
 		# The real dot-menu in touch mode: only a frame says whether its Menu button shares a corner.
-		var menu := DotMenu.new()
+		var menu := GSMenu.new()
 		menu.name = "GameMenu"
 		var settings := HungrySettings.new()
 		settings.config.touch = &"on"
@@ -304,8 +304,8 @@ func _boot() -> void:
 		var _built := menu.setup()
 
 
-## Frame sequence after each still (GS_SHOT_FRAMES, set by the .sh); see DotShotSeq. The state machine holds still while it records, and `_seq_end` defers the quit until it is done.
-var _seq := DotShotSeq.new()
+## Frame sequence after each still (GS_SHOT_FRAMES, set by the .sh); see GSShotSeq. The state machine holds still while it records, and `_seq_end` defers the quit until it is done.
+var _seq := GSShotSeq.new()
 var _seq_active := false
 var _seq_end := false
 
@@ -629,8 +629,8 @@ func _ballot() -> void:
 	box.offset_top = 110.0
 	box.offset_bottom = -16.0
 	layer.add_child(box)
-	var panel := DotBallotPanel.new()
-	panel.ui_theme = DotUiTheme.space()
+	var panel := GSBallotPanel.new()
+	panel.ui_theme = GSUiTheme.space()
 	panel.local_voter = "1"
 	box.add_child(panel)
 	panel.show_state({

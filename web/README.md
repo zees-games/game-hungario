@@ -10,10 +10,10 @@ Every one of these is already encoded somewhere in dot-core; they are collected 
 
 | Constraint | What it means here |
 | --- | --- |
-| **No UDP.** `ENetMultiplayerPeer` is not in the web template at all | The server listens on **WebSocket**, and then *all* its clients do — `DotTransportAuto.require_web_clients` defaults to true for this reason |
+| **No UDP.** `ENetMultiplayerPeer` is not in the web template at all | The server listens on **WebSocket**, and then *all* its clients do — `GSTransportAuto.require_web_clients` defaults to true for this reason |
 | **A tab cannot listen** | The web build is a client. The server is somewhere else, always. `examples/play.tscn` says so on screen rather than offering a Host button that fails |
-| **No threads** unless the template was built for them | `DotScheduler` slices on the main thread inside a frame budget. Do not assume a worker |
-| **`user://` is an IndexedDB mirror** needing explicit flushes | Every write path calls `DotWeb.sync_filesystem()`. Settings and key bindings go through `DotPaths`, which does it |
+| **No threads** unless the template was built for them | `GSScheduler` slices on the main thread inside a frame budget. Do not assume a worker |
+| **`user://` is an IndexedDB mirror** needing explicit flushes | Every write path calls `GSWeb.sync_filesystem()`. Settings and key bindings go through `GSPaths`, which does it |
 | **Storage quota the user can refuse** | Nothing here caches anything large. The field is a seed, not a download |
 | **CORS, with `fetch()` refusing to say why it failed** | Serve the export and its assets from one origin, or set the headers below exactly |
 | **A mounted resource pack can never be unmounted** | dot-cloud namespaces content by `id/version`. The rider pack uses it: `res://dot_cloud/hungry_avatars/1.0.0/`, and a second version cannot shadow the first. The game itself still ships in the build |
@@ -23,7 +23,7 @@ Every one of these is already encoded somewhere in dot-core; they are collected 
 
 A player reaches this game through the client shell (`dot-server-deploy`) in a browser, which fetches the signed `game-hungario` dot-cloud pack from the CDN and mounts it; nothing is exported by hand for them. Publish with `dot-cloud/tools/publish_pack.sh --host-addons <addons.lock> --id game-hungario --version <next>`.
 
-`embed.html` and a hand export remain for running the game standalone behind your own origin. Export the "Web" preset to `web/build/index.html` with Godot's `--export-release`. The preset is not committed (`export_presets.cfg` carries absolute paths). Use `res://examples/play.tscn` as the main scene, Compatibility as the renderer, and leave Extensions and Thread Support off (`DotPlatform.has_threads()` is the check the family makes). Drop `embed.html` beside the exported `index.js`, `index.wasm` and `index.pck`; it takes the server from `?server=wss://host:port`.
+`embed.html` and a hand export remain for running the game standalone behind your own origin. Export the "Web" preset to `web/build/index.html` with Godot's `--export-release`. The preset is not committed (`export_presets.cfg` carries absolute paths). Use `res://examples/play.tscn` as the main scene, Compatibility as the renderer, and leave Extensions and Thread Support off (`GSPlatform.has_threads()` is the check the family makes). Drop `embed.html` beside the exported `index.js`, `index.wasm` and `index.pck`; it takes the server from `?server=wss://host:port`.
 
 ## Headers
 
@@ -67,6 +67,6 @@ Audio in a browser needs a user gesture before it will start. Tapping either but
 
 ## What is not here
 
-- **A server browser.** The page takes one address. Picking from a list is website-city's, and the reporting side of that already exists — `DotBackboneClient` posts a server's player count, map and roster to its site listing.
+- **A server browser.** The page takes one address. Picking from a list is website-city's, and the reporting side of that already exists — `GSBackboneClient` posts a server's player count, map and roster to its site listing.
 - **A real TLS setup.** Certificates, a reverse proxy and a domain are deployment, not code.
 - **A downloadable *game*.** The rider cosmetics are published, signed, fetched, verified and mounted for real — `examples/content.tscn` runs the whole path — and the game itself is a signed pack the shell fetches. Serving a pack from the same origin as the page is the easy case and needs none of the CORS headers above.

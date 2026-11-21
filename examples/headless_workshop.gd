@@ -1,11 +1,11 @@
-extends DotGameCheckSuite
+extends GSGameCheckSuite
 
 const HungryLayout := preload("../game/hungry_layout.gd")
 const HungryWorkshop := preload("../game/hungry_workshop.gd")
 const HungryWorld := preload("../game/hungry_world.gd")
 
 ## What a subscribed map pack does to this game's solo map list, against a fixture
-## [DotContentIndex] and never the process's shared one: a solo map is listed as Name [Pack],
+## [GSContentIndex] and never the process's shared one: a solo map is listed as Name [Pack],
 ## online lists none, a map kind the game does not accept is left out, the game's own ids win,
 ## a bad document is refused, and a chosen pack map builds a world with its rocks in it.
 ##
@@ -21,7 +21,7 @@ var _completed := 0
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.ERROR)
 	_run.call_deferred()
 
 
@@ -51,8 +51,8 @@ func _write(file: String, text: String) -> void:
 	f.close()
 
 
-func _index(session: StringName) -> DotContentIndex:
-	var index := DotContentIndex.new()
+func _index(session: StringName) -> GSContentIndex:
+	var index := GSContentIndex.new()
 	index.set_session(session)
 	var added := index.add_pack({
 		"content_id": "fixture/ruins", "version": "1.0.0", "prefix": DIR,
@@ -92,7 +92,7 @@ func _test_solo() -> void:
 	print("")
 	print("solo")
 	var shop := HungryWorkshop.new()
-	shop.follow(_index(DotContentIndex.SESSION_SOLO))
+	shop.follow(_index(GSContentIndex.SESSION_SOLO))
 	var names := _names(shop.rows())
 	_check(names.has("Ruin [Fixture Pack]"), "the accepted map is listed as Name [Pack]", str(names))
 	_check(not names.has("Run [Fixture Pack]"), "a map kind the game does not accept is filtered out")
@@ -104,11 +104,11 @@ func _test_online() -> void:
 	_entered += 1
 	print("")
 	print("online")
-	var index := _index(DotContentIndex.SESSION_SOLO)
+	var index := _index(GSContentIndex.SESSION_SOLO)
 	var shop := HungryWorkshop.new()
 	shop.follow(index)
 	_check(shop.rows().size() == 1, "listed while the index is solo")
-	index.set_session(DotContentIndex.SESSION_ONLINE)
+	index.set_session(GSContentIndex.SESSION_ONLINE)
 	_check(shop.rows().is_empty(), "gone when the session turns online")
 	_check(shop.preset_for(&"ruin") == null, "and not playable")
 	_completed += 1
@@ -119,7 +119,7 @@ func _test_ids_and_refused() -> void:
 	print("")
 	print("ids and refusals")
 	var shop := HungryWorkshop.new()
-	shop.follow(_index(DotContentIndex.SESSION_SOLO))
+	shop.follow(_index(GSContentIndex.SESSION_SOLO))
 	var names := _names(shop.rows())
 	_check(not names.has("Not Classic [Fixture Pack]"), "the game's own id wins", str(names))
 	_check(shop.refused.has("bad"), "the bad document is refused with a reason", str(shop.refused))
@@ -131,7 +131,7 @@ func _test_play() -> void:
 	print("")
 	print("play")
 	var shop := HungryWorkshop.new()
-	shop.follow(_index(DotContentIndex.SESSION_SOLO))
+	shop.follow(_index(GSContentIndex.SESSION_SOLO))
 	var preset := shop.preset_for(&"ruin")
 	_check(preset != null, "a preset is made for the chosen map")
 

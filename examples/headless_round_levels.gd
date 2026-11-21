@@ -69,7 +69,7 @@ func _test_the_harbours() -> void:
 	_the_harbours_part2(preset, world, bounds, centre, layout, rules, door)
 
 
-func _the_harbours_part2(preset: HungryPreset, world: HungryWorld, bounds: Rect2, centre: Vector2, layout: HungryLayout, rules: Dot2DMassRules, door: float) -> void:
+func _the_harbours_part2(preset: HungryPreset, world: HungryWorld, bounds: Rect2, centre: Vector2, layout: HungryLayout, rules: GS2DMassRules, door: float) -> void:
 	# [b]The design number.[/b] A sixth of the winning mass: past a starting monster,
 	# short of anybody who has eaten for a minute, and a tier below the slalom's near lane.
 	var door_admits := rules.mass_for(door * 0.5)
@@ -120,7 +120,7 @@ func _the_harbours_part2(preset: HungryPreset, world: HungryWorld, bounds: Rect2
 
 
 ## Reach, just too big for a door.
-func _the_harbours_reach_just_too_big_for_a_doo(world: HungryWorld, bounds: Rect2, centre: Vector2, layout: HungryLayout, rules: Dot2DMassRules, door: float) -> void:
+func _the_harbours_reach_just_too_big_for_a_doo(world: HungryWorld, bounds: Rect2, centre: Vector2, layout: HungryLayout, rules: GS2DMassRules, door: float) -> void:
 	var outgrown := door * 0.5 + 16.0
 	var open_floor := Vector2(centre.x - bounds.size.x * 0.25, centre.y)
 	var sweep := layout.reach(bounds, open_floor, outgrown)
@@ -159,7 +159,7 @@ func _the_harbours_reach_just_too_big_for_a_doo(world: HungryWorld, bounds: Rect
 
 
 ## Driven: a starting monster from the corridor into the harbour.
-func _the_harbours_driven_a_starting_monster_fr(world: HungryWorld, bounds: Rect2, centre: Vector2, layout: HungryLayout, rules: Dot2DMassRules, door: float, fence_at: Vector3, inside: Vector2) -> void:
+func _the_harbours_driven_a_starting_monster_fr(world: HungryWorld, bounds: Rect2, centre: Vector2, layout: HungryLayout, rules: GS2DMassRules, door: float, fence_at: Vector3, inside: Vector2) -> void:
 	var from := Vector2(centre.x - bounds.size.x * 0.2, centre.y - bounds.size.y * 0.3)
 	world.spawn(1, from)
 	_run_ticks(world, 2)
@@ -214,7 +214,7 @@ func _the_harbours_driven_a_starting_monster_fr(world: HungryWorld, bounds: Rect
 	_the_harbours_part5(world, bounds, layout, rules, door, fence_at, monster, route, reached, deepest, drive_from, drive_covered, drive_ground, drive_ticks)
 
 
-func _the_harbours_part5(world: HungryWorld, bounds: Rect2, layout: HungryLayout, rules: Dot2DMassRules, door: float, fence_at: Vector3, monster: HungryMonster, route: PackedVector2Array, reached: int, deepest: float, drive_from: Vector2, drive_covered: float, drive_ground: float, drive_ticks: int) -> void:
+func _the_harbours_part5(world: HungryWorld, bounds: Rect2, layout: HungryLayout, rules: GS2DMassRules, door: float, fence_at: Vector3, monster: HungryMonster, route: PackedVector2Array, reached: int, deepest: float, drive_from: Vector2, drive_covered: float, drive_ground: float, drive_ticks: int) -> void:
 	_drive_report(drive_from, route, drive_covered, drive_ticks, drive_ground)
 	_check(
 		deepest > -2.0,

@@ -30,7 +30,7 @@ const DEFAULT_PUB := "user://hungry_keys/content.pub"
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.INFO)
+	GSLog.set_level(GSLog.Level.INFO)
 	_run.call_deferred()
 
 
@@ -80,7 +80,7 @@ func _run() -> void:
 		HungryContentSource.PACK_ID, version
 	])
 	print("")
-	print("  A client needs the public key in DotCloudConfig.trusted_keys under the id")
+	print("  A client needs the public key in GSCloudConfig.trusted_keys under the id")
 	print("  'default', and this directory reachable over HTTP or on disk.")
 	print("  The public key is at %s" % public_path)
 
@@ -94,7 +94,7 @@ func _run() -> void:
 ## producing one would be a build that succeeds and content that never loads.
 func _key(key_path: String, public_path: String) -> String:
 	if FileAccess.file_exists(key_path):
-		var existing := DotPaths.read_text(key_path)
+		var existing := GSPaths.read_text(key_path)
 
 		if existing.ok:
 			print("  signing key      %s" % key_path)
@@ -104,7 +104,7 @@ func _key(key_path: String, public_path: String) -> String:
 		return ""
 
 	print("  signing key      generating a new one")
-	var made := DotCloudPublisher.generate_keys(key_path, public_path)
+	var made := GSCloudPublisher.generate_keys(key_path, public_path)
 
 	if not made.ok:
 		print("  FAILED  %s" % str(made.error))

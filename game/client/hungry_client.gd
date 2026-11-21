@@ -11,11 +11,11 @@ signal replaced(fresh: Node)
 
 
 func _ready() -> void:
-	DotLog.info(CHANNEL, "client starting")
+	GSLog.info(CHANNEL, "client starting")
 
 	# First, so the cover is up before anything below draws. A 2D game has no camera to wait for and nothing is frozen;
 	# the sampler is held and the offline tick waits instead. The cursor is the control, so the platform never captures it.
-	platform = DotGameClient.new()
+	platform = GSGameClient.new()
 	platform.name = "Platform"
 	platform.map_config_keys = HungryMapConfig.KEYS
 	platform.map_config_game = HungryMapConfig.GAME_ID
@@ -42,7 +42,7 @@ func _ready() -> void:
 	var built := _build()
 
 	if not built.ok:
-		DotLog.result(CHANNEL, "the client could not start", built)
+		GSLog.result(CHANNEL, "the client could not start", built)
 		return
 
 	if _offline:
@@ -50,7 +50,7 @@ func _ready() -> void:
 	elif link.has_method("is_playing") and bool(link.call("is_playing")):
 		_ask_world()
 	elif link.has_signal("spawned"):
-		# The scene can exist before the signon finishes, and asking a server that has not admitted this peer is a request it drops, so wait for `spawned` as [DotClientLink] does.
+		# The scene can exist before the signon finishes, and asking a server that has not admitted this peer is a request it drops, so wait for `spawned` as [GSClientLink] does.
 		link.connect("spawned", _ask_world, CONNECT_ONE_SHOT)
 	else:
 		_ask_world()
@@ -86,7 +86,7 @@ func _map_cvar_set(key: String, value: Variant) -> bool:
 	return res != null and bool(res.get("ok"))
 
 
-func _build() -> DotResult:
+func _build() -> GSResult:
 	world = HungryWorld.new()
 	world.name = "World"
 	world.preset = HungryPreset.classic()
@@ -122,11 +122,11 @@ func _build() -> DotResult:
 	_build_client_services()
 	_build_view()
 	_build_ui()
-	return DotResult.success(self)
+	return GSResult.success(self)
 
 
-func _build_netcode() -> DotResult:
-	net = DotNetManager.new()
+func _build_netcode() -> GSResult:
+	net = GSNetManager.new()
 	net.name = "Net"
 	net.is_server = false
 	net.local_peer_id = multiplayer.get_unique_id() if multiplayer != null else 2
@@ -136,13 +136,13 @@ func _build_netcode() -> DotResult:
 	net.auto_tick = false
 	net.config_file = ""
 
-	var config := DotNetConfig.new()
+	var config := GSNetConfig.new()
 	config.tick_rate = world.tick_rate
 	config.snapshot_rate = 20
 	config.enable_prediction = true
 	config.enable_lag_compensation = false
 	config.max_entities_per_snapshot = 0
-	config.world_extent = Dot2DNetSync.WORLD_EXTENT
+	config.world_extent = GS2DNetSync.WORLD_EXTENT
 	config.reconcile_position_epsilon = HungryNetBridge.RECONCILE_EPSILON
 	net.config = config
 	add_child(net)
@@ -165,14 +165,14 @@ func _build_netcode() -> DotResult:
 		return attached
 
 	# The server's order again (after the bridge): the remote workbench's frame.
-	workbench_remote = DotGameWorkbenchRemoteClient.attach(net)
+	workbench_remote = GSGameWorkbenchRemoteClient.attach(net)
 	net.messages.seal()
 
 	bridge.hello_received.connect(_on_hello)
 	bridge.cue.connect(_on_cue)
 	bridge.roster_changed.connect(_on_roster_changed)
 
-	# dot-server's own `chat_received` is deliberately not connected: the server cancels that path and routes every line through [DotChatRouter] onto this game's wire (see [method HungryModule._on_player_chat]),
+	# dot-server's own `chat_received` is deliberately not connected: the server cancels that path and routes every line through [GSChatRouter] onto this game's wire (see [method HungryModule._on_player_chat]),
 	# so connecting both would draw a line twice on a server on the old path.
 	bridge.chat_received.connect(_on_chat_wire)
 	bridge.hunter_received.connect(_on_hunter)
@@ -191,7 +191,7 @@ func _build_netcode() -> DotResult:
 ##
 ## Built after the bridge, because both halves need somewhere to send.
 func _build_client_services() -> void:
-	chat = DotChatClient.new()
+	chat = GSChatClient.new()
 	chat.name = "Chat"
 	# The same channel definitions the server routes with — shared rather than sent, for
 	# the arena-size reason: a client holding a different set would show a line on a
@@ -230,7 +230,7 @@ func _build_client_services() -> void:
 			bridge.link.send_voice(1, bytes)
 	add_child(voice)
 
-	voice.setup(not DotPlatform.is_headless())
+	voice.setup(not GSPlatform.is_headless())
 	bridge.voice_arrived.connect(voice.receive)
 
 
@@ -298,10 +298,10 @@ func _wire_falls() -> void:
 
 
 ## The server's `sv_ragdoll*` set on a connected client: this end draws the falls.
-var ragdoll_rules: DotPlayerRagdollRules = DotPlayerRagdollRules.new()
+var ragdoll_rules: GSPlayerRagdollRules = GSPlayerRagdollRules.new()
 
 ## The server's `hungry_ambient*` set on a connected client; offline the defaults.
-var ambient_rules: DotAmbienceRules = HungryAmbience.make_rules()
+var ambient_rules: GSAmbienceRules = HungryAmbience.make_rules()
 
 
 ## Settings, audio, effects and the console, over the config and the bank this game has.
@@ -322,7 +322,7 @@ func _build_presentation() -> void:
 		platform.look_voice = voice.manager
 		platform.look_chat = chat
 		platform.look_target_fn = _look_target
-	DotLog.result(CHANNEL, "the platform", platform.setup())
+	GSLog.result(CHANNEL, "the platform", platform.setup())
 	if _offline:
 		_add_workbench()
 	if world != null and world.preset != null:
@@ -340,7 +340,7 @@ func _build_presentation() -> void:
 	# one list rather than two that drift.
 	presentation.config = settings if settings != null else HungryConfig.new()
 	add_child(presentation)
-	DotLog.result(CHANNEL, "the presentation layer", presentation.setup())
+	GSLog.result(CHANNEL, "the presentation layer", presentation.setup())
 	if link != null and not _offline:
 		var _ambient := ambient_rules.follow_cvars(link)
 	if presentation.ambient != null:
@@ -356,17 +356,17 @@ func _build_presentation() -> void:
 func _add_workbench() -> void:
 	HungryTuning.load_all()
 	HungryModes.load_all()
-	var wb := DotGameWorkbench.new()
+	var wb := GSGameWorkbench.new()
 	wb.name = "Workbench"
 	wb.listen_host_fn = func() -> bool: return true
-	for set: DotProfileSet in HungryTuning.binder.profile_sets():
+	for set: GSProfileSet in HungryTuning.binder.profile_sets():
 		wb.add_set(set, "Server settings: %s" % set.rel_path.trim_prefix("config_"))
 	for id in HungryModes.IDS:
 		wb.add_set(HungryModes.binders[id].profile_set(), "Mode: %s" % id)
 	add_child(wb)
-	var rt := DotProfileRuntime.new()
+	var rt := GSProfileRuntime.new()
 	var started := wb.start(rt)
-	DotLog.result(CHANNEL, "the workbench", started)
+	GSLog.result(CHANNEL, "the workbench", started)
 	if started.ok:
 		HungryTuning.binder.attach(rt)
 		for id in HungryModes.IDS:
@@ -381,18 +381,18 @@ func _start_remote_workbench() -> void:
 		return
 	HungryTuning.load_all()
 	HungryModes.load_all()
-	var wb := DotGameWorkbench.new()
+	var wb := GSGameWorkbench.new()
 	wb.name = "Workbench"
 	wb.remote_client = workbench_remote
 	wb.remote_fn = func() -> bool: return true
 	wb.config = {"enabled": false}
-	for set: DotProfileSet in HungryTuning.binder.profile_sets():
+	for set: GSProfileSet in HungryTuning.binder.profile_sets():
 		wb.add_set(set, "Server settings: %s" % set.rel_path.trim_prefix("config_"))
 	for id in HungryModes.IDS:
 		wb.add_set(HungryModes.binders[id].profile_set(), "Mode: %s" % id)
 	add_child(wb)
 	var started := wb.start(bridge.ensure_runtime())
-	DotLog.result(CHANNEL, "the remote workbench", started)
+	GSLog.result(CHANNEL, "the remote workbench", started)
 	if not started.ok:
 		wb.queue_free()
 		return
@@ -429,14 +429,14 @@ const MODE_BLURBS := {
 ## Solo: plays [param id] now, as a fresh client on that preset in this one's place, which is
 ## what a server's mode change is (a game change). Deferred, because the menu that asked is
 ## this client's own child and is still handling the key.
-func change_mode_offline(id: StringName) -> DotResult:
+func change_mode_offline(id: StringName) -> GSResult:
 	if not _offline:
-		return DotResult.fail(DotError.CODE_STATE, "The server changes the mode.")
+		return GSResult.fail(GSError.CODE_STATE, "The server changes the mode.")
 	if not MODE_IDS.has(id) and not (workshop != null and workshop.has(id)):
-		return DotResult.fail(DotError.CODE_INVALID, "There is no mode called '%s'." % id)
+		return GSResult.fail(GSError.CODE_INVALID, "There is no mode called '%s'." % id)
 	_replace_with.call_deferred(id)
-	DotLog.info(CHANNEL, "mode changed from the map menu", {"mode": String(id)})
-	return DotResult.success(id)
+	GSLog.info(CHANNEL, "mode changed from the map menu", {"mode": String(id)})
+	return GSResult.success(id)
 
 
 func _replace_with(id: StringName) -> void:
@@ -457,22 +457,22 @@ func _replace_with(id: StringName) -> void:
 
 
 func _build_ui() -> void:
-	ui_config = DotUiConfig.new()
+	ui_config = GSUiConfig.new()
 	ui_config.allow_pause = _offline
 
 	var layer := CanvasLayer.new()
 	layer.name = "UI"
 	add_child(layer)
 
-	screens = DotScreenStack.new()
+	screens = GSScreenStack.new()
 	screens.name = "Screens"
 	screens.config = ui_config
 	screens.load_layered_config = false
 	screens.register_service = true
 	screens.service_scope = &"hungry"
 	# A blob game is played with a visible cursor: the cursor is the control.
-	screens.idle_mouse_mode = DotScreen.Mouse.VISIBLE
-	screens.ui_theme = DotUiTheme.space()
+	screens.idle_mouse_mode = GSScreen.Mouse.VISIBLE
+	screens.ui_theme = GSUiTheme.space()
 	layer.add_child(screens)
 	screens.setup()
 
@@ -491,8 +491,8 @@ func _build_ui() -> void:
 		hud.touch.fit_client = platform
 		HungryTouch.touch_layout(hud.touch.throw_label()).apply(hud.touch.buttons, platform)
 
-	if platform.board is DotMenuScoreboard:
-		HungryMenus.dress_board(platform.board as DotMenuScoreboard, world, bridge)
+	if platform.board is GSMenuScoreboard:
+		HungryMenus.dress_board(platform.board as GSMenuScoreboard, world, bridge)
 
 	# Escape, H and Leave are dot-menu's, built with the player's settings by the presentation
 	# layer. What is this game's is the Loadout page, first, because Escape is where a player
@@ -635,7 +635,7 @@ func _process(delta: float) -> void:
 		if hud != null:
 			hud.refresh_leaderboard()
 
-		var board := platform.board as DotMenuScoreboard
+		var board := platform.board as GSMenuScoreboard
 
 		if board != null and board.is_open():
 			board.redraw()
@@ -652,7 +652,7 @@ func _start_offline() -> void:
 	world.add_player(1, "You")
 
 	# Named from dot-bot's pool, as a server's are; never "Bot 3".
-	var roster := DotBotRoster.new()
+	var roster := GSBotRoster.new()
 	var taken: Array = ["You"]
 	for index in range(offline_bots):
 		var id := 100 + index
@@ -663,25 +663,25 @@ func _start_offline() -> void:
 
 	# How well they play: `bot_difficulty` (and every `bot_*`) at the console, or
 	# `-- --bot_difficulty <preset>` at launch. The same settings a server binds as cvars.
-	var skill := DotBotSettings.of(world)
+	var skill := GSBotSettings.of(world)
 	var args := OS.get_cmdline_user_args()
 	var at := args.find("--bot_difficulty")
 	if at >= 0 and at + 1 < args.size():
-		DotLog.result(CHANNEL, "bot difficulty from the command line", skill.set_difficulty(args[at + 1]))
+		GSLog.result(CHANNEL, "bot difficulty from the command line", skill.set_difficulty(args[at + 1]))
 	if presentation != null and presentation.local_console != null:
 		var _bound := skill.bind_console(presentation.local_console)
 
-	DotLog.info(CHANNEL, "playing offline", {"bots": _bots.size()})
+	GSLog.info(CHANNEL, "playing offline", {"bots": _bots.size()})
 
 
 ## The sampler's command, remembering which of the two mass actions it asked for.
-func _sample(delta: float = 0.0) -> Dot2DCommand:
+func _sample(delta: float = 0.0) -> GS2DCommand:
 	# Nothing is steered or split behind the cover: the sampler is suspended while the platform
 	# blocks input, and hands back a neutral command, which the tick still needs to send.
 	var command := sampler.sample(delta)
 	var now := Time.get_ticks_msec()
 
-	for button in [Dot2DCommand.BUTTON_SPLIT, Dot2DCommand.BUTTON_EJECT]:
+	for button in [GS2DCommand.BUTTON_SPLIT, GS2DCommand.BUTTON_EJECT]:
 		if command.is_pressed(int(button)):
 			_asked_at[button] = now
 
@@ -722,7 +722,7 @@ func _on_game_changed_online(_game_id: String, _content_id: String, _name: Strin
 		return
 	_map_held = true
 	platform.gate.hold(REASON_MAP, "Changing map")
-	DotLog.debug(CHANNEL, "the server changed the game; covering until the new world arrives")
+	GSLog.debug(CHANNEL, "the server changed the game; covering until the new world arrives")
 
 
 ## The new world is in: the link has finished the game change (`spawned`, after
@@ -738,7 +738,7 @@ func _release_map_hold() -> void:
 
 
 func _on_hello(player_id: int) -> void:
-	DotLog.info(CHANNEL, "admitted", {"player": player_id})
+	GSLog.info(CHANNEL, "admitted", {"player": player_id})
 
 	# The server sends this hello from its own rebind, which can arrive before the link has
 	# announced the game change, so it cannot be the only release (the hold would then be
@@ -770,21 +770,21 @@ func _fetch_cosmetics(manifest_url: String) -> void:
 	if manifest_url == "":
 		return
 
-	var cloud := DotRegistry.get_service(HungryContentSource.CLOUD_SERVICE)
+	var cloud := GSRegistry.get_service(HungryContentSource.CLOUD_SERVICE)
 
 	if cloud == null or not cloud.has_method("acquire"):
-		DotLog.info(CHANNEL, "the server has rider content and this build cannot fetch it")
+		GSLog.info(CHANNEL, "the server has rider content and this build cannot fetch it")
 		return
 
-	DotLog.info(CHANNEL, "fetching rider content", {"url": manifest_url})
+	GSLog.info(CHANNEL, "fetching rider content", {"url": manifest_url})
 
 	var acquired: Variant = await cloud.call("acquire", manifest_url)
 
-	if acquired is DotResult and not (acquired as DotResult).ok:
+	if acquired is GSResult and not (acquired as GSResult).ok:
 		# Not a failure worth interrupting anybody for: the parts fall back to being
 		# drawn, which is what every client without the pack already sees.
-		DotLog.info(CHANNEL, "rider content did not arrive", {
-			"error": str((acquired as DotResult).error)
+		GSLog.info(CHANNEL, "rider content did not arrive", {
+			"error": str((acquired as GSResult).error)
 		})
 
 
@@ -863,10 +863,10 @@ func _watch_mass() -> void:
 	# Split and eject had a voice each in the bank since the first commit, and a row each
 	# in dot-audio's catalogue, and nothing ever played either: the one action this game
 	# is about was silent.
-	if more_pieces and _asked_recently(Dot2DCommand.BUTTON_SPLIT):
+	if more_pieces and _asked_recently(GS2DCommand.BUTTON_SPLIT):
 		presentation.on_split()
 	elif not more_pieces and gained <= -HungryContent.EJECT_MASS * 0.6 \
-			and _asked_recently(Dot2DCommand.BUTTON_EJECT):
+			and _asked_recently(GS2DCommand.BUTTON_EJECT):
 		presentation.on_eject()
 
 	# Through the presentation layer, not straight at the bank: `HungrySound` makes the noise but the cap, cooldown and distance cull are the addon's,
@@ -956,7 +956,7 @@ func _apply_settings() -> void:
 
 
 ## Sends a chosen loadout, and says what happens next.
-func _on_loadout_chosen(loadout: DotLoadout) -> void:
+func _on_loadout_chosen(loadout: GSLoadout) -> void:
 	if bridge != null:
 		bridge.publish_loadout(loadout)
 
@@ -967,15 +967,15 @@ func _on_loadout_chosen(loadout: DotLoadout) -> void:
 		)
 
 
-## A routed line off this game's own wire. Filed by [DotChatClient], which drops a
+## A routed line off this game's own wire. Filed by [GSChatClient], which drops a
 ## duplicate and reports a gap.
 func _on_chat_wire(wire: Dictionary) -> void:
 	if chat != null:
 		chat.receive(wire)
 
 
-## A line [DotChatClient] accepted: in sequence, not a duplicate, on a known channel.
-func _on_chat_message(message: DotChatMessage, channel_id: StringName) -> void:
+## A line [GSChatClient] accepted: in sequence, not a duplicate, on a known channel.
+func _on_chat_message(message: GSChatMessage, channel_id: StringName) -> void:
 	if hud == null:
 		return
 
@@ -983,7 +983,7 @@ func _on_chat_message(message: DotChatMessage, channel_id: StringName) -> void:
 	var prefix := "%s " % chan.prefix if chan != null and chan.prefix != "" else ""
 
 	# [b]The channel decides how a line is drawn, and the channel is a document.[/b] Its
-	# prefix and colour come off the [DotChatChannel] both ends share, so adding a channel
+	# prefix and colour come off the [GSChatChannel] both ends share, so adding a channel
 	# is adding a definition rather than a branch somebody has to remember to extend.
 	var window := _chat_window()
 
@@ -991,7 +991,7 @@ func _on_chat_message(message: DotChatMessage, channel_id: StringName) -> void:
 	# text it was an empty line in the box, and by name and text a bare "Guest 435:".
 	# `describe()` words it ("Guest 435 joined"); every other kind is drawn by its text.
 	var text := message.describe() \
-		if message.kind in [DotChatMessage.Kind.JOIN, DotChatMessage.Kind.LEAVE] \
+		if message.kind in [GSChatMessage.Kind.JOIN, GSChatMessage.Kind.LEAVE] \
 		else message.text
 
 	if message.is_from_server() or message.sender_name == "":

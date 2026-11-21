@@ -12,7 +12,7 @@ const HungryMonster := preload("hungry_monster.gd")
 ## the client predicts. What it refuses is refused for a reason about the wire or the
 ## design, and `modtools` prints each:
 ##
-## - [b]noclip, freeze and speed[/b] are dot-2d's [Dot2DAdminModifiers], kept per monster
+## - [b]noclip, freeze and speed[/b] are dot-2d's [GS2DAdminModifiers], kept per monster
 ##   in [member HungryMonster.admin] and written into every piece's replicated state, so
 ##   the owning client predicts them — `headless_net` holds a forced noclip through a rock
 ##   for a whole window without a correction, and shows the same move made the naive way
@@ -41,52 +41,52 @@ static func handlers(world_fn: Callable) -> Dictionary:
 
 static func _admin_handlers(world_fn: Callable) -> Dictionary:
 	return {
-		DotModTools.ACTION_NOCLIP: func(id: StringName, args: Dictionary) -> DotResult:
+		GSModTools.ACTION_NOCLIP: func(id: StringName, args: Dictionary) -> GSResult:
 			var monster := _monster(world_fn.call(), id)
 			if monster == null:
 				return _absent(id)
 			var on := bool(args["on"])
-			_set_admin(monster, Dot2DAdminModifiers.noclip_bits(monster.admin, on))
-			return DotResult.success(on),
+			_set_admin(monster, GS2DAdminModifiers.noclip_bits(monster.admin, on))
+			return GSResult.success(on),
 
-		DotModTools.ACTION_FREEZE: func(id: StringName, args: Dictionary) -> DotResult:
+		GSModTools.ACTION_FREEZE: func(id: StringName, args: Dictionary) -> GSResult:
 			var monster := _monster(world_fn.call(), id)
 			if monster == null:
 				return _absent(id)
 			var on := bool(args["on"])
-			_set_admin(monster, Dot2DAdminModifiers.frozen_bits(monster.admin, on))
-			return DotResult.success(on),
+			_set_admin(monster, GS2DAdminModifiers.frozen_bits(monster.admin, on))
+			return GSResult.success(on),
 
-		DotModTools.ACTION_SPEED: func(id: StringName, args: Dictionary) -> DotResult:
+		GSModTools.ACTION_SPEED: func(id: StringName, args: Dictionary) -> GSResult:
 			var monster := _monster(world_fn.call(), id)
 			if monster == null:
 				return _absent(id)
 			var scale := float(args["scale"])
 			if scale <= 0.0:
-				return DotResult.fail(DotError.CODE_INVALID, "A multiplier has to be above zero.")
-			_set_admin(monster, Dot2DAdminModifiers.speed_bits(monster.admin, scale))
+				return GSResult.fail(GSError.CODE_INVALID, "A multiplier has to be above zero.")
+			_set_admin(monster, GS2DAdminModifiers.speed_bits(monster.admin, scale))
 			# The step it landed on, which is what the admin is told: speeds are a ladder
 			# because only an index travels.
-			return DotResult.success(Dot2DAdminModifiers.bits_speed(monster.admin)),
+			return GSResult.success(GS2DAdminModifiers.bits_speed(monster.admin)),
 	}
 
 
 static func _world_handlers(world_fn: Callable) -> Dictionary:
 	return {
-		DotModTools.ACTION_SLAY: func(id: StringName, _args: Dictionary) -> DotResult:
+		GSModTools.ACTION_SLAY: func(id: StringName, _args: Dictionary) -> GSResult:
 			var world: HungryWorld = world_fn.call()
 			var monster := _monster(world, id)
 			if monster == null:
 				return _absent(id)
 			if not monster.alive or monster.piece_count() == 0:
-				return DotResult.fail(DotError.CODE_STATE, "They have already been eaten.")
+				return GSResult.fail(GSError.CODE_STATE, "They have already been eaten.")
 			# Every piece devoured, which is the world's own death: the same signal and the
 			# same respawn queue as a hunter taking the last one.
 			for piece in monster.pieces.duplicate():
 				var _gone := world.devour_piece(piece.id)
-			return DotResult.success(null),
+			return GSResult.success(null),
 
-		DotModTools.ACTION_RESPAWN: func(id: StringName, _args: Dictionary) -> DotResult:
+		GSModTools.ACTION_RESPAWN: func(id: StringName, _args: Dictionary) -> GSResult:
 			var world: HungryWorld = world_fn.call()
 			var monster := _monster(world, id)
 			if monster == null:
@@ -97,40 +97,40 @@ static func _world_handlers(world_fn: Callable) -> Dictionary:
 				world.match_node.respawns.cancel(String(id))
 			world.spawn(int(String(id)))
 			monster.alive = true
-			return DotResult.success(null),
+			return GSResult.success(null),
 
-		DotModTools.ACTION_GIVE: func(id: StringName, args: Dictionary) -> DotResult:
+		GSModTools.ACTION_GIVE: func(id: StringName, args: Dictionary) -> GSResult:
 			var world: HungryWorld = world_fn.call()
 			var monster := _monster(world, id)
 			if monster == null:
 				return _absent(id)
 			var item := StringName(str(args["item"]).strip_edges().to_lower())
 			if world.items == null or not world.items.has(item):
-				return DotResult.fail(DotError.CODE_INVALID, "There is no item called %s." % String(item),
+				return GSResult.fail(GSError.CODE_INVALID, "There is no item called %s." % String(item),
 					", ".join(item_ids(world_fn)))
 			if not monster.take_item(item):
-				return DotResult.fail(DotError.CODE_STATE, "Their hands are full.")
-			return DotResult.success(item),
+				return GSResult.fail(GSError.CODE_STATE, "Their hands are full.")
+			return GSResult.success(item),
 
-		DotModTools.ACTION_STRIP: func(id: StringName, _args: Dictionary) -> DotResult:
+		GSModTools.ACTION_STRIP: func(id: StringName, _args: Dictionary) -> GSResult:
 			var monster := _monster(world_fn.call(), id)
 			if monster == null:
 				return _absent(id)
 			monster.carried.clear()
-			return DotResult.success(null),
+			return GSResult.success(null),
 	}
 
 
 static func _flag_handlers(world_fn: Callable) -> Dictionary:
 	return {
-		DotModTools.ACTION_RENAME: func(id: StringName, args: Dictionary) -> DotResult:
+		GSModTools.ACTION_RENAME: func(id: StringName, args: Dictionary) -> GSResult:
 			var monster := _monster(world_fn.call(), id)
 			if monster == null:
 				return _absent(id)
 			monster.display_name = str(args["name"]).strip_edges().substr(0, 32)
-			return DotResult.success(monster.display_name),
+			return GSResult.success(monster.display_name),
 
-		DotModTools.ACTION_BLIND: func(id: StringName, args: Dictionary) -> DotResult:
+		GSModTools.ACTION_BLIND: func(id: StringName, args: Dictionary) -> GSResult:
 			var monster := _monster(world_fn.call(), id)
 			if monster == null:
 				return _absent(id)
@@ -138,25 +138,25 @@ static func _flag_handlers(world_fn: Callable) -> Dictionary:
 			# eaten; an admin who wants it to stop as well has freeze, and one verb that did
 			# both would be a verb nobody could use for only the first.
 			monster.blinded = bool(args["on"])
-			return DotResult.success(monster.blinded),
+			return GSResult.success(monster.blinded),
 
-		DotModTools.ACTION_BEACON: func(id: StringName, args: Dictionary) -> DotResult:
+		GSModTools.ACTION_BEACON: func(id: StringName, args: Dictionary) -> GSResult:
 			var monster := _monster(world_fn.call(), id)
 			if monster == null:
 				return _absent(id)
 			monster.beacon = bool(args["on"])
-			return DotResult.success(monster.beacon),
+			return GSResult.success(monster.beacon),
 	}
 
 
 static func unsupported() -> Dictionary:
 	return {
-		DotModTools.ACTION_GRAVITY: "there is no gravity in a top-down arena",
-		DotModTools.ACTION_GOD: "being eaten is the game; a monster nothing can eat breaks the round",
-		DotModTools.ACTION_BUDDHA: "being eaten is the game; a monster nothing can eat breaks the round",
-		DotModTools.ACTION_HEALTH: "a monster has mass, not health",
-		DotModTools.ACTION_SLAP: "a monster has mass, not health, and a shove is a split",
-		DotModTools.ACTION_BURN: "nothing here burns",
+		GSModTools.ACTION_GRAVITY: "there is no gravity in a top-down arena",
+		GSModTools.ACTION_GOD: "being eaten is the game; a monster nothing can eat breaks the round",
+		GSModTools.ACTION_BUDDHA: "being eaten is the game; a monster nothing can eat breaks the round",
+		GSModTools.ACTION_HEALTH: "a monster has mass, not health",
+		GSModTools.ACTION_SLAP: "a monster has mass, not health, and a shove is a split",
+		GSModTools.ACTION_BURN: "nothing here burns",
 	}
 
 
@@ -206,7 +206,7 @@ static func _set_admin(monster: HungryMonster, bits: int) -> void:
 	monster.admin = bits
 
 	for piece in monster.pieces:
-		Dot2DAdminModifiers.adopt(piece.state, bits)
+		GS2DAdminModifiers.adopt(piece.state, bits)
 
 
 static func _monster(world: HungryWorld, id: StringName) -> HungryMonster:
@@ -216,5 +216,5 @@ static func _monster(world: HungryWorld, id: StringName) -> HungryMonster:
 	return world.monster_for(String(id).to_int())
 
 
-static func _absent(id: StringName) -> DotResult:
-	return DotResult.fail(DotError.CODE_STATE, "Player %s is not in the arena." % String(id))
+static func _absent(id: StringName) -> GSResult:
+	return GSResult.fail(GSError.CODE_STATE, "Player %s is not in the arena." % String(id))

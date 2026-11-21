@@ -46,11 +46,11 @@ func _test_module() -> void:
 		_check(_server.console.find_cvar(cvar) != null, "and its %s cvar" % cvar)
 
 	_check(module.workbench != null and module.workbench.api != null, "and the workbench over its config")
-	var amb: DotResult = module.workbench.api.handle(DotGameWorkbench.LOCAL_ACTOR, {"op": "set", "kind": "ambience", "id": DotGameWorkbench.CVAR_SET_ID, "key": "hungry_ambient_volume", "value": 0.2})
+	var amb: GSResult = module.workbench.api.handle(GSGameWorkbench.LOCAL_ACTOR, {"op": "set", "kind": "ambience", "id": GSGameWorkbench.CVAR_SET_ID, "key": "hungry_ambient_volume", "value": 0.2})
 	_check(amb.ok and is_equal_approx(_server.console.get_float("hungry_ambient_volume"), 0.2), "the hungry_ambient* cvars are a workbench set and an edit moves the cvar", "" if amb.ok else amb.error.message)
-	var kinds: DotResult = module.workbench.api.handle(DotGameWorkbench.LOCAL_ACTOR, {"op": "list"})
+	var kinds: GSResult = module.workbench.api.handle(GSGameWorkbench.LOCAL_ACTOR, {"op": "list"})
 	var listed_kinds: Array = (kinds.value as Dictionary).get("kinds", []) if kinds.ok else []
-	var spawn_set_listed: bool = listed_kinds.has(DotSpawnOverrides.KIND)
+	var spawn_set_listed: bool = listed_kinds.has(GSSpawnOverrides.KIND)
 	_check(spawn_set_listed, "dot-spawn's per-preset override set is a workbench kind", "" if kinds.ok else kinds.error.message)
 	_check(_world().player_stack != null and _world().player_stack.spawn_overrides == module.spawn_overrides, "and the live player stack applies the same set the workbench edits")
 	var _amb_back := _server.console.set_cvar("hungry_ambient_volume", "0.3")
@@ -135,12 +135,12 @@ func _test_stats() -> void:
 	_check(schema != null and schema.validate().ok, "its schema validates")
 	_check(
 		schema.find(&"top_mass") != null
-			and schema.find(&"top_mass").kind == DotStatsDef.Kind.BEST,
+			and schema.find(&"top_mass").kind == GSStatsDef.Kind.BEST,
 		"a biggest-ever is a BEST, so shrinking does not lose the record"
 	)
 	_check(
 		schema.find(&"mass_eaten") != null
-			and schema.find(&"mass_eaten").kind == DotStatsDef.Kind.COUNTER,
+			and schema.find(&"mass_eaten").kind == GSStatsDef.Kind.COUNTER,
 		"and mass eaten is a counter"
 	)
 	_check(
@@ -202,10 +202,10 @@ func _test_stats_wiring(module: HungryModule) -> void:
 	_check(module.stats.session_values(key).get_value(&"rank_score") == 2.0,
 		"the weighted rank files rank_score (2 pieces and kills, a death, a burst)",
 		str(module.stats.session_values(key).get_value(&"rank_score")))
-	var held := DotStatsValues.new()
+	var held := GSStatsValues.new()
 	held.values = {"pieces_eaten": 10.0}
 	module.rank.seed_baseline(&"rank-probe", held)
-	var life: float = module.rank.publish_lifetime(&"rank-probe", DotStatsValues.new(), module.stats.schema)
+	var life: float = module.rank.publish_lifetime(&"rank-probe", GSStatsValues.new(), module.stats.schema)
 	_check(life == 10.0, "a stored lifetime baseline (10 pieces) is what the published rank is built on", str(life))
 	module.rank.forget(&"rank-probe")
 
@@ -213,11 +213,11 @@ func _test_stats_wiring(module: HungryModule) -> void:
 	# nothing without one; the account id the identity carries must never be what
 	# a figure is filed under, and the reporter refuses one as a second line.
 	_check(
-		not DotStatsReporter.is_player_id("backbone:clx8f2k0000"),
+		not GSStatsReporter.is_player_id("backbone:clx8f2k0000"),
 		"an account id is refused as a player key"
 	)
 	_check(
-		DotStatsReporter.is_player_id(String(key)),
+		GSStatsReporter.is_player_id(String(key)),
 		"and a scoped key is not"
 	)
 
@@ -238,11 +238,11 @@ func _test_bots() -> void:
 
 	_check(module.bot_count() == 0, "there are none before the first tick")
 
-	# The default is DotBotQuota's fill: a person joins through the bridge (peer 0, as a bot is) and
+	# The default is GSBotQuota's fill: a person joins through the bridge (peer 0, as a bot is) and
 	# `_drive_bots` is called directly, so the count is exact.
 	# The sv_ragdoll* set: replicated, and what the world decides deaths from.
 	var weights := _server.console.find_cvar("sv_ragdoll_reactions")
-	_check(weights != null and weights.has_flag(DotConVar.FLAG_REPLICATED)
+	_check(weights != null and weights.has_flag(GSConVar.FLAG_REPLICATED)
 			and module.world.ragdoll_rules == module.ragdoll_rules,
 		"sv_ragdoll_reactions is replicated, and the world picks deaths from the module's rules")
 
@@ -263,17 +263,17 @@ func _test_bots() -> void:
 	for id in world.player_ids():
 		if world.monster_for(id) != null and id >= HungryModule.BOT_ID_BASE:
 			names.append(world.monster_for(id).display_name)
-	_check(not names.is_empty() and names.all(func(n: String) -> bool: return DotBotNames.POOL.has(n)),
+	_check(not names.is_empty() and names.all(func(n: String) -> bool: return GSBotNames.POOL.has(n)),
 		"bots are named from dot-bot's pool, never numbered", str(names))
 	var difficulty := _server.console.execute("bot_difficulty hard")
-	var reached := DotBotSettings.of(world).difficulty() == "hard"
+	var reached := GSBotSettings.of(world).difficulty() == "hard"
 	var _back := _server.console.execute("bot_difficulty medium")
 	_check(difficulty.ok and reached, "bot_difficulty is a cvar, and reaches the world the bots read it from")
 	await _test_bots_quota(module, world, quota, quota_mode)
 	_done()
 
 
-func _test_bots_quota(module: HungryModule, world: HungryWorld, quota: DotConVar, quota_mode: DotConVar) -> void:
+func _test_bots_quota(module: HungryModule, world: HungryWorld, quota: GSConVar, quota_mode: GSConVar) -> void:
 	var bots_before := module.bot_count()
 	var joined := module.hbridge.add_player(0, 777, "Person")
 	module._drive_bots()
@@ -364,7 +364,7 @@ func _test_loadouts() -> void:
 		"with a legal schema"
 	)
 	_check(
-		DotRegistry.get_service(DotLoadoutManager.SERVICE) == module.loadouts,
+		GSRegistry.get_service(GSLoadoutManager.SERVICE) == module.loadouts,
 		"registered where a loadout screen would look for it"
 	)
 
@@ -376,7 +376,7 @@ func _test_loadouts() -> void:
 
 	var default_loadout := module.loadouts.schema.default_loadout()
 	_check(
-		DotLoadoutValidator.validate(default_loadout, module.loadouts.schema, owned).ok,
+		GSLoadoutValidator.validate(default_loadout, module.loadouts.schema, owned).ok,
 		"while its own default is still takeable"
 	)
 

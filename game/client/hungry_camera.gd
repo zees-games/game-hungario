@@ -1,5 +1,5 @@
 @tool
-extends Dot2DCameraRig
+extends GS2DCameraRig
 
 const HungryCamera := preload("hungry_camera.gd")
 const HungryMonster := preload("../hungry_monster.gd")
@@ -7,7 +7,7 @@ const HungryPiece := preload("../hungry_piece.gd")
 
 ## Frames a monster: the whole set of it, not one piece.
 ##
-## [Dot2DCameraRig] follows a [Node2D] and zooms with a [Dot2DController]'s radius, which
+## [GS2DCameraRig] follows a [Node2D] and zooms with a [GS2DController]'s radius, which
 ## is exactly right for a game where a player is one entity. Here a player is a set, so
 ## two things change and nothing else does:
 ##
@@ -37,17 +37,17 @@ var position_source: Callable = Callable()
 
 ## The node the rig follows, moved to the centroid every frame.
 ##
-## A node rather than a position because [Dot2DCameraRig] follows a [Node2D] and smooths
+## A node rather than a position because [GS2DCameraRig] follows a [Node2D] and smooths
 ## toward it; feeding it a position directly would mean reimplementing the smoothing.
 var _anchor: Node2D = null
 
-## The clock the followed monster is predicted on (dot-net's `DotNetClock`), null offline: the
+## The clock the followed monster is predicted on (dot-net's `GSNetClock`), null offline: the
 ## camera follows the monster as it is drawn this frame (`HungryMonster.drawn_centre`), not
 ## where its last tick left it, which stepped under the drawn pieces.
 var render_clock: Object = null
 
 
-static func framing(source: Callable, arena: Dot2DArena) -> HungryCamera:
+static func framing(source: Callable, arena: GS2DArena) -> HungryCamera:
 	var camera := HungryCamera.new()
 	camera.name = "Camera"
 	camera.monster_source = source

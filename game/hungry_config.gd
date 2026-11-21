@@ -1,10 +1,10 @@
 @tool
-extends DotConfig
+extends GSConfig
 
 ## This game's own settings: the camera and what is drawn over the arena.
 ##
 ## [b]The declaration, not the store.[/b] [HungrySettings] reads these `@export`s with
-## [method DotSettingsSchema.from_config] (the type, the range, the default) into the
+## [method GSSettingsSchema.from_config] (the type, the range, the default) into the
 ## dot-settings document dot-menu's Escape menu is a view of, and the presentation layer
 ## writes each value back here as it changes, so the game reads plain properties and there
 ## is one list. The document is what is saved; this object is never written to disk. Until
@@ -57,13 +57,13 @@ func cli_prefix() -> String:
 	return "--hungry-"
 
 
-func validate() -> DotResult:
+func validate() -> GSResult:
 	if follow_sec < 0.0:
-		return DotResult.fail(
-			DotError.CODE_INVALID, "A camera cannot catch up in negative time."
+		return GSResult.fail(
+			GSError.CODE_INVALID, "A camera cannot catch up in negative time."
 		)
 
-	return DotResult.success(null)
+	return GSResult.success(null)
 
 
 func describe_summary() -> String:

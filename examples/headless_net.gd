@@ -3,7 +3,7 @@ extends "res://examples/headless_net_game.gd"
 const CHECKS := 195
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.ERROR)
 	_run.call_deferred()
 
 func _run() -> void:

@@ -24,14 +24,14 @@ const PUNISHMENTS_PATH := "user://hungry_punishments.json"
 signal command_entered(peer_id: int, command: String, args: PackedStringArray)
 
 
-var chat: DotChatRouter = null
-var moderation: DotModerationManager = null
-var voice: DotVoiceRouter = null
+var chat: GSChatRouter = null
+var moderation: GSModerationManager = null
+var voice: GSVoiceRouter = null
 ## The website chat relay, when one is configured. See [method _build_relay].
-var relay: DotChatRelay = null
+var relay: GSChatRelay = null
 
 ## The relay's configuration. Left null, a default is built and the relay stays OFF.
-@export var relay_config: DotChatRelayConfig = null
+@export var relay_config: GSChatRelayConfig = null
 
 ## The backbone client the relay posts through, assigned by the host BEFORE setup.
 var backbone: Object = null
@@ -39,7 +39,7 @@ var backbone: Object = null
 
 var bridge: HungryNetBridge = null
 var world: HungryWorld = null
-var server: DotServer = null
+var server: GSServer = null
 
 var service_scope: StringName = &""
 var punishments_path: String = PUNISHMENTS_PATH
@@ -47,14 +47,14 @@ var punishments_loaded: bool = false
 
 
 ## Builds all three.
-func setup(_server: Node = null, _game: Node = null, _link: Node = null) -> DotResult:
+func setup(_server: Node = null, _game: Node = null, _link: Node = null) -> GSResult:
 	if bridge == null or world == null:
-		return DotResult.fail(
-			DotError.CODE_STATE, "The services need a bridge and a world."
+		return GSResult.fail(
+			GSError.CODE_STATE, "The services need a bridge and a world."
 		)
 
 	# Moderation first, because it is what registers `dot_mute_source` and
-	# [method DotChatRouter.start] warns once — and then never again — when there is
+	# [method GSChatRouter.start] warns once — and then never again — when there is
 	# nothing under that name.
 	var punished := _build_moderation()
 
@@ -69,15 +69,15 @@ func setup(_server: Node = null, _game: Node = null, _link: Node = null) -> DotR
 	# After chat, because it needs the router; not fatal, because a relay that cannot
 	# start is a server that still runs a perfectly good match.
 	var relayed := _build_relay()
-	DotLog.result(CHANNEL, "the website chat relay", relayed)
+	GSLog.result(CHANNEL, "the website chat relay", relayed)
 
 	return _build_voice()
 
 
-func _build_moderation() -> DotResult:
-	moderation = DotModerationManager.new()
+func _build_moderation() -> GSResult:
+	moderation = GSModerationManager.new()
 	moderation.name = "Moderation"
-	moderation.store = DotPunishmentStoreFile.new(punishments_path)
+	moderation.store = GSPunishmentStoreFile.new(punishments_path)
 	# No scope: the unconfigured case is the only case a single-server community is ever
 	# in, and it is the one dot-moderation shipped a bug about — a server with no scope
 	# saw no scoped punishments and silently enforced nothing.
@@ -89,11 +89,11 @@ func _build_moderation() -> DotResult:
 	moderation.key_for_peer = _subject_for_peer
 	add_child(moderation)
 
-	# A bare statement call: [method DotModerationManager.load_all] is a coroutine only because a store may be an HTTP one; [DotPunishmentStoreFile] is not, so it completes before the next line. It cannot be awaited from a module load; see [method setup].
+	# A bare statement call: [method GSModerationManager.load_all] is a coroutine only because a store may be an HTTP one; [GSPunishmentStoreFile] is not, so it completes before the next line. It cannot be awaited from a module load; see [method setup].
 	moderation.load_all()
 	punishments_loaded = true
 
-	return DotResult.success(null)
+	return GSResult.success(null)
 
 
 ## Who a peer is, for a punishment: the durable account uid.
@@ -101,21 +101,21 @@ func _subject_for_peer(peer_id: int) -> String:
 	var session := _session_for(peer_id)
 
 	if session != null:
-		return DotPunishmentSubject.for_uid(session.uid())
+		return GSPunishmentSubject.for_uid(session.uid())
 
 	var player_id := _player_for(peer_id)
-	return DotPunishmentSubject.for_uid("local:%d" % player_id) if player_id != 0 else ""
+	return GSPunishmentSubject.for_uid("local:%d" % player_id) if player_id != 0 else ""
 
 
-func _build_chat() -> DotResult:
-	chat = DotChatRouter.new()
+func _build_chat() -> GSResult:
+	chat = GSChatRouter.new()
 	chat.name = "Chat"
 	chat.rules = chat_rules()
 	chat.rules_file = ""
 	chat.install_default_channels = false
 	chat.handle_me_command = true
-	chat.register_as = _scoped(DotChatRouter.SERVICE)
-	chat.mute_service = DotModerationManager.MUTE_SERVICE
+	chat.register_as = _scoped(GSChatRouter.SERVICE)
+	chat.mute_service = GSModerationManager.MUTE_SERVICE
 
 	chat.send_fn = _send_chat
 	chat.peers_fn = _chat_peers
@@ -143,20 +143,20 @@ func _build_chat() -> DotResult:
 		command_entered.emit(peer, command, args)
 	)
 
-	return DotResult.success(null)
+	return GSResult.success(null)
 
 
 ## The four channels. Shared with the client, which builds the same list from this file.
-static func chat_channels() -> Array[DotChatChannel]:
-	var out: Array[DotChatChannel] = []
+static func chat_channels() -> Array[GSChatChannel]:
+	var out: Array[GSChatChannel] = []
 
-	var everyone := DotChatChannel.make(CHANNEL_ALL, "All", DotChatChannel.Scope.EVERYONE)
+	var everyone := GSChatChannel.make(CHANNEL_ALL, "All", GSChatChannel.Scope.EVERYONE)
 	everyone.colour = Color(0.93, 0.94, 0.96)
 	everyone.backlog = 12
 	everyone.history_limit = 200
 	out.append(everyone)
 
-	var near := DotChatChannel.make(CHANNEL_NEAR, "Near", DotChatChannel.Scope.RADIUS)
+	var near := GSChatChannel.make(CHANNEL_NEAR, "Near", GSChatChannel.Scope.RADIUS)
 	near.prefix = "[near]"
 	near.colour = Color(0.68, 0.83, 0.62)
 	near.radius = NEAR_RANGE
@@ -167,7 +167,7 @@ static func chat_channels() -> Array[DotChatChannel]:
 	near.history_limit = 100
 	out.append(near)
 
-	var admin := DotChatChannel.make(CHANNEL_ADMIN, "Admin", DotChatChannel.Scope.EVERYONE)
+	var admin := GSChatChannel.make(CHANNEL_ADMIN, "Admin", GSChatChannel.Scope.EVERYONE)
 	admin.prefix = "[ADMIN]"
 	admin.colour = Color(0.98, 0.72, 0.35)
 	admin.admin_only = true
@@ -175,8 +175,8 @@ static func chat_channels() -> Array[DotChatChannel]:
 	admin.backlog = 0
 	out.append(admin)
 
-	var whisper := DotChatChannel.make(
-		CHANNEL_WHISPER, "Whisper", DotChatChannel.Scope.DIRECT
+	var whisper := GSChatChannel.make(
+		CHANNEL_WHISPER, "Whisper", GSChatChannel.Scope.DIRECT
 	)
 	whisper.prefix = "[w]"
 	whisper.colour = Color(0.78, 0.71, 0.93)
@@ -187,8 +187,8 @@ static func chat_channels() -> Array[DotChatChannel]:
 
 
 ## What a line may be.
-static func chat_rules() -> DotChatRules:
-	var rules := DotChatRules.new()
+static func chat_rules() -> GSChatRules:
+	var rules := GSChatRules.new()
 	rules.max_length = 140
 	rules.refuse_over_length = false
 	rules.allow_newlines = false
@@ -226,37 +226,37 @@ func _send_chat(wire: Dictionary, recipients: PackedInt32Array) -> void:
 
 
 ## Joins this server's chat to its room on the website.
-func _build_relay() -> DotResult:
+func _build_relay() -> GSResult:
 	if relay_config == null:
-		relay_config = DotChatRelayConfig.new()
+		relay_config = GSChatRelayConfig.new()
 
-		# Layered: a bare `DotConfig.new()` has only the exported defaults, so the environment and command line would do nothing and the relay could not be turned on by any documented route.
+		# Layered: a bare `GSConfig.new()` has only the exported defaults, so the environment and command line would do nothing and the relay could not be turned on by any documented route.
 		# Only on the config this builds: a config the host handed over is the host's.
 		var layered := relay_config.load_layered(RELAY_CONFIG_PATH)
 		if not layered.ok:
-			DotLog.warn(CHANNEL, "the chat relay configuration is not usable", {
+			GSLog.warn(CHANNEL, "the chat relay configuration is not usable", {
 				"why": str(layered.error),
 			})
-			return DotResult.success(null)
+			return GSResult.success(null)
 
 	if not relay_config.enabled:
-		return DotResult.success(null)
+		return GSResult.success(null)
 
 	if backbone == null:
-		# Found, not handed over: a backbone client is built by whatever owns the server's credential, after or before this module loads, so `DotBackboneClient` publishes itself under this name.
-		backbone = DotRegistry.get_service(&"dot_backbone_client")
+		# Found, not handed over: a backbone client is built by whatever owns the server's credential, after or before this module loads, so `GSBackboneClient` publishes itself under this name.
+		backbone = GSRegistry.get_service(&"dot_backbone_client")
 
 	if backbone == null:
 		# Info and success, not a failure: a fleet-wide `GS_CHAT_RELAY_ENABLED=1` with a credential for only some hosts is ordinary, and a red line on every boot of the others stops real ones being read.
 		# The line names what to do.
-		DotLog.info(
+		GSLog.info(
 			CHANNEL,
 			"the chat relay is on but there is no backbone client, so it will not start",
 			{"fix": "put a server-scoped integration token in the listing configuration"}
 		)
-		return DotResult.success(null)
+		return GSResult.success(null)
 
-	relay = DotChatRelay.new()
+	relay = GSChatRelay.new()
 	relay.name = "ChatRelay"
 	relay.router = chat
 	relay.config = relay_config
@@ -283,7 +283,7 @@ func _build_relay() -> DotResult:
 	if server != null and server.chat != null:
 		server.chat.watch_relay(relay)
 
-	return DotResult.success(relay)
+	return GSResult.success(relay)
 
 
 func _uid_has_permission(uid: String, flag: String) -> bool:
@@ -299,7 +299,7 @@ func _run_relayed_command(
 		return
 
 	for reply in server.run_command_as_uid(uid, command, args, source):
-		DotLog.info(CHANNEL, "relayed command reply", {"uid": uid, "line": reply})
+		GSLog.info(CHANNEL, "relayed command reply", {"uid": uid, "line": reply})
 
 
 func _on_site_command(uid: String, command: String, allowed: bool) -> void:
@@ -312,18 +312,18 @@ func _on_site_command(uid: String, command: String, allowed: bool) -> void:
 
 
 
-func _build_voice() -> DotResult:
+func _build_voice() -> GSResult:
 	var config := voice_config()
 	var problem := config.validate()
 
 	if not problem.ok:
 		return problem.wrap("The voice configuration is not usable")
 
-	voice = DotVoiceRouter.new()
+	voice = GSVoiceRouter.new()
 	voice.name = "Voice"
 	voice.config = config
 	# Proximity, where this game and the lobby part company: an arena is bigger than a screen, hearing somebody creeping up is information, and hearing the whole server is noise.
-	voice.default_channel = DotVoiceRouter.Channel.PROXIMITY
+	voice.default_channel = GSVoiceRouter.Channel.PROXIMITY
 	voice.proximity_range = config.proximity_range
 	voice.max_bytes_per_second = config.max_bytes_per_second
 	voice.send_fn = _send_voice
@@ -331,12 +331,12 @@ func _build_voice() -> DotResult:
 
 	add_child(voice)
 
-	return DotResult.success(null)
+	return GSResult.success(null)
 
 
 ## The voice format, which both ends must agree on exactly.
-static func voice_config() -> DotVoiceConfig:
-	var config := DotVoiceConfig.new()
+static func voice_config() -> GSVoiceConfig:
+	var config := GSVoiceConfig.new()
 	config.sample_rate = 16000
 	config.frame_ms = 20.0
 	config.codec_id = &"adpcm"
@@ -376,7 +376,7 @@ func _chat_peers() -> PackedInt32Array:
 	return bridge.ready_peers() if bridge != null else PackedInt32Array()
 
 
-func _session_for(peer_id: int) -> DotClientSession:
+func _session_for(peer_id: int) -> GSClientSession:
 	return server.session_of(peer_id) if server != null else null
 
 
@@ -447,4 +447,4 @@ func describe_lines() -> PackedStringArray:
 func _relay_command_document() -> Array[Dictionary]:
 	if server == null or server.console == null:
 		return []
-	return server.console.command_document(relay_config.command_source as DotCmdContext.Source)
+	return server.console.command_document(relay_config.command_source as GSCmdContext.Source)

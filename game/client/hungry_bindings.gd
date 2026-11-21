@@ -1,6 +1,6 @@
 extends RefCounted
 
-## Every key this game reads, as one dot-menu [DotMenuBindings] table: the action, the setting
+## Every key this game reads, as one dot-menu [GSMenuBindings] table: the action, the setting
 ## that stores it, the words a player sees, the default, and the card it goes on.
 ##
 ## [b]A table, because four things read it:[/b] [HungryInput] and the client match events
@@ -10,7 +10,7 @@ extends RefCounted
 ## its own file, so help (H) was not rebindable here; [HungrySettings] migrates that file.
 ##
 ## [b]The mouse buttons are rows of their own.[/b] A row puts ONE input on its action
-## ([method DotInputBinding.apply] erases the rest), and split and throw used to be a key and a
+## ([method GSInputBinding.apply] erases the rest), and split and throw used to be a key and a
 ## button on one action: tabled as one row, the first rebind of Space would have taken the
 ## left button away with it. So the button is a second action that [HungryInput] reads beside
 ## the key, and both are rebindable.
@@ -35,19 +35,19 @@ const CHAT_SETTING := &"chat_open_key"
 const CHAT_NEAR_SETTING := &"chat_near_key"
 
 
-static func make() -> DotMenuBindings:
-	var keys := DotMenuBindings.new()
+static func make() -> GSMenuBindings:
+	var keys := GSMenuBindings.new()
 	keys.add(SPLIT, &"bind_split", "Split: throw half of you forward", "Space", "Playing")
 	keys.add(SPLIT_CLICK, &"bind_split_click", "Split (mouse)", "Mouse 1", "Playing")
 	keys.add(EJECT, &"bind_eject", "Eject a little mass (smaller and faster)", "W", "Playing")
 	keys.add(THROW, &"bind_throw", "Throw what you are holding", "Q", "Playing")
 	keys.add(THROW_CLICK, &"bind_throw_click", "Throw (mouse)", "Mouse 2", "Playing")
 	keys.add(BOOST, &"bind_boost", "Boost (hold)", "Shift", "Playing")
-	keys.add(CHAT, CHAT_SETTING, "Chat", "Y", "Communication", DotSettingsDef.Scope.ACCOUNT)
+	keys.add(CHAT, CHAT_SETTING, "Chat", "Y", "Communication", GSSettingsDef.Scope.ACCOUNT)
 	keys.add(CHAT_NEAR, CHAT_NEAR_SETTING, "Chat with nearby players", "U", "Communication",
-		DotSettingsDef.Scope.ACCOUNT)
+		GSSettingsDef.Scope.ACCOUNT)
 	# Push to talk: dot-voice's own action, which `HungryVoice` gates on. Added here, in the
-	# Communication group beside the chat keys, so `DotMenuSettings` finds the row and does not
+	# Communication group beside the chat keys, so `GSMenuSettings` finds the row and does not
 	# add its own.
 	keys.add_voice("Communication")
 	keys.add(SCOREBOARD, &"bind_scoreboard", "Scoreboard (hold)", "Tab", "Interface")

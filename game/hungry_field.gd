@@ -6,10 +6,10 @@ const HungryField := preload("hungry_field.gd")
 ## Everything edible in the world, and the one id space it shares with the monsters.
 ##
 ## Four fields in one object because a monster's eat check has to consider all of them
-## on the same tick and against the same [Dot2DGrid]. Two grids would mean two queries
+## on the same tick and against the same [GS2DGrid]. Two grids would mean two queries
 ## and a merge of the results, per piece, per tick; four would mean four.
 ##
-## [b]Three of the four are positionless on the wire.[/b] [Dot2DScatter] places a slot
+## [b]Three of the four are positionless on the wire.[/b] [GS2DScatter] places a slot
 ## from a hash of (seed, index), so a client that knows the seed knows where every crumb,
 ## fruit and item drop is — and how big it is, and which fruit it is — from an integer.
 ## What actually travels is which slots exist: a list of indices added and a list taken,
@@ -36,9 +36,9 @@ const KIND_SPAN := 1000000
 
 enum Kind { PIECE, FOOD, FRUIT, ITEM, PLANTED }
 
-var food: Dot2DScatter = null
-var fruit: Dot2DScatter = null
-var items: Dot2DScatter = null
+var food: GS2DScatter = null
+var fruit: GS2DScatter = null
+var items: GS2DScatter = null
 
 ## Planted slot index -> [code]{position: Vector2, tier: int}[/code].
 var _planted: Dictionary = {}
@@ -61,18 +61,18 @@ static func over(bounds: Rect2, world_seed: int) -> HungryField:
 	field._bounds = bounds
 	field._seed = world_seed
 
-	field.food = Dot2DScatter.over(bounds, HungryContent.FOOD_TARGET, world_seed)
+	field.food = GS2DScatter.over(bounds, HungryContent.FOOD_TARGET, world_seed)
 	field.food.refill_budget = HungryContent.FOOD_REFILL_PER_TICK
 	field.food.margin = 30.0
 
 	# Different seeds per field, or the fruit sits exactly on top of the crumb with the
 	# same index: `position_of` is a hash of (seed, index) and the same pair gives the
 	# same point.
-	field.fruit = Dot2DScatter.over(bounds, HungryContent.FRUIT_TARGET, world_seed ^ 0x5F1E)
+	field.fruit = GS2DScatter.over(bounds, HungryContent.FRUIT_TARGET, world_seed ^ 0x5F1E)
 	field.fruit.refill_budget = HungryContent.FRUIT_REFILL_PER_TICK
 	field.fruit.margin = 80.0
 
-	field.items = Dot2DScatter.over(bounds, HungryContent.ITEM_TARGET, world_seed ^ 0x17E3)
+	field.items = GS2DScatter.over(bounds, HungryContent.ITEM_TARGET, world_seed ^ 0x17E3)
 	field.items.refill_budget = HungryContent.ITEM_REFILL_PER_TICK
 	field.items.margin = 80.0
 
@@ -81,7 +81,7 @@ static func over(bounds: Rect2, world_seed: int) -> HungryField:
 
 ## Moves every field into a new rectangle. Client side, from the hello.
 ##
-## [b]The bounds are part of the position, not decoration.[/b] [Dot2DScatter] places a
+## [b]The bounds are part of the position, not decoration.[/b] [GS2DScatter] places a
 ## slot by hashing (seed, index) [i]into these bounds[/i], so a peer holding a different
 ## rectangle derives every crumb in the wrong place — from the right seed, which is what
 ## makes the failure so confusing: the ids all match, the counts all match, and nothing is
@@ -283,7 +283,7 @@ func fill_all() -> Array[int]:
 
 ## Replaces every field with a new one. What a new round does.
 ##
-## [b]The index counters are deliberately not reset[/b] — that is [Dot2DScatter]'s rule
+## [b]The index counters are deliberately not reset[/b] — that is [GS2DScatter]'s rule
 ## and this class inherits it. An index is a slot's identity: it goes on the wire and it
 ## is how a client knows which crumb it just ate, so restarting the count would mean two
 ## different crumbs with the same name a round apart.
@@ -355,8 +355,8 @@ func plant(centre: Vector2, count: int, tier: int, bounds: Rect2) -> Array[int]:
 	return out
 
 
-## Registers every live slot into a [Dot2DGrid].
-func populate(grid: Dot2DGrid) -> void:
+## Registers every live slot into a [GS2DGrid].
+func populate(grid: GS2DGrid) -> void:
 	for grid_id in alive_ids():
 		grid.place(grid_id, position_of(grid_id), radius_of(grid_id))
 

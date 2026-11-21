@@ -1,5 +1,5 @@
 @tool
-extends DotMatchRules
+extends GSMatchRules
 
 const HungryContent := preload("hungry_content.gd")
 
@@ -25,15 +25,15 @@ var mass_fn: Callable = Callable()
 
 
 func _round_outcome(
-	scoreboard: DotScoreboard,
-	teams: DotTeamManager,
+	scoreboard: GSScoreboard,
+	teams: GSTeamManager,
 	elapsed_sec: float
 ) -> Outcome:
 	if time_limit_sec > 0.0 and elapsed_sec >= time_limit_sec:
 		return Outcome.TIME
 
 	if not mass_fn.is_valid():
-		DotLog.warn(
+		GSLog.warn(
 			"hungry.rules",
 			"no mass_fn; falling back to kills and the clock, which is not this game"
 		)
@@ -46,10 +46,10 @@ func _round_outcome(
 	return Outcome.NONE
 
 
-func validate() -> DotResult:
+func validate() -> GSResult:
 	if mass_to_win <= 0.0:
-		return DotResult.fail(
-			DotError.CODE_INVALID, "A mass target of zero ends the round instantly."
+		return GSResult.fail(
+			GSError.CODE_INVALID, "A mass target of zero ends the round instantly."
 		)
 
 	return super.validate()

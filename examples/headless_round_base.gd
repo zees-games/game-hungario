@@ -1,4 +1,4 @@
-extends DotGameCheckSuite
+extends GSGameCheckSuite
 
 const HungryBot := preload("../game/hungry_bot.gd")
 const HungryContent := preload("../game/hungry_content.gd")
@@ -105,8 +105,8 @@ func _settle(world: HungryWorld) -> void:
 			% world.monsters().size())
 
 
-func _aim_at(from: Vector2, to: Vector2, buttons: int = 0) -> Dot2DCommand:
-	var command := Dot2DCommand.new()
+func _aim_at(from: Vector2, to: Vector2, buttons: int = 0) -> GS2DCommand:
+	var command := GS2DCommand.new()
 	var offset := to - from
 	command.aim = offset.normalized() if offset.length_squared() > 0.000001 else Vector2.RIGHT
 	command.reach = minf(offset.length(), HungryNetCommand.MAX_REACH)
@@ -125,8 +125,8 @@ func _widths(gaps: PackedFloat32Array) -> String:
 	return "/".join(parts)
 
 
-func _full_reach(from: Vector2, to: Vector2) -> Dot2DCommand:
-	var command := Dot2DCommand.new()
+func _full_reach(from: Vector2, to: Vector2) -> GS2DCommand:
+	var command := GS2DCommand.new()
 	var offset := to - from
 	command.aim = offset.normalized() if offset.length_squared() > 0.000001 else Vector2.RIGHT
 	command.reach = HungryNetCommand.MAX_REACH

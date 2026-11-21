@@ -11,19 +11,19 @@ const HungryNetLink := preload("hungry_net_link.gd")
 ## unless both ends declare the [i]same set[/i] of [code]@rpc[/code] methods — it compares
 ## a checksum over them — and it routes the call by the receiver's node path relative to
 ## its [MultiplayerAPI] root. dot-server learned this the expensive way: putting chat's
-## two methods on [DotClientLink] instead of on a mirrored child broke the paths [i]and[/i]
+## two methods on [GSClientLink] instead of on a mirrored child broke the paths [i]and[/i]
 ## changed the checksum, so every RPC between client and server was refused, handshake
 ## included, with a timeout as the only symptom.
 ##
 ## Using literally the same script on both sides makes the checksum identical by
 ## construction. All that is left is the path, and that is why this node is named the same
 ## on both ends and parented to the node that is itself named the same on both ends —
-## [DotServer] on one side and [DotClientLink] on the other, both called
+## [GSServer] on one side and [GSClientLink] on the other, both called
 ## [code]Server[/code].
 ##
 ## [codeblock]
-## Server            <- DotServer, or DotClientLink named to match
-##   Chat            <- DotChatManager / DotClientChat
+## Server            <- GSServer, or GSClientLink named to match
+##   Chat            <- GSChatManager / GSClientChat
 ##   Hungry          <- this, on both
 ## [/codeblock]
 
@@ -32,15 +32,15 @@ const CHANNEL := "hungry.link"
 ## The node name both ends must use. It is the routing, so it is a constant.
 const NODE_NAME := &"Hungry"
 
-## Everything here rides [constant DotTransport.Channel.STATE], which dot-server reserves
+## Everything here rides [constant GSTransport.Channel.STATE], which dot-server reserves
 ## for exactly this and uses for nothing itself. Sharing chat's channel would make a burst
 ## of snapshots delay a chat line, and vice versa.
 const CHANNEL_STATE := 1
 
 ## Voice, and only voice.
 ##
-## [constant DotTransport.Channel.EVENT] is what dot-server reserves for chat and events,
-## and this game's chat has moved onto [DotChatRouter] and rides `event` on the state
+## [constant GSTransport.Channel.EVENT] is what dot-server reserves for chat and events,
+## and this game's chat has moved onto [GSChatRouter] and rides `event` on the state
 ## channel with everything else — so this one is free. Voice gets it to itself for the
 ## reason the state channel exists at all: fifty packets a second must not sit behind a
 ## snapshot, and a snapshot must not sit behind a talk spurt.
@@ -78,7 +78,7 @@ var voice_sent: int = 0
 var voice_received: int = 0
 
 
-## Makes the link; the caller places it (see [DotGameLink]).
+## Makes the link; the caller places it (see [GSGameLink]).
 static func attached_to(p_bridge: HungryNetBridge, server: bool) -> HungryNetLink:
 	var link := HungryNetLink.new()
 	link.bridge = p_bridge
@@ -114,11 +114,11 @@ func _can_send() -> bool:
 
 	if live != _was_live:
 		if live:
-			DotLog.debug(CHANNEL, "the link is live again", {
+			GSLog.debug(CHANNEL, "the link is live again", {
 				"server": is_server, "dropped": _dropped,
 			})
 		else:
-			DotLog.debug(CHANNEL, "the link has no peer; sends are dropped until it does", {
+			GSLog.debug(CHANNEL, "the link has no peer; sends are dropped until it does", {
 				"server": is_server,
 			})
 
@@ -177,7 +177,7 @@ func send_input(payload: PackedByteArray) -> void:
 		_net_client_input.rpc_id(1, payload)
 
 
-## One encoded [DotVoicePacket], in whichever direction this end is.
+## One encoded [GSVoicePacket], in whichever direction this end is.
 ##
 ## [b]One call for both transports, because there is only one question and the answer
 ## differs by transport rather than by code.[/b] On ENet `unreliable` is a UDP datagram
@@ -273,7 +273,7 @@ func _net_request(payload: PackedByteArray) -> void:
 ##
 ## `any_peer`, so on the server the sender is a claim until the transport is asked.
 ## [method MultiplayerAPI.get_remote_sender_id] is the fact, and
-## [method DotVoiceRouter.relay] stamps it over whatever the packet's own speaker field
+## [method GSVoiceRouter.relay] stamps it over whatever the packet's own speaker field
 ## said — without that any client can put words in any other player's mouth.
 @rpc("any_peer", "unreliable", "call_remote", CHANNEL_VOICE)
 func _net_voice(payload: PackedByteArray) -> void:

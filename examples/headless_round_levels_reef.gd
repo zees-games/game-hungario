@@ -375,7 +375,7 @@ func _the_lagoon_part2(leader_mass: float, world: HungryWorld, bounds: Rect2, la
 
 
 ## Who walks it, from the routes the layout gives.
-func _the_lagoon_who_walks_it_from_the_routes(leader_mass: float, world: HungryWorld, layout: HungryLayout, fore: Array[Dictionary], wanted: PackedFloat32Array, chain_axis: Vector2, centre: Vector2, rules: Dot2DMassRules, won: float, small: float, rock: float, across: Vector2, fore_line: float, back_line: float) -> void:
+func _the_lagoon_who_walks_it_from_the_routes(leader_mass: float, world: HungryWorld, layout: HungryLayout, fore: Array[Dictionary], wanted: PackedFloat32Array, chain_axis: Vector2, centre: Vector2, rules: GS2DMassRules, won: float, small: float, rock: float, across: Vector2, fore_line: float, back_line: float) -> void:
 	# From in front of the fore reef's tight channel, which is the end the door is behind:
 	# the cheapest place to start for everybody, so the walk measured is the tax and not
 	# the approach.

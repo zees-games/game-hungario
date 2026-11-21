@@ -29,7 +29,7 @@ var colour: Color = Color.WHITE
 ## What the rider looks like. Never null after [method make] — an unresolved player is
 ## given a deterministic guest rather than nothing, because "no avatar" is a player
 ## nobody can see.
-var avatar: DotAvatar = null
+var avatar: GSAvatar = null
 
 ## The pieces, in creation order. Never empty while alive.
 var pieces: Array[HungryPiece] = []
@@ -45,7 +45,7 @@ var carried: Array[StringName] = []
 ## could not be trusted with the document, but because a client [i]predicts[/i] its own
 ## movement and the trait changes how fast it moves. Two ends computing speed from
 ## different loadouts is a permanent mispredict.
-var loadout: DotLoadout = null
+var loadout: GSLoadout = null
 
 
 ## Which trait is in force. Read on both ends; see [member loadout].
@@ -62,7 +62,7 @@ func starter_item() -> StringName:
 
 
 ## Adopts a validated loadout. Authority side, and on a client from the join.
-func wear_loadout(document: DotLoadout) -> void:
+func wear_loadout(document: GSLoadout) -> void:
 	loadout = document
 
 	if document == null:
@@ -102,10 +102,10 @@ var effects: Dictionary = {}
 ## [method HungryWorld._sync_flags].
 var flags: int = 0
 
-## An administrator's noclip, freeze and speed step, as [Dot2DAdminModifiers] bits.
+## An administrator's noclip, freeze and speed step, as [GS2DAdminModifiers] bits.
 ##
 ## [b]Authority-only, like [member effects].[/b] The world writes it into every piece's
-## [member Dot2DState.admin] each tick, and that per-piece copy is what replicates and what
+## [member GS2DState.admin] each tick, and that per-piece copy is what replicates and what
 ## a client's prediction reads. One value per monster because an admin acts on a player,
 ## and a player who has split is still one player: a freeze that held one half would not
 ## be a freeze.
@@ -138,14 +138,14 @@ var alive: bool = false
 
 ## How their last piece went down when they were eaten: the server's pick
 ## ([method HungryWorld.decide_death]), carried on DIED. Null before a death.
-var death: DotPlayerDeath = null
+var death: GSPlayerDeath = null
 
 ## Their last command, repeated when none arrives.
 ##
 ## A dropped input packet should read as "still holding the mouse there", which is what
 ## actually happened — not as "let go", which stops the monster dead and is unplayable
 ## at any latency.
-var last_command: Dot2DCommand = null
+var last_command: GS2DCommand = null
 
 ## Lifetime counters, for the scoreboard and for `hungry_status`.
 var food_eaten: int = 0
@@ -366,7 +366,7 @@ func adopt_flags(piece_flags: int) -> void:
 	flags = piece_flags & HungryContent.EFFECT_MASK
 
 
-## The effect bits, for [member Dot2DState.flags].
+## The effect bits, for [member GS2DState.flags].
 func effect_flags(tick: int) -> int:
 	var bits := 0
 
@@ -395,7 +395,7 @@ func describe() -> Dictionary:
 		"carried": carried_names(),
 		"effects": effects.size(),
 		"flags": flags,
-		"admin": Dot2DAdminModifiers.words(admin),
+		"admin": GS2DAdminModifiers.words(admin),
 		"blinded": blinded,
 		"beacon": beacon,
 		"trait": String(trait_id),

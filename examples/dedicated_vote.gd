@@ -46,7 +46,7 @@ func _test_progress() -> void:
 
 
 func _test_progress_board(progress: HungryProgress) -> void:
-	# A key that differs every run: DotAchievementStoreFile writes to `user://`, so a fixed key
+	# A key that differs every run: GSAchievementStoreFile writes to `user://`, so a fixed key
 	# accumulates across runs and "not the second tier" eventually fails on an unchanged tree.
 	# Clearing the directory instead would be a suite deleting a player's progress.
 	var player := "test-player-%d" % Time.get_ticks_usec()
@@ -78,9 +78,9 @@ func _test_progress_board(progress: HungryProgress) -> void:
 	var deaths: Array = await progress.page(&"fewest_deaths", 5)
 	_check(deaths.size() == 1, "a board holds one entry per player (%d)" % deaths.size())
 	_check(
-		deaths.size() == 1 and is_equal_approx((deaths[0] as DotLeaderboardEntry).value, 2.0),
+		deaths.size() == 1 and is_equal_approx((deaths[0] as GSLeaderboardEntry).value, 2.0),
 		"and keeps the BETTER of two rounds, which on a penalty board is the lower",
-		"%.0f" % ((deaths[0] as DotLeaderboardEntry).value if deaths.size() == 1 else -1.0)
+		"%.0f" % ((deaths[0] as GSLeaderboardEntry).value if deaths.size() == 1 else -1.0)
 	)
 
 	_check(progress.boards.backend == "memory", "the boards backend defaults to memory")
@@ -90,8 +90,8 @@ func _test_progress_board(progress: HungryProgress) -> void:
 func _test_progress_remote(progress: HungryProgress) -> void:
 	# The same round through a remote store: a fake site with a frame of latency, so a
 	# caller that does not await is caught, and the plain forms must refuse it.
-	var site := DotLeaderboardFakeSite.new(get_tree())
-	var remote := DotLeaderboardManager.new()
+	var site := GSLeaderboardFakeSite.new(get_tree())
+	var remote := GSLeaderboardManager.new()
 	remote.backend = "backbone"
 	remote.backbone_client = site
 	add_child(remote)
@@ -99,19 +99,19 @@ func _test_progress_remote(progress: HungryProgress) -> void:
 		remote.define(board)
 	var scope := {"mode": String(progress.mode_id)}
 	_check(not remote.page(&"top_mass", scope, 0, 5).ok, "the synchronous form refuses a remote store")
-	var filed: DotResult = await remote.submit_async(&"top_mass", scope, &"remote_p", "Tester", 4200.0)
+	var filed: GSResult = await remote.submit_async(&"top_mass", scope, &"remote_p", "Tester", 4200.0)
 	_check(filed.ok, "a round files on a remote board", str(filed.error))
-	var rpage: DotResult = await remote.page_async(&"top_mass", scope, 0, 5)
+	var rpage: GSResult = await remote.page_async(&"top_mass", scope, 0, 5)
 	_check(
 		rpage.ok and (rpage.value as Array).size() == 1
-		and ((rpage.value as Array)[0] as DotLeaderboardEntry).value == 4200.0,
+		and ((rpage.value as Array)[0] as GSLeaderboardEntry).value == 4200.0,
 		"and reads back through page_async", str(rpage.error) if not rpage.ok else ""
 	)
 	_check(site.posts() > 0, "the fake site received the declare and the submit")
 	remove_child(remote)
 	remote.queue_free()
 
-	var progressed: DotResult = await progress.achievements.flush()
+	var progressed: GSResult = await progress.achievements.flush()
 	_check(progressed.ok, "progress writes to disk", str(progressed.error))
 
 
@@ -132,7 +132,7 @@ func _test_rotation_file() -> void:
 
 	var maps = _module().maps
 	var ids: Array[StringName] = []
-	for map: DotMapDef in maps.catalogue.maps:
+	for map: GSMapDef in maps.catalogue.maps:
 		ids.append(map.id)
 	_check(ids.size() >= 4, "the catalogue holds the modes (%d)" % ids.size())
 	var keep_a: Array = [String(ids[0]), String(ids[1])]
@@ -142,7 +142,7 @@ func _test_rotation_file() -> void:
 		if not keep_a.has(String(id)):
 			outside.append(id)
 
-	var parsed := DotMapRotationFile.from_trees([{"defaults": {
+	var parsed := GSMapRotationFile.from_trees([{"defaults": {
 		"rotation": "a",
 		"rotations": {"a": {"maps": keep_a, "mode": "random"}, "b": {"maps": keep_b, "mode": "cycle"}},
 		"commands": {"names": {"rtv": "rockit"}},
@@ -154,7 +154,7 @@ func _test_rotation_file() -> void:
 
 	var drawn := {}
 	for _i in 40:
-		var chosen: DotMapDef = maps.rotation.choose(6)
+		var chosen: GSMapDef = maps.rotation.choose(6)
 		if chosen == null:
 			break
 		drawn[chosen.id] = true
@@ -175,15 +175,15 @@ func _test_rotation_file() -> void:
 	_check(not ballot.is_empty() and leaked.is_empty(),
 		"never on a ballot", "%s offered" % str(leaked))
 
-	var refused: DotResult = maps.director.nominate(&"9001", outside[0])
+	var refused: GSResult = maps.director.nominate(&"9001", outside[0])
 	_check(not refused.ok, "and refused by nominate")
 	_test_rotation_file_switch(maps, ids, keep_b, kept_file)
 	_done()
 
 
 func _test_rotation_file_switch(maps: Variant, ids: Array[StringName], keep_b: Array, kept_file: Variant) -> void:
-	var switched: DotResult = maps.switch_rotation("b")
-	var pool_ids: Array = maps.rotation.pool(6).map(func(m: DotMapDef) -> String: return String(m.id))
+	var switched: GSResult = maps.switch_rotation("b")
+	var pool_ids: Array = maps.rotation.pool(6).map(func(m: GSMapDef) -> String: return String(m.id))
 	pool_ids.sort()
 	var want := keep_b.duplicate()
 	want.sort()
@@ -192,11 +192,11 @@ func _test_rotation_file_switch(maps: Variant, ids: Array[StringName], keep_b: A
 
 	var host := CommandHost.new()
 	var fresh: Variant = maps.commands
-	var bound: DotResult = maps.install_commands(host)
+	var bound: GSResult = maps.install_commands(host)
 	_check(bound.ok and host.added.has("rockit") and not host.added.has("rtv"),
 		"a renamed rtv is registered under its new name", ", ".join(host.added.keys().slice(0, 6)))
 	if host.added.has("rockit"):
-		var ctx := DotCmdContext.new()
+		var ctx := GSCmdContext.new()
 		(host.added["rockit"] as Callable).call(ctx)
 		_check(not ctx.output.is_empty(), "and answers", str(ctx.output))
 		maps.director.clock.unrock(&"console")
@@ -209,20 +209,20 @@ func _test_rotation_file_switch(maps: Variant, ids: Array[StringName], keep_b: A
 	maps.rotation_file = null
 	maps.apply_rotation()
 	var all_in := true
-	for map: DotMapDef in maps.catalogue.maps:
+	for map: GSMapDef in maps.catalogue.maps:
 		all_in = all_in and map.in_rotation
 	_check(all_in and maps.director.source.choices().size() >= ids.size() - 1 and maps.rotation.order.is_empty(),
 		"with no file every mode is back in the rotation and the order is the catalogue's")
 
 	# Never twice in a row survives the file: a cycle after a voted mode skips what just played.
-	var cycle := DotMapRotationFile.from_trees([{"defaults": {"rotations": {"c": {
+	var cycle := GSMapRotationFile.from_trees([{"defaults": {"rotations": {"c": {
 		"maps": keep_b, "mode": "cycle"}}}}], "game-hungario")
 	maps.rotation_file = cycle.value
 	maps.apply_rotation()
 	var before: Array = maps.rotation.history.duplicate()
 	maps.rotation.note_played(StringName(keep_b[0]))
 	maps.rotation.note_played(StringName(keep_b[1]))
-	var after_one: DotMapDef = maps.rotation.choose(6)
+	var after_one: GSMapDef = maps.rotation.choose(6)
 	_check(after_one != null and after_one.id != StringName(keep_b[1]),
 		"and a cycle never offers the mode just played")
 	maps.rotation.history = before
@@ -236,10 +236,10 @@ func _test_rotation_file_switch(maps: Variant, ids: Array[StringName], keep_b: A
 func _test_disconnect() -> void:
 	_section("a disconnect")
 
-	var sessions: Array[DotClientSession] = []
+	var sessions: Array[GSClientSession] = []
 
 	for n in 2:
-		var session := DotClientSession.new()
+		var session := GSClientSession.new()
 		session.peer_id = 4101 + n
 		session.userid = 411 + n
 		session.display_name = "Leaver%d" % n
@@ -268,7 +268,7 @@ func _test_disconnect() -> void:
 				seen += 1
 				var value: Variant = behaviour._net_read_property(declaration.property)
 
-				if declaration.type in [DotNetVar.Type.INT, DotNetVar.Type.UINT, DotNetVar.Type.VARINT] \
+				if declaration.type in [GSNetVar.Type.INT, GSNetVar.Type.UINT, GSNetVar.Type.VARINT] \
 						and typeof(value) != TYPE_INT:
 					bad.append("%s.%s=%s" % [identity.net_id, declaration.property, str(value)])
 
@@ -304,7 +304,7 @@ func _test_vote() -> void:
 
 	# A server that runs other games beside this one offers only the modes on the mode
 	# ballot. It offered every game it ran, and a win there changed the whole server.
-	var other := DotGameDescriptor.new()
+	var other := GSGameDescriptor.new()
 	other.game_id = "other_game"
 	other.display_name = "Another Game"
 	other.scene = "res://nowhere.tscn"
@@ -341,10 +341,10 @@ func _test_vote_menu(maps: HungryMaps, modes: int) -> void:
 	# staff the change (a mode change is `changegame`, the source's own apply, which this
 	# suite does not run: it would replace the game under the rest of it).
 	var menu_half: Object = maps.commands.get("map_menu") if maps.commands != null else null
-	var player := DotCmdContext.new()
-	player.source = DotCmdContext.Source.CHAT
-	var staff := DotCmdContext.new()
-	staff.source = DotCmdContext.Source.CHAT
+	var player := GSCmdContext.new()
+	player.source = GSCmdContext.Source.CHAT
+	var staff := GSCmdContext.new()
+	staff.source = GSCmdContext.Source.CHAT
 	staff.permissions = PackedStringArray(["generic"])
 	var offer: Dictionary = menu_half.call("offer", player) if menu_half != null else {"maps": []}
 	_check(menu_half != null and _server.console.find_command("mapmenu") != null
@@ -429,7 +429,7 @@ func _test_vote_rock(maps: HungryMaps) -> void:
 	_test_vote_score(maps, rules)
 
 
-func _test_vote_score(maps: HungryMaps, rules: DotVoteRules) -> void:
+func _test_vote_score(maps: HungryMaps, rules: GSVoteRules) -> void:
 	# The leading score — the biggest monster's mass — reaches the director, and a score
 	# limit opens the ballot off it. Nothing called note_score before.
 	var saved := [rules.trigger, rules.duration_sec, rules.score_limit, rules.vote_lead_score, rules.min_players_to_vote, rules.vote_warning_sec, rules.allow_single_voter_auto]
@@ -437,7 +437,7 @@ func _test_vote_score(maps: HungryMaps, rules: DotVoteRules) -> void:
 	# No countdown for this one: it asks whether the score opens a ballot, and a countdown
 	# in front of the ballot is the check above.
 	rules.vote_warning_sec = 0.0
-	rules.trigger = DotVoteRules.Trigger.SCORE_LIMIT
+	rules.trigger = GSVoteRules.Trigger.SCORE_LIMIT
 	rules.duration_sec = 0.0
 	rules.score_limit = top + 3
 	rules.vote_lead_score = 3
@@ -461,7 +461,7 @@ func _test_vote_score(maps: HungryMaps, rules: DotVoteRules) -> void:
 
 	# And a round end reaches it, from the match the module is running.
 	var played := maps.director.clock.rounds_played
-	_module().world.match_node.round_ended.emit(99, 0, DotMatchRules.Outcome.SCORE)
+	_module().world.match_node.round_ended.emit(99, 0, GSMatchRules.Outcome.SCORE)
 	_check(
 		maps.director.clock.rounds_played == played + 1,
 		"and dot-match's round end reaches the director (%d -> %d)"
@@ -477,7 +477,7 @@ func _test_vote_score(maps: HungryMaps, rules: DotVoteRules) -> void:
 	rules.allow_single_voter_auto = saved[6]
 	maps.director.begin(maps.director.current_id())
 
-	# [b]The `map time` line follows an extend.[/b] It was a `DotMapTimeLimit` built beside
+	# [b]The `map time` line follows an extend.[/b] It was a `GSMapTimeLimit` built beside
 	# the vote and advanced in step with it, which nothing extended: an operator reading
 	# `hungry_vote status` after the players voted to extend saw the old limit.
 	var before_line := _map_time_line(maps.describe_lines())
@@ -499,7 +499,7 @@ func _test_vote_score(maps: HungryMaps, rules: DotVoteRules) -> void:
 func _test_finish_round_waits_for_a_live_round() -> void:
 	_section("finish_round waits for a live round, not warmup")
 	var module := _module()
-	var director: DotVoteDirector = module.maps.director if module != null and module.maps != null else null
+	var director: GSVoteDirector = module.maps.director if module != null and module.maps != null else null
 	var hook: Variant = director.get("round_in_progress_fn") if director != null else null
 	_check(hook is Callable and (hook as Callable).is_valid(), "the game tells its vote whether a round is live")
 
@@ -507,21 +507,21 @@ func _test_finish_round_waits_for_a_live_round() -> void:
 		_done()
 		return
 
-	var match_node: DotMatch = module.world.match_node
+	var match_node: GSMatch = module.world.match_node
 	var was := match_node.state
-	match_node.state = DotMatch.State.WARMUP
+	match_node.state = GSMatch.State.WARMUP
 	var warm_applied := []
 	var warm := _finish_round_probe(hook, warm_applied)
 	_check(warm_applied == [&"b"] and not warm.is_finishing_round(),
 		"in warmup a time limit with finish_round changes at once", str(warm_applied))
 
-	match_node.state = DotMatch.State.LIVE
+	match_node.state = GSMatch.State.LIVE
 	var live_applied := []
 	var live := _finish_round_probe(hook, live_applied)
 	_check(live_applied.is_empty() and live.is_finishing_round(),
 		"during a live round it waits for the round", str(live_applied))
 
-	match_node.state = DotMatch.State.INTERMISSION
+	match_node.state = GSMatch.State.INTERMISSION
 	live.advance(0.1)
 	_check(live_applied == [&"b"], "and the round ending is the change", str(live_applied))
 
@@ -533,27 +533,27 @@ func _test_finish_round_waits_for_a_live_round() -> void:
 
 ## A director under `time_up: finish_round` carrying [param hook], its clock run out with a
 ## winner already decided: what dot-vote's own suite builds, with the game's answer in it.
-func _finish_round_probe(hook: Callable, applied: Array) -> DotVoteDirector:
-	var source := DotVoteListSource.new()
-	var _a := source.add(DotVoteChoice.of(&"a", "A"))
-	var _b := source.add(DotVoteChoice.of(&"b", "B"))
-	source.apply_fn = func(id: StringName) -> DotResult:
+func _finish_round_probe(hook: Callable, applied: Array) -> GSVoteDirector:
+	var source := GSVoteListSource.new()
+	var _a := source.add(GSVoteChoice.of(&"a", "A"))
+	var _b := source.add(GSVoteChoice.of(&"b", "B"))
+	source.apply_fn = func(id: StringName) -> GSResult:
 		applied.append(id)
-		return DotResult.success(id)
+		return GSResult.success(id)
 
-	var rules := DotVoteRules.new()
+	var rules := GSVoteRules.new()
 	rules.apply_delay_sec = 0.0
 	rules.duration_sec = 100.0
 	rules.vote_lead_sec = 40.0
 	rules.vote_duration_sec = 5.0
 	rules.include_extend = false
-	rules.apply = DotVoteRules.Apply.END_OF_TIME
+	rules.apply = GSVoteRules.Apply.END_OF_TIME
 	rules.cooldown = 0
-	rules.time_up = DotVoteRules.TimeUp.FINISH_ROUND
+	rules.time_up = GSVoteRules.TimeUp.FINISH_ROUND
 	# For ever: only the hook may release it.
 	rules.finish_round_max_sec = 0.0
 
-	var probe := DotVoteDirector.new()
+	var probe := GSVoteDirector.new()
 	probe.rules = rules
 	probe.source = source
 	probe.register_service = false

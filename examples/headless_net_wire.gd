@@ -4,7 +4,7 @@ extends "res://examples/headless_net_base.gd"
 ## panel and an edit that applies and replicates; a guest, a non-admin, a revoked admin and the cvar off are refused.
 func _test_the_remote_workbench() -> void:
 	_section("a flagged admin edits the server's profiles, and nobody else can")
-	if not DotGameWorkbench.available():
+	if not GSGameWorkbench.available():
 		print("  dot-workbench is not linked: skipped")
 		_passed += 16
 		_done()
@@ -34,7 +34,7 @@ func _test_the_remote_workbench() -> void:
 	var kind := "config_play"
 	var set := _profile_set(sbinder, kind)
 	var cset := _profile_set(cbinder, kind)
-	var swb := DotGameWorkbench.new()
+	var swb := GSGameWorkbench.new()
 	swb.dedicated = true
 	swb.config = {"enabled": false}
 	swb.add_set(set, "Server settings")
@@ -42,8 +42,8 @@ func _test_the_remote_workbench() -> void:
 	var srt := sbridge.ensure_runtime()
 	var started := swb.start(srt)
 	sbinder.attach(srt)
-	var made := DotGameWorkbenchRemote.serve(snet)
-	var cremote := DotGameWorkbenchRemoteClient.attach(cnet)
+	var made := GSGameWorkbenchRemote.serve(snet)
+	var cremote := GSGameWorkbenchRemoteClient.attach(cnet)
 	snet.messages.seal()
 	cnet.messages.seal()
 	var remote := swb.serve_remote(snet)
@@ -59,9 +59,9 @@ func _test_the_remote_workbench() -> void:
 	remote.connected_fn = func(_p: int) -> bool: return true
 	remote.permit_uid_fn = func(uid: String, flag: String) -> bool: return (flags.get(uid, []) as Array).has(flag)
 	remote.now_fn = func() -> int: return state["now"]
-	remote.limiter = DotRateLimiter.new(1000.0, 1000.0)
+	remote.limiter = GSRateLimiter.new(1000.0, 1000.0)
 	var crt := cbridge.ensure_runtime()
-	var cwb := DotGameWorkbench.new()
+	var cwb := GSGameWorkbench.new()
 	cwb.panel_mode = 2
 	cwb.config = {"enabled": false}
 	cwb.remote_client = cremote
@@ -77,8 +77,8 @@ func _test_the_remote_workbench() -> void:
 	}
 	_workbench_scenario(rig)
 
-func _profile_set(binder: DotGameConfigBinder, kind: String) -> DotProfileSet:
-	for candidate: DotProfileSet in binder.profile_sets():
+func _profile_set(binder: GSGameConfigBinder, kind: String) -> GSProfileSet:
+	for candidate: GSProfileSet in binder.profile_sets():
 		if candidate.rel_path == kind:
 			return candidate
 	return null
@@ -88,14 +88,14 @@ func _workbench_scenario(rig: Dictionary) -> void:
 	var flags: Dictionary = rig["flags"]
 	var state: Dictionary = rig["state"]
 	var kind: String = rig["kind"]
-	var sbinder: DotGameConfigBinder = rig["sbinder"]
+	var sbinder: GSGameConfigBinder = rig["sbinder"]
 	var sconfig: HungryServerConfig = rig["sconfig"]
-	var cremote: DotGameWorkbenchRemoteClient = rig["cremote"]
-	var cwb: DotGameWorkbench = rig["cwb"]
-	var swb: DotGameWorkbench = rig["swb"]
-	var crt: DotProfileRuntime = rig["crt"]
-	var srt: DotProfileRuntime = rig["srt"]
-	var remote: DotGameWorkbenchRemote = rig["remote"]
+	var cremote: GSGameWorkbenchRemoteClient = rig["cremote"]
+	var cwb: GSGameWorkbench = rig["cwb"]
+	var swb: GSGameWorkbench = rig["swb"]
+	var crt: GSProfileRuntime = rig["crt"]
+	var srt: GSProfileRuntime = rig["srt"]
+	var remote: GSGameWorkbenchRemote = rig["remote"]
 	var edit := {"op": "set", "kind": kind, "id": sbinder.profile_id, "key": "friendly_fire", "value": false}
 
 	state["uid"] = "boss"
@@ -108,7 +108,7 @@ func _workbench_scenario(rig: Dictionary) -> void:
 	cremote.ask()
 	_check(cremote.allowed and cremote.flags.has("cvar"), "with the cvar on an admin is told the flags it holds")
 	_check(cwb.overlay != null, "and gets the panel")
-	var applied: DotResult = cwb.api.handle(DotGameWorkbenchRemoteClient.ACTOR, edit)
+	var applied: GSResult = cwb.api.handle(GSGameWorkbenchRemoteClient.ACTOR, edit)
 	_check(applied.ok and not sconfig.friendly_fire, "an edit from the panel reaches the server's live config", "" if applied.ok else applied.error.message)
 	_check(crt.revision(kind, sbinder.profile_id) > 0 and crt.revision(kind, sbinder.profile_id) == srt.revision(kind, sbinder.profile_id), "and its row replicated to the client")
 
@@ -154,9 +154,9 @@ func _test_command_wire() -> void:
 	original.delta = 1.0 / 60.0
 	original.command.aim = Vector2(0.6, -0.8)
 	original.command.reach = 640.0
-	original.command.set_button(Dot2DCommand.BUTTON_SPLIT, true)
+	original.command.set_button(GS2DCommand.BUTTON_SPLIT, true)
 
-	var writer := DotNetWriter.new()
+	var writer := GSNetWriter.new()
 	original.write(writer)
 
 	var back := HungryNetCommand.new()
@@ -174,7 +174,7 @@ func _test_command_wire() -> void:
 			% absf(back.command.reach - original.command.reach)
 	)
 	_check(
-		back.command.is_pressed(Dot2DCommand.BUTTON_SPLIT), "and so do the buttons"
+		back.command.is_pressed(GS2DCommand.BUTTON_SPLIT), "and so do the buttons"
 	)
 
 	# Sanitising is not optional and it is not redundant with quantisation: quantisation
@@ -194,7 +194,7 @@ func _test_command_wire() -> void:
 		"an out-of-range reach is clamped (%.0f)" % hostile.command.reach
 	)
 	_check(
-		hostile.command.buttons < (1 << Dot2DCommand.BUTTON_BITS),
+		hostile.command.buttons < (1 << GS2DCommand.BUTTON_BITS),
 		"and unknown buttons are masked off"
 	)
 	_done()
@@ -205,7 +205,7 @@ func _test_event_wire() -> void:
 	var schema := HungryContent.avatar_schema()
 
 	var hello := HungryEvents.read_hello(
-		DotNetReader.new(
+		GSNetReader.new(
 			HungryEvents.write_hello(
 				12345, 60, 7, 2, 900, Vector2(5200.0, 5200.0),
 				"https://cdn.example/hungry/manifest.json"
@@ -233,24 +233,24 @@ func _test_event_wire() -> void:
 	avatar.set_colour(&"hat", 0, Color(0.2, 0.4, 0.9))
 
 	var join := HungryEvents.read_join(
-		DotNetReader.new(HungryEvents.write_join(7, 2, "Ada", avatar, schema)), schema
+		GSNetReader.new(HungryEvents.write_join(7, 2, "Ada", avatar, schema)), schema
 	)
 	_check(bool(join["ok"]), "a join round-trips")
 	_check(String(join["name"]) == "Ada", "with the name")
 
 	var carried: Variant = join["avatar"]
-	_check(carried is DotAvatar, "and the avatar")
+	_check(carried is GSAvatar, "and the avatar")
 	_check(
-		carried is DotAvatar and (carried as DotAvatar).digest() == avatar.digest(),
+		carried is GSAvatar and (carried as GSAvatar).digest() == avatar.digest(),
 		"which is the same document",
 		"%s vs %s" % [
-			(carried as DotAvatar).digest() if carried is DotAvatar else "-",
+			(carried as GSAvatar).digest() if carried is GSAvatar else "-",
 			avatar.digest(),
 		]
 	)
 
 	var spawn := HungryEvents.read_spawn(
-		DotNetReader.new(
+		GSNetReader.new(
 			HungryEvents.write_spawn(31, 2, 7, 4, Vector2(-1234.5, 678.9), 412.0)
 		)
 	)
@@ -281,7 +281,7 @@ func _event_wire_predicted() -> void:
 	tuned.max_speed = 300.5
 	tuned.merge_delay_sec = 2.5
 	var tuned_hello := HungryEvents.read_hello(
-		DotNetReader.new(
+		GSNetReader.new(
 			HungryEvents.write_hello(1, 60, 7, 2, 900, Vector2(5200.0, 5200.0), "", &"", tuned)
 		)
 	)
@@ -300,7 +300,7 @@ func _event_wire_throw() -> void:
 		9, 7, HungryContent.ITEM_FROST, Vector2(100.0, -50.0), Vector2(0.6, 0.8), 512
 	)
 	var thrown := HungryEvents.read_throw(
-		DotNetReader.new(HungryEvents.write_throw(shot))
+		GSNetReader.new(HungryEvents.write_throw(shot))
 	)
 	_check(bool(thrown["ok"]), "a throw round-trips")
 	_check(
@@ -310,7 +310,7 @@ func _event_wire_throw() -> void:
 	_check(int(thrown["tick"]) == 512, "and the tick it left on")
 
 	var carry := HungryEvents.read_carry(
-		DotNetReader.new(
+		GSNetReader.new(
 			HungryEvents.write_carry(
 				[HungryContent.ITEM_PEPPER, HungryContent.ITEM_LURE]
 			)
@@ -323,8 +323,8 @@ func _event_wire_throw() -> void:
 
 func _event_wire_chat() -> void:
 	# Every encoder against its decoder: only a round trip proves the two are exact inverses.
-	var line := DotChatMessage.make(
-		DotChatMessage.Kind.SAY, HungryServices.CHANNEL_NEAR, "42", "Ada", "hello there"
+	var line := GSChatMessage.make(
+		GSChatMessage.Kind.SAY, HungryServices.CHANNEL_NEAR, "42", "Ada", "hello there"
 	)
 	line.seq = 9
 	line.sent_at = 1700000000
@@ -332,7 +332,7 @@ func _event_wire_chat() -> void:
 	var wire := line.to_dictionary()
 	wire["x"] = {"p": 42}
 
-	var chat := HungryEvents.read_chat(DotNetReader.new(HungryEvents.write_chat(wire)))
+	var chat := HungryEvents.read_chat(GSNetReader.new(HungryEvents.write_chat(wire)))
 	_check(bool(chat["ok"]), "a chat line round-trips")
 	_check(String(chat["m"]) == "hello there", "with the text")
 	_check(String(chat["c"]) == String(HungryServices.CHANNEL_NEAR), "and the channel")
@@ -347,12 +347,12 @@ func _event_wire_chat() -> void:
 	# value of the enum, because dot-moderation's bug was exactly one value with no case.
 	var kinds_ok := true
 
-	for kind in DotChatMessage.Kind.values():
-		var one := DotChatMessage.make(
-			kind as DotChatMessage.Kind, HungryServices.CHANNEL_ALL, "1", "Ada", "x"
+	for kind in GSChatMessage.Kind.values():
+		var one := GSChatMessage.make(
+			kind as GSChatMessage.Kind, HungryServices.CHANNEL_ALL, "1", "Ada", "x"
 		)
 		var back := HungryEvents.read_chat(
-			DotNetReader.new(HungryEvents.write_chat(one.to_dictionary()))
+			GSNetReader.new(HungryEvents.write_chat(one.to_dictionary()))
 		)
 
 		if String(back["k"]) != one.kind_name():
@@ -361,7 +361,7 @@ func _event_wire_chat() -> void:
 	_check(kinds_ok, "every chat kind survives the wire, not just the common one")
 
 	var said := HungryEvents.read_say(
-		DotNetReader.new(HungryEvents.write_say(HungryServices.CHANNEL_NEAR, "anybody?"))
+		GSNetReader.new(HungryEvents.write_say(HungryServices.CHANNEL_NEAR, "anybody?"))
 	)
 	_check(
 		bool(said["ok"]) and String(said["text"]) == "anybody?"
@@ -371,7 +371,7 @@ func _event_wire_chat() -> void:
 
 func _event_wire_world() -> void:
 	var hunter := HungryEvents.read_hunter(
-		DotNetReader.new(
+		GSNetReader.new(
 			HungryEvents.write_hunter(
 				77, HungryHunters.index_of(&"stalker"), Vector2(120.0, -340.0), 26.5, true
 			)
@@ -390,7 +390,7 @@ func _event_wire_world() -> void:
 	)
 
 	var hazard := HungryEvents.read_hazard(
-		DotNetReader.new(
+		GSNetReader.new(
 			HungryEvents.write_hazard(
 				5, HungryHazards.index_of(&"spike"), Vector2(-900.0, 20.0), true
 			)
@@ -404,7 +404,7 @@ func _event_wire_world() -> void:
 	_check(bool(hazard["present"]), "and whether it is still there")
 
 	var earned := HungryEvents.read_progress(
-		DotNetReader.new(HungryEvents.write_progress(7, &"eat_100", "Peckish", 10))
+		GSNetReader.new(HungryEvents.write_progress(7, &"eat_100", "Peckish", 10))
 	)
 	_check(
 		bool(earned["ok"]) and String(earned["id"]) == "eat_100"
@@ -413,7 +413,7 @@ func _event_wire_world() -> void:
 	)
 
 	_check(
-		HungryEvents.read_vote(DotNetReader.new(HungryEvents.write_vote("nominate frenzy")))
+		HungryEvents.read_vote(GSNetReader.new(HungryEvents.write_vote("nominate frenzy")))
 			== "nominate frenzy",
 		"and a vote token, which is a token because what an id MEANS is a source's business"
 	)
@@ -441,7 +441,7 @@ func _event_wire_catalogue() -> void:
 	_check(HungryRequest.fits(), "every request kind fits the request's kind field",
 		"%d kinds in %d bits" % [HungryEvents.Ask.size(), HungryRequest.KIND_BITS])
 	_check(HungryEvents.chat_kinds_fit(), "every chat kind fits the chat line's kind field",
-		"%d kinds in %d bits" % [DotChatMessage.KIND_NAMES.size(), HungryEvents.CHAT_KIND_BITS])
+		"%d kinds in %d bits" % [GSChatMessage.KIND_NAMES.size(), HungryEvents.CHAT_KIND_BITS])
 	_check(HungryHunters.wire_ids().size() <= (1 << HungryEvents.HUNTER_KIND_BITS),
 		"every hunter kind fits the hunter event's kind field",
 		"%d kinds in %d bits" % [HungryHunters.wire_ids().size(), HungryEvents.HUNTER_KIND_BITS])
@@ -465,7 +465,7 @@ func _test_field_wire() -> void:
 	}
 
 	var back := HungryEvents.read_field(
-		DotNetReader.new(HungryEvents.write_field(added, removed, planted))
+		GSNetReader.new(HungryEvents.write_field(added, removed, planted))
 	)
 
 	_check(bool(back["ok"]), "a field delta round-trips")
@@ -482,7 +482,7 @@ func _test_field_wire() -> void:
 
 	# A hostile count must be refused before it is looped over. Four billion is one
 	# varint and would otherwise be four billion iterations.
-	var hostile := DotNetWriter.new()
+	var hostile := GSNetWriter.new()
 	hostile.write_varint(4_000_000_000)
 	var refused := HungryEvents.read_field(hostile.to_reader())
 	_check(not bool(refused["ok"]), "an absurd count is refused, not iterated")
@@ -494,7 +494,7 @@ func _test_vote_wire() -> void:
 	_section("the mode vote's cues over the link")
 
 	var round_trip := HungryEvents.read_vote_cue(
-		DotNetReader.new(HungryEvents.write_vote_cue(HungryEvents.CUE_VOTE_COUNT, 4, true))
+		GSNetReader.new(HungryEvents.write_vote_cue(HungryEvents.CUE_VOTE_COUNT, 4, true))
 	)
 	_check(
 		bool(round_trip["ok"]) and String(round_trip["cue"]) == HungryEvents.CUE_VOTE_COUNT

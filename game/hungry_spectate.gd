@@ -1,4 +1,4 @@
-extends DotSpectatorHost
+extends GSSpectatorHost
 
 const HungryWorld := preload("hungry_world.gd")
 
@@ -12,7 +12,7 @@ const HungryWorld := preload("hungry_world.gd")
 ##
 ## [b]A 2D world is the XZ plane, which is what makes this four lines rather than a
 ## second addon.[/b] dot-npc settled that convention and everything downstream inherited
-## it; `DotSpectatorManager.camera_2d_of` gives a position and a facing back, so nothing
+## it; `GSSpectatorManager.camera_2d_of` gives a position and a facing back, so nothing
 ## here needs a 3D camera or a second code path.
 ##
 ## [b]The policy is the whole point, and this game's is its own.[/b] Hungario is a
@@ -34,7 +34,7 @@ func attach_to(p_world: HungryWorld) -> bool:
 
 	if not watching.ok:
 		# Not fatal: a world with no spectator camera is how this game ran before spectating existed.
-		DotLog.warn(CHANNEL, "spectating is off", {"why": watching.error.message})
+		GSLog.warn(CHANNEL, "spectating is off", {"why": watching.error.message})
 		p_world.remove_child(self)
 		queue_free()
 		return false
@@ -43,7 +43,7 @@ func attach_to(p_world: HungryWorld) -> bool:
 
 
 ## Binds the world and builds the manager. [method setup] itself takes no world.
-func bind(p_world: HungryWorld) -> DotResult:
+func bind(p_world: HungryWorld) -> GSResult:
 	world = p_world
 	authoritative = world.is_authority
 	tick_rate = world.tick_rate
@@ -61,14 +61,14 @@ func bind(p_world: HungryWorld) -> DotResult:
 	if not world.player_spawned.is_connected(_on_spawned):
 		world.player_spawned.connect(_on_spawned)
 
-	return DotResult.success(null)
+	return GSResult.success(null)
 
 
 func _channel() -> String:
 	return CHANNEL
 
 
-func _tune_rules(r: DotSpectatorRules) -> DotSpectatorRules:
+func _tune_rules(r: GSSpectatorRules) -> GSSpectatorRules:
 	# A free-for-all has no sides, so restricting the camera to one restricts it to a team of one.
 	r.force_camera = 0
 	# Knowing where the biggest monster stands is the skill; a living watcher would have it free.
@@ -134,12 +134,12 @@ func _on_died(player_id: int, killer_id: int) -> void:
 	var monster := world.monster_for(player_id)
 	var at := monster.centre() if monster != null else Vector2.ZERO
 	death(str(player_id), Vector3(at.x, 0.0, at.y), str(killer_id) if killer_id != 0 else "")
-	DotLog.debug(CHANNEL, "a dead player is spectating", {
+	GSLog.debug(CHANNEL, "a dead player is spectating", {
 		"player": player_id, "killer": killer_id, "watching": watching(str(player_id)),
 	})
 
 
 func _on_spawned(player_id: int) -> void:
 	if is_spectating(str(player_id)):
-		DotLog.debug(CHANNEL, "a respawn ends spectating", {"player": player_id})
+		GSLog.debug(CHANNEL, "a respawn ends spectating", {"player": player_id})
 	spawned(str(player_id))

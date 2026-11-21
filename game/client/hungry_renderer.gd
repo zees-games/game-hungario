@@ -22,7 +22,7 @@ const HungryWorld := preload("../hungry_world.gd")
 ## reason.
 ##
 ## [b]Everything is culled to the camera.[/b] The rectangle comes from the camera rig, and
-## the food inside it comes out of the same [Dot2DGrid] the eat checks use — which is what
+## the food inside it comes out of the same [GS2DGrid] the eat checks use — which is what
 ## that grid is for. Drawing the whole field and letting the renderer clip it would draw a
 ## thousand circles to show fifty.
 ##
@@ -47,7 +47,7 @@ const CULL_MARGIN := 120.0
 ## The camera, for the cull rectangle. Any [Camera2D] will do.
 @export var camera: Camera2D = null
 
-## The clock this machine's own monster is predicted on (dot-net's `DotNetClock`), for its
+## The clock this machine's own monster is predicted on (dot-net's `GSNetClock`), for its
 ## render alpha; null offline. See [method HungryPiece.frame_alpha].
 var render_clock: Object = null
 
@@ -111,7 +111,7 @@ var void_colour := Color(0.46, 0.52, 0.78)
 var grid_line := Color(0.30, 0.40, 0.72, 0.30)
 var wall := Color(0.38, 0.46, 0.92)
 
-## Clouds drifting under the arena: parallaxed, hashed per cell like [DotStarfield] (the
+## Clouds drifting under the arena: parallaxed, hashed per cell like [GSStarfield] (the
 ## same position every frame from any direction), drawn only where a whole cloud fits
 ## inside the arena. Opaque and a step toward white from the floor, because translucent
 ## discs show every overlap as a seam; large and pale, so no cloud is ever mistaken for
@@ -313,7 +313,7 @@ func _draw_hazards(view: Rect2) -> void:
 
 	for entry in hazards.placements().values():
 		var placement: Dictionary = entry
-		var def: DotPropDef = placement["def"]
+		var def: GSPropDef = placement["def"]
 		var at: Vector2 = placement["at"]
 		var radius := HungryHazards.radius_of(def)
 
@@ -412,7 +412,7 @@ func _draw_ground(view: Rect2) -> void:
 	draw_rect(bounds, background)
 
 	# The sky's clouds, parallaxed against the camera — hashed rather than stored, for the
-	# reason [DotStarfield] gives. Drawn under the grid and everything else: it is scenery,
+	# reason [GSStarfield] gives. Drawn under the grid and everything else: it is scenery,
 	# and nothing in it may be mistaken for something edible.
 	var anchor := camera.global_position if camera != null else Vector2.ZERO
 
@@ -746,14 +746,14 @@ func _draw_name(monster: HungryMonster, piece: HungryPiece, mine: bool) -> void:
 
 
 ## The rider schema and catalogue, shared across every rider.
-var _shared_schema: DotAvatarSchema = null
-var _shared_catalogue: DotAvatarCatalogue = null
+var _shared_schema: GSAvatarSchema = null
+var _shared_catalogue: GSAvatarCatalogue = null
 
 ## Where part scenes come from. Public so a host can hand it a pack it acquired itself.
 var content: HungryContentSource = null
 
 
-func _schema() -> DotAvatarSchema:
+func _schema() -> GSAvatarSchema:
 	if _shared_schema == null:
 		_shared_schema = HungryContent.avatar_schema()
 
@@ -768,9 +768,9 @@ func _schema() -> DotAvatarSchema:
 ## Its resolver is [HungryContentSource], which prefers a mounted pack over the build and
 ## falls back to nothing so the rider draws itself. That order is what makes downloadable
 ## cosmetics an upgrade rather than a requirement.
-func _catalogue() -> DotAvatarCatalogue:
+func _catalogue() -> GSAvatarCatalogue:
 	if _shared_catalogue == null:
-		_shared_catalogue = DotAvatarCatalogue.new()
+		_shared_catalogue = GSAvatarCatalogue.new()
 		_shared_catalogue.builtin_prefix = HungryContentSource.BUILTIN_PREFIX
 		content = HungryContentSource.new()
 		content.install(_shared_catalogue)

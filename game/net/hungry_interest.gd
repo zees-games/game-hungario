@@ -1,4 +1,4 @@
-extends DotNetInterest
+extends GSNetInterest
 
 const HungryNetBridge := preload("hungry_net_bridge.gd")
 const HungryPieceNet := preload("hungry_piece_net.gd")
@@ -12,7 +12,7 @@ const HungryPieceNet := preload("hungry_piece_net.gd")
 ## dot-net's built-in distance strategy would nearly do, and does not, for two reasons
 ## that are both about a monster being a set:
 ##
-## - [b]The observer is not one entity.[/b] [method DotNetManager._observer_for] hands a
+## - [b]The observer is not one entity.[/b] [method GSNetManager._observer_for] hands a
 ##   strategy the first entity a peer owns, which after a burst is an arbitrary fragment
 ##   possibly a screen away from where the player is looking. What a player sees is
 ##   framed on their [i]centroid[/i], so that is what this measures from.
@@ -54,8 +54,8 @@ func _init() -> void:
 
 
 func _is_relevant(
-	observer: DotNetIdentity,
-	entity: DotNetIdentity,
+	observer: GSNetIdentity,
+	entity: GSNetIdentity,
 	_context: Dictionary
 ) -> bool:
 	if observer == null or bridge == null:
@@ -96,8 +96,8 @@ func view_rect(peer_id: int) -> Rect2:
 ## rather than out of the world, so this stays correct on a peer that only has the
 ## replicated view.
 func _score(
-	observer: DotNetIdentity,
-	entity: DotNetIdentity,
+	observer: GSNetIdentity,
+	entity: GSNetIdentity,
 	_context: Dictionary
 ) -> float:
 	if observer == null or entity == null:

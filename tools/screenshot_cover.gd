@@ -1,6 +1,6 @@
 extends SceneTree
 
-## Renders the loading cover the platform (DotGameClient) puts up, then the game once it lifts.
+## Renders the loading cover the platform (GSGameClient) puts up, then the game once it lifts.
 ## Through tools/screenshot_cover.sh: a null renderer saves an empty image.
 
 const OUT_DIR := "res://screenshots"
@@ -26,8 +26,8 @@ func _save(name: String) -> void:
 	_seq_begin(path)
 
 
-## Frame sequence after each still (GS_SHOT_FRAMES, set by the .sh); see DotShotSeq. The state machine holds still while it records, and `_seq_end` defers the quit until it is done.
-var _seq := DotShotSeq.new()
+## Frame sequence after each still (GS_SHOT_FRAMES, set by the .sh); see GSShotSeq. The state machine holds still while it records, and `_seq_end` defers the quit until it is done.
+var _seq := GSShotSeq.new()
 var _seq_active := false
 var _seq_end := false
 
@@ -46,7 +46,7 @@ func _process(_delta: float) -> bool:
 	if _seq_end:
 		return true
 	_frames += 1
-	var platform: DotGameClient = _client.get("platform")
+	var platform: GSGameClient = _client.get("platform")
 	if _stage == 0 and _frames == 2:
 		print("cover %s" % ("lifted" if platform.is_shown() else "up"))
 		_save("cover.png")

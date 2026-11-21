@@ -4,7 +4,7 @@ extends Node2D
 ## One avatar part, drawn rather than modelled.
 ##
 ## [b]This file is content, not code.[/b] It ships inside `content/avatars/` in the build
-## and it is also what [DotCloudPublisher] packages into the avatar pack, so at runtime
+## and it is also what [GSCloudPublisher] packages into the avatar pack, so at runtime
 ## there may be two copies of it on disk at different paths — one under `res://content/`
 ## and one under `res://dot_cloud/hungry_avatars/<version>/`. That is exactly what
 ## dot-cloud's version-namespaced mounting is for, and it is why this script has no

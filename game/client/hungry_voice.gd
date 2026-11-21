@@ -6,7 +6,7 @@ const HungryServices := preload("../hungry_services.gd")
 ##
 ## [b]dot-voice does the work; this decides three things[/b] — where a captured frame goes,
 ## where an arriving one comes from, and what opens the gate. Everything else (resampling,
-## encoding, sequencing, concealment, one buffer per speaker) is [DotVoiceManager]'s.
+## encoding, sequencing, concealment, one buffer per speaker) is [GSVoiceManager]'s.
 ##
 ## [b]Push to talk, and the microphone closes when a screen takes the keyboard.[/b] A
 ## key-up delivered into a chat box is a gate that never closes, and the resulting bug is
@@ -32,24 +32,24 @@ signal speaker_changed(speaker: int, speaking: bool)
 
 var available: bool = false
 var unavailable_reason: String = ""
-var manager: DotVoiceManager = null
+var manager: GSVoiceManager = null
 var send_fn: Callable = Callable()
 
 ## Whether playback goes into a buffer instead of an audio device.
 ##
-## [b]What makes the receiving half checkable at all.[/b] `DotVoiceSinkPlayer` needs an
+## [b]What makes the receiving half checkable at all.[/b] `GSVoiceSinkPlayer` needs an
 ## `AudioStreamPlayer` and a mixer, neither of which exists in a headless run — so without
 ## a buffer sink the receiving half is the one part of this game nothing can ever run, and
 ## a wire that decoded to nothing would look exactly like one that worked. dot-voice put
-## [DotVoiceSource] and [DotVoiceSink] behind an interface for precisely this.
+## [GSVoiceSource] and [GSVoiceSink] behind an interface for precisely this.
 var buffered_playback: bool = false
 
 var _talking: bool = false
 var _buffers: Dictionary = {}
 
 
-func setup(enable_capture: bool = true) -> DotResult:
-	manager = DotVoiceManager.new()
+func setup(enable_capture: bool = true) -> GSResult:
+	manager = GSVoiceManager.new()
 	manager.name = "Voice"
 	# [b]The config comes from the same file the server's does.[/b] A sample rate or a
 	# frame length that differs between two peers is a stream of packets the router
@@ -71,28 +71,28 @@ func setup(enable_capture: bool = true) -> DotResult:
 	# [b]Not opened here.[/b] The first press of the talk key opens it ([method set_talking],
 	# dot-voice's update_talk): a microphone opened as the client loads is one nobody agreed
 	# to, and in a browser it is a permission prompt in front of somebody who has not asked.
-	if not InputMap.has_action(DotVoiceManager.TALK_ACTION):
-		InputMap.add_action(DotVoiceManager.TALK_ACTION)
+	if not InputMap.has_action(GSVoiceManager.TALK_ACTION):
+		InputMap.add_action(GSVoiceManager.TALK_ACTION)
 		var key := InputEventKey.new()
 		key.physical_keycode = KEY_TALK
-		InputMap.action_add_event(DotVoiceManager.TALK_ACTION, key)
+		InputMap.action_add_event(GSVoiceManager.TALK_ACTION, key)
 
 	# The menu's voice rows bind to it, and the server's sv_voice_enable reaches it, with or
 	# without a microphone: a listener must still stop hearing a server that turned voice off.
 	manager.publish_as_client()
-	var _following := manager.follow_cvars(DotRegistry.get_service(&"dot_client_link"))
+	var _following := manager.follow_cvars(GSRegistry.get_service(&"dot_client_link"))
 
-	var supported := DotVoiceSourceMicrophone.is_supported()
+	var supported := GSVoiceSourceMicrophone.is_supported()
 	available = supported.ok
 
 	if not available:
 		unavailable_reason = supported.error.message
-		DotLog.info(CHANNEL, "no microphone; listening only", {
+		GSLog.info(CHANNEL, "no microphone; listening only", {
 			"why": unavailable_reason,
 		})
-		return DotResult.success(false)
+		return GSResult.success(false)
 
-	return DotResult.success(enable_capture)
+	return GSResult.success(enable_capture)
 
 
 ## The talk key. Edge triggered on both edges, and the release is the one that matters.
@@ -100,7 +100,7 @@ func handle_event(event: InputEvent) -> bool:
 	if not (event is InputEventKey) or event.is_echo():
 		return false
 
-	if not event.is_action(DotVoiceManager.TALK_ACTION):
+	if not event.is_action(GSVoiceManager.TALK_ACTION):
 		return false
 
 	set_talking(event.is_pressed())
@@ -116,7 +116,7 @@ func set_talking(pressed: bool) -> void:
 	if pressed and not started.ok:
 		available = false
 		unavailable_reason = started.error.message
-		DotLog.info(CHANNEL, "no microphone; listening only", {"why": unavailable_reason})
+		GSLog.info(CHANNEL, "no microphone; listening only", {"why": unavailable_reason})
 		return
 
 	_talking = pressed and manager.server_enabled
@@ -153,8 +153,8 @@ func set_local_mute(speaker: int, muted: bool) -> void:
 		manager.set_local_mute(speaker, muted)
 
 
-func _make_buffer_sink(speaker: int) -> DotVoiceSink:
-	var sink := DotVoiceSinkBuffer.new()
+func _make_buffer_sink(speaker: int) -> GSVoiceSink:
+	var sink := GSVoiceSinkBuffer.new()
 	_buffers[speaker] = sink
 	return sink
 
@@ -165,7 +165,7 @@ func _make_buffer_sink(speaker: int) -> DotVoiceSink:
 ## decoded to something, and the difference is "the wire works" against "you can hear them".
 func heard_rms(speaker: int) -> float:
 	var sink: Variant = _buffers.get(speaker)
-	return (sink as DotVoiceSinkBuffer).rms() if sink is DotVoiceSinkBuffer else 0.0
+	return (sink as GSVoiceSinkBuffer).rms() if sink is GSVoiceSinkBuffer else 0.0
 
 
 func _send(bytes: PackedByteArray) -> void:

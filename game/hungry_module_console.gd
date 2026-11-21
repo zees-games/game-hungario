@@ -10,50 +10,50 @@ func _register_commands() -> void:
 	# the flag still decides who may run it. `.no_chat()` marks one about the operation, not the asker.
 	# Marked here are the player-facing and moderation commands.
 	add_command(
-		"hungry_status", _cmd_status, "Show the world", DotAdminFlags.GENERIC
+		"hungry_status", _cmd_status, "Show the world", GSAdminFlags.GENERIC
 	).with_chat()
 	add_command("hungry_top", _cmd_top, "Show the leaderboard", "").with_chat()
 	add_command(
 		"hungry_loadouts", _cmd_loadouts, "Show what players brought in",
-		DotAdminFlags.GENERIC
+		GSAdminFlags.GENERIC
 	)
-	add_command("hungry_net", _cmd_net, "Show the netcode", DotAdminFlags.GENERIC)
+	add_command("hungry_net", _cmd_net, "Show the netcode", GSAdminFlags.GENERIC)
 	add_command(
-		"hungry_restart", _cmd_restart, "Restart the round", DotAdminFlags.CHANGEMAP
+		"hungry_restart", _cmd_restart, "Restart the round", GSAdminFlags.CHANGEMAP
 	)
 	add_command(
 		"hungry_rotation", _cmd_rotation,
 		"hungry_rotation [name] — switch to a rotation in maps.yml, or list them",
-		DotAdminFlags.CHANGEMAP
+		GSAdminFlags.CHANGEMAP
 	)
 	add_command(
-		"hungry_maps_reload", _cmd_maps_reload, "Re-read maps.yml", DotAdminFlags.CHANGEMAP
+		"hungry_maps_reload", _cmd_maps_reload, "Re-read maps.yml", GSAdminFlags.CHANGEMAP
 	)
 	add_command(
 		"hungry_give",
 		_cmd_give,
 		"hungry_give <player> <pepper|frost|lure> — hand somebody a throwable",
-		DotAdminFlags.CHEATS
+		GSAdminFlags.CHEATS
 	)
 	add_command(
 		"hungry_burst",
 		_cmd_burst,
 		"hungry_burst <player> — blow somebody apart",
-		DotAdminFlags.CHEATS
+		GSAdminFlags.CHEATS
 	)
 
 	add_command(
 		"hungry_services", _cmd_services,
-		"Show chat, voice and moderation", DotAdminFlags.GENERIC
+		"Show chat, voice and moderation", GSAdminFlags.GENERIC
 	).with_chat()
 	add_command(
 		"hungry_hunters", _cmd_hunters,
-		"hungry_hunters [on|off|clear] — the NPC monsters", DotAdminFlags.GENERIC
+		"hungry_hunters [on|off|clear] — the NPC monsters", GSAdminFlags.GENERIC
 	).with_chat()
 	add_command(
 		"hungry_hazards", _cmd_hazards,
 		"hungry_hazards [scatter <n>|clear] — rocks, spikes and lures",
-		DotAdminFlags.CHANGEMAP
+		GSAdminFlags.CHANGEMAP
 	)
 	add_command(
 		"hungry_boards", _cmd_boards,
@@ -61,27 +61,27 @@ func _register_commands() -> void:
 	).with_chat()
 	add_command(
 		"hungry_vote", _cmd_vote,
-		"hungry_vote [open|status|next] — what plays next", DotAdminFlags.CHANGEMAP
+		"hungry_vote [open|status|next] — what plays next", GSAdminFlags.CHANGEMAP
 	).with_chat()
 	# MUTE rather than BAN: quieting somebody and removing them are different powers, and
 	# dot-server's own flags are what distinguish them.
 	add_command(
 		"hungry_gag", _cmd_gag,
-		"hungry_gag <who> <seconds> [reason]", DotAdminFlags.MUTE
+		"hungry_gag <who> <seconds> [reason]", GSAdminFlags.MUTE
 	).with_chat()
 	add_command(
 		"hungry_mute", _cmd_mute,
-		"hungry_mute <who> <seconds> [reason]", DotAdminFlags.MUTE
+		"hungry_mute <who> <seconds> [reason]", GSAdminFlags.MUTE
 	).with_chat()
 
 func _register_bots() -> void:
-	# How many bots is dot-server's DotBotQuota, so bot_quota means the same on every server.
+	# How many bots is dot-server's GSBotQuota, so bot_quota means the same on every server.
 	# The fill default of six gives a lone player the game they get offline less one bot.
-	_quota = DotBotQuota.install(self, HungryTuning.settings().bot_fill)
+	_quota = GSBotQuota.install(self, HungryTuning.settings().bot_fill)
 
 	# How well they play: dot-bot's `bot_difficulty` and its `bot_*` settings, on the world
 	# [HungryBot] reads them from (sight, reaction, throw aim).
-	var _bot_cvars := DotBotSettings.of(world).bind_cvars(add_cvar, DotConVar.FLAG_NOTIFY, add_command)
+	var _bot_cvars := GSBotSettings.of(world).bind_cvars(add_cvar, GSConVar.FLAG_NOTIFY, add_command)
 
 	# [b]Deprecated: `hungry_bots` was a FIXED count[/b], and it is kept as an alias that
 	# means exactly that — `bot_quota N` in `fixed` mode — so a config or an operator who
@@ -98,12 +98,12 @@ func _register_tuning() -> void:
 	# How an eaten monster goes down on every screen: the server picks each death's reaction
 	# from these (HungryWorld.decide_death); REPLICATED, because the clients draw the falls.
 	var _ragdolls := ragdoll_rules.bind_cvars(
-		add_cvar, DotConVar.FLAG_ARCHIVE | DotConVar.FLAG_NOTIFY | DotConVar.FLAG_REPLICATED
+		add_cvar, GSConVar.FLAG_ARCHIVE | GSConVar.FLAG_NOTIFY | GSConVar.FLAG_REPLICATED
 	)
 
 	var _ambient := ambient_rules.bind_cvars(
-		add_cvar, DotConVar.FLAG_ARCHIVE | DotConVar.FLAG_NOTIFY | DotConVar.FLAG_REPLICATED,
-		DotConVar.FLAG_ARCHIVE | DotConVar.FLAG_NOTIFY
+		add_cvar, GSConVar.FLAG_ARCHIVE | GSConVar.FLAG_NOTIFY | GSConVar.FLAG_REPLICATED,
+		GSConVar.FLAG_ARCHIVE | GSConVar.FLAG_NOTIFY
 	)
 
 		# Every server config field is a `hungry_<field>` cvar bound by the same call, so a yml key, a
@@ -131,7 +131,7 @@ func _register_tuning() -> void:
 
 		# `hungry_warrens_corners` applies from the next mode change (rocks do not move under a live round);
 		# registered whether or not hunters are on, so config order does not matter.
-	npc_skill.bind_cvars(add_cvar, DotConVar.FLAG_NOTIFY)
+	npc_skill.bind_cvars(add_cvar, GSConVar.FLAG_NOTIFY)
 
 	# Where this server's rider cosmetics live. Empty means "whatever the client shipped
 	# with", which is every deployment that has not published a pack — and a client with
@@ -143,7 +143,7 @@ func _register_tuning() -> void:
 	# A path, not the token. See [method _build_reporting].
 	_cv_auth_config = HungryTuning.binder.cvar_for("backbone_config")
 
-func _cmd_status(ctx: DotCmdContext) -> void:
+func _cmd_status(ctx: GSCmdContext) -> void:
 	ctx.reply_lines(world.describe_lines())
 	ctx.reply_lines(hbridge.describe_lines())
 
@@ -159,13 +159,13 @@ func _cmd_status(ctx: DotCmdContext) -> void:
 	if maps != null:
 		ctx.reply_lines(maps.describe_lines())
 
-func _cmd_services(ctx: DotCmdContext) -> void:
+func _cmd_services(ctx: GSCmdContext) -> void:
 	ctx.reply_lines(hservices.describe_lines())
 
 	if combat != null:
 		ctx.reply_lines(combat.describe_lines())
 
-func _cmd_hunters(ctx: DotCmdContext) -> void:
+func _cmd_hunters(ctx: GSCmdContext) -> void:
 	match ctx.arg(0):
 		"on":
 			hunters.set_enabled(true)
@@ -179,7 +179,7 @@ func _cmd_hunters(ctx: DotCmdContext) -> void:
 		_:
 			ctx.reply_lines(hunters.describe_lines())
 
-func _cmd_hazards(ctx: DotCmdContext) -> void:
+func _cmd_hazards(ctx: GSCmdContext) -> void:
 	match ctx.arg(0):
 		"scatter":
 			var count := maxi(1, ctx.arg_int(1, 8))
@@ -193,7 +193,7 @@ func _cmd_hazards(ctx: DotCmdContext) -> void:
 		_:
 			ctx.reply_lines(hazards.describe_lines())
 
-func _cmd_boards(ctx: DotCmdContext) -> void:
+func _cmd_boards(ctx: GSCmdContext) -> void:
 	var board_id := StringName(ctx.arg(0, "top_mass"))
 	if progress.boards != null and progress.boards.backend == "backbone":
 		ctx.reply("Fetching the board...")
@@ -207,11 +207,11 @@ func _cmd_boards(ctx: DotCmdContext) -> void:
 	var rank := 1
 
 	for row in rows:
-		var entry: DotLeaderboardEntry = row
+		var entry: GSLeaderboardEntry = row
 		ctx.reply("%2d. %-24s %s" % [rank, entry.player_name, entry.value])
 		rank += 1
 
-func _cmd_vote(ctx: DotCmdContext) -> void:
+func _cmd_vote(ctx: GSCmdContext) -> void:
 	match ctx.arg(0):
 		"open":
 			var opened := maps.director.open_vote()
@@ -221,16 +221,16 @@ func _cmd_vote(ctx: DotCmdContext) -> void:
 		_:
 			ctx.reply_lines(maps.describe_lines())
 
-func _cmd_gag(ctx: DotCmdContext) -> void:
-	await _punish(ctx, DotPunishment.Kind.GAG, "gagged")
+func _cmd_gag(ctx: GSCmdContext) -> void:
+	await _punish(ctx, GSPunishment.Kind.GAG, "gagged")
 
-func _cmd_mute(ctx: DotCmdContext) -> void:
-	await _punish(ctx, DotPunishment.Kind.VOICE_MUTE, "muted")
+func _cmd_mute(ctx: GSCmdContext) -> void:
+	await _punish(ctx, GSPunishment.Kind.VOICE_MUTE, "muted")
 
 ## The shared half of gag and mute.
 ## One function because dot-moderation models both as one record, and two copies would each need the
 ## duration parsing and the immunity.
-func _punish(ctx: DotCmdContext, kind: DotPunishment.Kind, verb: String) -> void:
+func _punish(ctx: GSCmdContext, kind: GSPunishment.Kind, verb: String) -> void:
 	if ctx.args.size() < 2:
 		ctx.reply("Usage: %s <who> <seconds, 0 for permanent> [reason]" % ctx.command)
 		return
@@ -254,9 +254,9 @@ func _punish(ctx: DotCmdContext, kind: DotPunishment.Kind, verb: String) -> void
 	var seconds := maxi(0, ctx.arg_int(1))
 	var reason := ctx.rest(2) if ctx.args.size() > 2 else "No reason given."
 
-	var issued: DotResult = await hservices.moderation.issue(
+	var issued: GSResult = await hservices.moderation.issue(
 		kind,
-		DotPunishmentSubject.for_uid(session.uid()),
+		GSPunishmentSubject.for_uid(session.uid()),
 		reason,
 		ctx.caller_label(),
 		seconds,
@@ -268,18 +268,18 @@ func _punish(ctx: DotCmdContext, kind: DotPunishment.Kind, verb: String) -> void
 		return
 
 	ctx.reply("%s %s: %s" % [
-		session.display_name, verb, DotPunishment.format_duration(seconds)
+		session.display_name, verb, GSPunishment.format_duration(seconds)
 	])
 
 	# Told to the person it happened to, on the channel they are reading. A mute nobody is
 	# told about is a microphone that has stopped working, which is what they report.
 	hservices.chat.notice(
 		session.peer_id,
-		(issued.value as DotPunishment).player_message(),
+		(issued.value as GSPunishment).player_message(),
 		HungryServices.CHANNEL_ALL
 	)
 
-func _cmd_top(ctx: DotCmdContext) -> void:
+func _cmd_top(ctx: GSCmdContext) -> void:
 	var rank := 1
 
 	for monster in world.leaderboard(10):
@@ -288,7 +288,7 @@ func _cmd_top(ctx: DotCmdContext) -> void:
 		])
 		rank += 1
 
-func _cmd_loadouts(ctx: DotCmdContext) -> void:
+func _cmd_loadouts(ctx: GSCmdContext) -> void:
 	for monster in world.leaderboard(20):
 		ctx.reply("%-18s %-8s %-8s" % [
 			monster.display_name.substr(0, 18),
@@ -298,15 +298,15 @@ func _cmd_loadouts(ctx: DotCmdContext) -> void:
 
 	ctx.reply_lines(loadouts.describe_lines())
 
-func _cmd_net(ctx: DotCmdContext) -> void:
+func _cmd_net(ctx: GSCmdContext) -> void:
 	ctx.reply_lines(net.describe_lines())
 	ctx.reply("link     %s" % str(hbridge.link.describe()))
 
-func _cmd_restart(ctx: DotCmdContext) -> void:
+func _cmd_restart(ctx: GSCmdContext) -> void:
 	world.start(tick)
 	ctx.reply("Round restarted.")
 
-func _cmd_rotation(ctx: DotCmdContext) -> void:
+func _cmd_rotation(ctx: GSCmdContext) -> void:
 	if maps == null or maps.rotation_file == null:
 		ctx.reply("There is no maps.yml; every mode rotates.")
 		return
@@ -320,11 +320,11 @@ func _cmd_rotation(ctx: DotCmdContext) -> void:
 	var switched := maps.switch_rotation(ctx.arg(0))
 	ctx.reply_error(switched) if not switched.ok else ctx.reply("Rotation: %s" % ctx.arg(0))
 
-func _cmd_maps_reload(ctx: DotCmdContext) -> void:
-	var read := maps.load_rotation() if maps != null else DotResult.fail(DotError.CODE_STATE, "No maps.")
+func _cmd_maps_reload(ctx: GSCmdContext) -> void:
+	var read := maps.load_rotation() if maps != null else GSResult.fail(GSError.CODE_STATE, "No maps.")
 	ctx.reply_error(read) if not read.ok else ctx.reply("maps.yml re-read.")
 
-func _cmd_give(ctx: DotCmdContext) -> void:
+func _cmd_give(ctx: GSCmdContext) -> void:
 	if ctx.args.size() < 2:
 		ctx.reply("hungry_give <player> <pepper|frost|lure>")
 		return
@@ -347,7 +347,7 @@ func _cmd_give(ctx: DotCmdContext) -> void:
 	hbridge.send_carry(monster.id)
 	ctx.reply("Gave %s a %s." % [monster.display_name, ctx.args[1]])
 
-func _cmd_burst(ctx: DotCmdContext) -> void:
+func _cmd_burst(ctx: GSCmdContext) -> void:
 	if ctx.args.is_empty():
 		ctx.reply("hungry_burst <player>")
 		return
@@ -360,9 +360,9 @@ func _cmd_burst(ctx: DotCmdContext) -> void:
 	var made := world.burst(monster, 0)
 	ctx.reply("Burst %s into %d more pieces." % [monster.display_name, made])
 
-## Resolves a console argument to a monster: a session (through [method DotServer.resolve_target], so
+## Resolves a console argument to a monster: a session (through [method GSServer.resolve_target], so
 ## `#userid`, partial names and `@all` work) or a bot by name.
-func _target(ctx: DotCmdContext, needle: String) -> HungryMonster:
+func _target(ctx: GSCmdContext, needle: String) -> HungryMonster:
 	var sessions := server.find_sessions(needle)
 
 	if sessions.size() == 1:

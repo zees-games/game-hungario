@@ -30,14 +30,14 @@ var _world: HungryWorld = null
 var _seeded := false
 var _shots: Array[Dictionary] = []
 var _presentation: HungryPresentation = null
-var _menu: DotMenu = null
+var _menu: GSMenu = null
 var _at := 0
 var _wait := SETTLE
 var _done := false
 
 
 func _initialize() -> void:
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.ERROR)
 	DirAccess.make_dir_recursive_absolute(OUT_DIR)
 
 	# A world with monsters of a spread of masses, through the real world rather than a
@@ -71,19 +71,19 @@ func _build_presentation() -> void:
 	_presentation.config = HungryConfig.new()
 	_presentation.sound = HungrySound.make()
 	_presentation.menu_settings = HungrySettings.new()
-	_presentation.menu_settings.store = DotSettingsStoreMemory.new()
+	_presentation.menu_settings.store = GSSettingsStoreMemory.new()
 	_presentation.menu_settings.legacy_config_path = ""
 	_presentation.menu_settings.legacy_bindings_path = ""
 	root.add_child(_presentation.sound)
 	root.add_child(_presentation)
-	DotLog.result("screenshot", "the presentation", _presentation.setup())
+	GSLog.result("screenshot", "the presentation", _presentation.setup())
 	_menu = _presentation.menu_settings.menu
 	if _menu != null:
 		var _l := _menu.add_page(HungryMenus.loadout_page(null).page, &"general")
 
 
-## Frame sequence after each still (GS_SHOT_FRAMES); see DotShotSeq.
-var _seq := DotShotSeq.new()
+## Frame sequence after each still (GS_SHOT_FRAMES); see GSShotSeq.
+var _seq := GSShotSeq.new()
 var _seq_active := false
 
 
@@ -132,7 +132,7 @@ func _process(_delta: float) -> bool:
 			_menu.open(StringName(shot["page"]))
 		elif shot.has("board"):
 			# The Tab board, as the platform holds it: dressed for this game, fed by the world.
-			var board := _presentation.platform.board as DotMenuScoreboard
+			var board := _presentation.platform.board as GSMenuScoreboard
 			HungryMenus.dress_board(board, _world, null)
 			board.source = HungryMenus.solo_snapshot
 			board.open()

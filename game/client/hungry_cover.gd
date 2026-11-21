@@ -1,4 +1,4 @@
-extends DotLoadingCover
+extends GSLoadingCover
 
 ## The loading cover: the game's title and a tip over the arena's own sky and gold, with the
 ## stock status line and bar below. Handed to the platform as `cover`.

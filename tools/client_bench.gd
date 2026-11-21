@@ -1,8 +1,8 @@
-extends DotGameClientBench
+extends GSGameClientBench
 
 const HungryModule := preload("../game/hungry_module.gd")
 
-## Client prediction bench (dot-game's DotGameClientBench): see that class for the flags.
+## Client prediction bench (dot-game's GSGameClientBench): see that class for the flags.
 ## `--bots` adds that many of the module's own bots; `--play` supplies the pilot's movement.
 
 
@@ -47,25 +47,25 @@ func _configure() -> void:
 	jump_action = &""
 
 
-func _boot_server(bots_wanted: int, data_dir: String) -> DotNetManager:
+func _boot_server(bots_wanted: int, data_dir: String) -> GSNetManager:
 	var config := make_server_config(data_dir)
 	config.max_players = 32
-	var server := DotServer.new()
+	var server := GSServer.new()
 	server.name = "Server"
 	server.config = config
 	add_child(server)
 	for _i in 60:
 		await get_tree().process_frame
-		if server.state == DotServer.State.RUNNING:
+		if server.state == GSServer.State.RUNNING:
 			break
 	for descriptor in HungryModule.game_descriptors():
 		server.games.add_game(descriptor)
-	var changed: DotResult = await server.games.change_game(HungryModule.GAME_CLASSIC, "boot")
+	var changed: GSResult = await server.games.change_game(HungryModule.GAME_CLASSIC, "boot")
 	if not changed.ok:
 		printerr("client_bench server: ", changed.error)
 		return null
 	HungryModule.punishments_path = "%s/punishments.json" % data_dir
-	var loaded: DotResult = await server.modules.load_module("res://game/hungry_module.gd")
+	var loaded: GSResult = await server.modules.load_module("res://game/hungry_module.gd")
 	if not loaded.ok:
 		printerr("client_bench server: ", loaded.error)
 		return null

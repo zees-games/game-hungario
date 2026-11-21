@@ -3,7 +3,7 @@ extends "res://addons/dot_npc_ai/runtime/dot_npc_ai_brain.gd"
 ## What a hunter does: wander, chase what it can eat, run from what can eat it.
 ##
 ## [b]Extended by PATH, not by `class_name`, and that is not a style choice.[/b] A brain is
-## named by [member DotNpcDef.brain_script_path], and a script inside a mounted dot-cloud
+## named by [member GSNpcDef.brain_script_path], and a script inside a mounted dot-cloud
 ## pack cannot resolve a `class_name` — measured, and in game-dev/docs/bugs-found.md. A
 ## brain that named a class could therefore only ever ship inside a build. This game's
 ## hunters do ship inside its build; they are written the way a delivered one would have to
@@ -55,24 +55,24 @@ func _build() -> void:
 	# `npc.instance_id`: the object id moves whenever anything earlier allocates an object.
 	_wander_angle = float(npc.seed % 628) / 100.0 if npc != null else 0.0
 
-	machine = DotNpcAiMachine.new()
+	machine = GSNpcAiMachine.new()
 
 	machine.add(
-		DotNpcAiState.make(STATE_WANDER, _wander)
+		GSNpcAiState.make(STATE_WANDER, _wander)
 			.when(_sees_prey, STATE_CHASE)
 			.when(_sees_predator, STATE_FLEE)
 	)
 	machine.add(
-		DotNpcAiState.make(STATE_CHASE, _chase)
+		GSNpcAiState.make(STATE_CHASE, _chase)
 			.when(_sees_predator, STATE_FLEE)
-			.when(func(_c: DotNpcAiContext) -> bool: return not _sees_prey(_c), STATE_WANDER)
+			.when(func(_c: GSNpcAiContext) -> bool: return not _sees_prey(_c), STATE_WANDER)
 	)
 	machine.add(
 		# [b]Fleeing has a floor as well as a condition.[/b] `after` is what stops a
 		# hunter that is exactly on the ratio boundary flickering between CHASE and FLEE
 		# every tick — which looks like a hunter having a fit and is the classic broken
 		# NPC this family already documented in game-playlot's chaser.
-		DotNpcAiState.make(STATE_FLEE, _flee)
+		GSNpcAiState.make(STATE_FLEE, _flee)
 			.after(1.5, STATE_WANDER)
 	)
 
@@ -81,26 +81,26 @@ func _build() -> void:
 
 # --- States ----------------------------------------------------------------
 
-func _wander(ctx: DotNpcAiContext) -> void:
+func _wander(ctx: GSNpcAiContext) -> void:
 	if npc == null or not npc.is_alive():
 		return
 
 	# Wandered, not re-rolled. A direction chosen fresh every tick is Brownian motion: it
 	# averages to standing still, and a hunter that never goes anywhere is one players
 	# never meet.
-	_wander_angle = DotNpcAiSteering.wander(
+	_wander_angle = GSNpcAiSteering.wander(
 		_wander_angle, 0.5, npc.seed + int(ctx.now * 4.0)
 	)
 
-	var heading := DotNpcAiSteering.angle_to_direction(_wander_angle)
+	var heading := GSNpcAiSteering.angle_to_direction(_wander_angle)
 	var here := npc.position()
 
 	# Turned back at the wall rather than clamped there. A hunter pressed against an edge
 	# with a heading into it is a hunter that never leaves the edge, and the arena's
 	# corners would collect every hunter on the server.
 	if _link() != null and _link().has_method(&"is_near_edge"):
-		if bool(_link().call(&"is_near_edge", DotNpcInstance.from_plane(here))):
-			heading = DotNpcAiSteering.seek(here, Vector3.ZERO)
+		if bool(_link().call(&"is_near_edge", GSNpcInstance.from_plane(here))):
+			heading = GSNpcAiSteering.seek(here, Vector3.ZERO)
 			_wander_angle = atan2(heading.z, heading.x)
 
 	# Slower than a chase, because a hunter that patrols at full speed is one nobody can
@@ -108,7 +108,7 @@ func _wander(ctx: DotNpcAiContext) -> void:
 	steer_toward(here + heading * 200.0, speed * 0.45, ctx.delta)
 
 
-func _chase(ctx: DotNpcAiContext) -> void:
+func _chase(ctx: GSNpcAiContext) -> void:
 	var goal := _target_position()
 
 	if goal == Vector3.INF:
@@ -121,14 +121,14 @@ func _chase(ctx: DotNpcAiContext) -> void:
 	steer_with_spacing(goal, speed, ctx.delta, 90.0)
 
 
-func _flee(ctx: DotNpcAiContext) -> void:
+func _flee(ctx: GSNpcAiContext) -> void:
 	var threat := _target_position()
 
 	if threat == Vector3.INF:
 		return
 
 	var here := npc.position()
-	steer_toward(here + DotNpcAiSteering.flee(here, threat) * 200.0, speed * 1.1, ctx.delta)
+	steer_toward(here + GSNpcAiSteering.flee(here, threat) * 200.0, speed * 1.1, ctx.delta)
 
 
 # --- Conditions ------------------------------------------------------------
@@ -139,7 +139,7 @@ func _flee(ctx: DotNpcAiContext) -> void:
 ## belongs behind.[/b] An NPC that turns and commits on the tick it first perceives
 ## somebody is one no player can ever surprise, and the arena shooters' characteristics
 ## table exists because that is the difference between a bot and an opponent.
-func _sees_prey(_ctx: DotNpcAiContext) -> bool:
+func _sees_prey(_ctx: GSNpcAiContext) -> bool:
 	if not npc.has_target() or not has_reacted():
 		return false
 
@@ -147,7 +147,7 @@ func _sees_prey(_ctx: DotNpcAiContext) -> bool:
 	return other > 0.0 and mass >= other * _eat_ratio()
 
 
-func _sees_predator(_ctx: DotNpcAiContext) -> bool:
+func _sees_predator(_ctx: GSNpcAiContext) -> bool:
 	if not npc.has_target():
 		return false
 

@@ -48,7 +48,7 @@ static func make(
 	shot.item = p_item
 	shot.origin = p_origin
 	# A zero direction is a projectile that sits on the thrower for ever. It cannot
-	# arrive here — Dot2DCommand.sanitise normalises or zeroes the aim, and the throw is
+	# arrive here — GS2DCommand.sanitise normalises or zeroes the aim, and the throw is
 	# refused on a zero aim — but the fallback costs nothing and the failure would be
 	# very confusing.
 	shot.direction = p_direction.normalized() if p_direction.length_squared() > 0.000001 \

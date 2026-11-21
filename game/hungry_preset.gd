@@ -237,22 +237,22 @@ static func for_id(preset_id: StringName) -> HungryPreset:
 			return classic()
 
 
-func validate() -> DotResult:
+func validate() -> GSResult:
 	if minf(world_size.x, world_size.y) < 400.0:
-		return DotResult.fail(
-			DotError.CODE_INVALID,
+		return GSResult.fail(
+			GSError.CODE_INVALID,
 			"A world smaller than 400 units is smaller than a grown monster."
 		)
 
 	if win_mass <= HungryContent.START_MASS:
-		return DotResult.fail(
-			DotError.CODE_INVALID,
+		return GSResult.fail(
+			GSError.CODE_INVALID,
 			"A win mass of %.0f is at or below the starting mass, so the first player "
 				% win_mass
 			+ "to spawn has already won."
 		)
 
-	return DotResult.success(null)
+	return GSResult.success(null)
 
 
 func describe() -> Dictionary:

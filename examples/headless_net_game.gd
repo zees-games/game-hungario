@@ -6,7 +6,7 @@ func _test_loadout() -> void:
 	var schema := _server_bridge.loadout_schema
 	_check(schema != null and schema.validate().ok, "both ends hold the same schema")
 
-	var mine := DotLoadout.empty(schema.id)
+	var mine := GSLoadout.empty(schema.id)
 	mine.set_item(HungryContent.SLOT_STARTER, HungryContent.ITEM_LURE)
 	mine.set_item(HungryContent.SLOT_TRAIT, HungryContent.TRAIT_STURDY)
 
@@ -59,10 +59,10 @@ func _test_loadout() -> void:
 	_loadout_refusals(schema)
 	_done()
 
-func _loadout_refusals(schema: DotLoadoutSchema) -> void:
+func _loadout_refusals(schema: GSLoadoutSchema) -> void:
 	# Nobody owns the greedy trait, so the server must refuse it — a client that could
 	# make the server repair its way to a legal loadout can put anything in any slot.
-	var cheating := DotLoadout.empty(schema.id)
+	var cheating := GSLoadout.empty(schema.id)
 	cheating.set_item(HungryContent.SLOT_STARTER, HungryContent.ITEM_PEPPER)
 	cheating.set_item(HungryContent.SLOT_TRAIT, HungryContent.TRAIT_GREEDY)
 
@@ -78,7 +78,7 @@ func _loadout_refusals(schema: DotLoadoutSchema) -> void:
 
 	# A trait in the throwable slot is a different refusal for a different reason, and a
 	# loadout screen shows them differently.
-	var muddled := DotLoadout.empty(schema.id)
+	var muddled := GSLoadout.empty(schema.id)
 	muddled.set_item(HungryContent.SLOT_STARTER, HungryContent.TRAIT_NIMBLE)
 	muddled.set_item(HungryContent.SLOT_TRAIT, HungryContent.TRAIT_NIMBLE)
 
@@ -97,7 +97,7 @@ func _test_direction_enforced() -> void:
 	# Without this any client could send every other client a spawn, a death or a
 	# leaderboard. It is checked against the transport's view of the sender, never
 	# against a peer id inside the payload.
-	var writer := DotNetWriter.new()
+	var writer := GSNetWriter.new()
 	var event := HungryEvent.new(HungryEvents.Kind.DIED, HungryEvents.write_pair(7, 7))
 	_server_net.messages.encode(event, writer)
 
@@ -122,7 +122,7 @@ func _test_loss() -> void:
 	# for ever without the acknowledgements the input packets carry.
 	_drop_every = 4
 
-	var command := Dot2DCommand.new()
+	var command := GS2DCommand.new()
 	command.aim = Vector2(0.7, 0.7).normalized()
 	command.reach = 900.0
 
@@ -139,7 +139,7 @@ func _test_loss() -> void:
 		if HungryField.is_edible(grid_id) and _server_world.field.take(grid_id):
 			_server_world.arena.grid.remove(grid_id)
 
-	_steps(40, Dot2DCommand.new())
+	_steps(40, GS2DCommand.new())
 
 	var apart := _client_world.monster_for(7).centre().distance_to(
 		_server_world.monster_for(7).centre()
@@ -353,7 +353,7 @@ func _test_warrens_rock_converges() -> void:
 	var centre := warrens.arena.bounds.get_center()
 	# Sixty units off the face, so the window is spent pressed rather than approaching.
 	var start := rock_at + (rock_at - centre).normalized() * (rock.z + 60.0)
-	var command := Dot2DCommand.new()
+	var command := GS2DCommand.new()
 	command.aim = (rock_at - start).normalized()
 	command.reach = 900.0
 
@@ -371,7 +371,7 @@ func _test_warrens_rock_converges() -> void:
 	warrens.queue_free()
 	_done()
 
-func _rock_pressed(warrens: HungryWorld, start: Vector2, command: Dot2DCommand, rock: Vector3) -> Dictionary:
+func _rock_pressed(warrens: HungryWorld, start: Vector2, command: GS2DCommand, rock: Vector3) -> Dictionary:
 	var pressed := _rock_window(warrens, 150, command, rock)
 	print("  measured: against a rock, worst %.2f over %d ticks; %d in contact, worst %.2f and mean %.2f there; deepest %.2f" % [
 		float(pressed["worst"]), int(pressed["ticks"]), int(pressed["contact"]),
@@ -397,7 +397,7 @@ func _rock_pressed(warrens: HungryWorld, start: Vector2, command: Dot2DCommand, 
 	)
 	return pressed
 
-func _rock_naive(warrens: HungryWorld, start: Vector2, command: Dot2DCommand, rock: Vector3, pressed: Dictionary) -> void:
+func _rock_naive(warrens: HungryWorld, start: Vector2, command: GS2DCommand, rock: Vector3, pressed: Dictionary) -> void:
 	# The negative control: the rock gone from the client's world only.
 	_put(warrens, start)
 	_client_world.layout = HungryLayout.none()
@@ -414,15 +414,15 @@ func _rock_naive(warrens: HungryWorld, start: Vector2, command: Dot2DCommand, ro
 			% [float(naive["contact_mean"]), float(pressed["contact_mean"])]
 	)
 
-func _rock_split(warrens: HungryWorld, start: Vector2, command: Dot2DCommand, rock: Vector3) -> void:
+func _rock_split(warrens: HungryWorld, start: Vector2, command: GS2DCommand, rock: Vector3) -> void:
 	# Split against the face: the pieces overlap, and `_separate` is not replayed.
 	_put(warrens, start)
 	warrens.feed_player(7, 200.0)
 	_steps(10)
-	var split := Dot2DCommand.new()
+	var split := GS2DCommand.new()
 	split.aim = command.aim
 	split.reach = command.reach
-	split.buttons = Dot2DCommand.BUTTON_SPLIT
+	split.buttons = GS2DCommand.BUTTON_SPLIT
 	_step(split)
 	var halves := _rock_window(warrens, 120, command, rock)
 	print("  measured: split against the rock, %d pieces, worst %.2f (%d ticks over 8), last %.2f" % [

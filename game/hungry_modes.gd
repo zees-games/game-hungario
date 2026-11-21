@@ -1,6 +1,6 @@
 extends RefCounted
 
-## The eight modes' dials as configs: one [DotGameConfigBinder] per mode, kind `mode_<id>` (`cfg/game/game-hungario/mode_frenzy/frenzy.yml`), laid over [HungryPreset] by [method preset_for].
+## The eight modes' dials as configs: one [GSGameConfigBinder] per mode, kind `mode_<id>` (`cfg/game/game-hungario/mode_frenzy/frenzy.yml`), laid over [HungryPreset] by [method preset_for].
 ##
 ## A mode scene builds its preset before the module exists, so this is static and loads on first use.
 
@@ -11,13 +11,13 @@ const GAME_ID := "game-hungario"
 const IDS: Array[StringName] = [&"classic", &"frenzy", &"gauntlet", &"warrens", &"reef", &"shallows", &"famine", &"feast"]
 
 static var binders := {}
-static var _result: DotResult = null
+static var _result: GSResult = null
 
 
 static func load_all() -> void:
 	if _result != null:
 		return
-	_result = DotResult.success(null)
+	_result = GSResult.success(null)
 	for id in IDS:
 		var raw := HungryPreset.for_id(id)
 		var config := HungryModeConfig.new()
@@ -30,7 +30,7 @@ static func load_all() -> void:
 		config.win_mass = raw.win_mass
 		config.time_limit_sec = raw.time_limit_sec
 		config.outgrown = raw.outgrown
-		var binder := DotGameConfigBinder.create(config, GAME_ID, "hungry_mode_" + String(id))
+		var binder := GSGameConfigBinder.create(config, GAME_ID, "hungry_mode_" + String(id))
 		binder.profile_kind = "mode_" + String(id)
 		binder.profile_id = String(id)
 		binders[id] = binder
@@ -40,7 +40,7 @@ static func load_all() -> void:
 
 
 ## The load outcome: a failure when strict and a layer was wrong.
-static func result() -> DotResult:
+static func result() -> GSResult:
 	load_all()
 	return _result
 
@@ -49,7 +49,7 @@ static func result() -> DotResult:
 static func preset_for(id: StringName) -> HungryPreset:
 	var preset := HungryPreset.for_id(id)
 	load_all()
-	var binder: DotGameConfigBinder = binders.get(preset.id)
+	var binder: GSGameConfigBinder = binders.get(preset.id)
 	if binder == null:
 		return preset
 	var c: HungryModeConfig = binder.config

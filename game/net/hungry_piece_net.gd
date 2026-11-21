@@ -1,17 +1,17 @@
-extends DotNetBehaviour
+extends GSNetBehaviour
 
 const HungryNetBridge := preload("hungry_net_bridge.gd")
 const HungryNetCommand := preload("hungry_net_command.gd")
 const HungryMonster := preload("../hungry_monster.gd")
 const HungryPiece := preload("../hungry_piece.gd")
 
-## The thirty lines [Dot2DNetSync] says belong in the game.
+## The thirty lines [GS2DNetSync] says belong in the game.
 ##
 ## [b]dot-2d may not name a dot-net class.[/b] A script that so much as mentions a
 ## missing [code]class_name[/code] fails to parse and takes every script that references
 ## it down with it, so dot-2d has to compile with dot-core alone. What it ships instead is
 ## a description of what to replicate as [i]data[/i] — property names, and type names as
-## strings. Resolving those strings against [enum DotNetVar.Type] is this file's job.
+## strings. Resolving those strings against [enum GSNetVar.Type] is this file's job.
 ##
 ## One behaviour per piece, and one entity per piece. A monster is a set, and the set is
 ## what makes interest management work here at all: a player's pieces can be a screen
@@ -24,7 +24,7 @@ var piece: HungryPiece = null
 ## The bridge, so the authority can drive the whole world exactly once per tick.
 var bridge: HungryNetBridge = null
 
-# --- From Dot2DNetSync.specs() ---
+# --- From GS2DNetSync.specs() ---
 var net_position: Vector2 = Vector2.ZERO
 var net_velocity: Vector2 = Vector2.ZERO
 var net_mass: int = 0
@@ -44,9 +44,9 @@ var last_state_tick: int = -1
 
 
 func _register_net_vars() -> void:
-	for spec in Dot2DNetSync.specs():
+	for spec in GS2DNetSync.specs():
 		var property: StringName = spec["property"]
-		var declaration: DotNetVar = null
+		var declaration: GSNetVar = null
 
 		if bool(spec["custom"]):
 			# Position and velocity are two components, not three. dot-net's quantised vector types are Vector3, and a 2D game paying for a Z
@@ -55,17 +55,17 @@ func _register_net_vars() -> void:
 			if property == &"net_position":
 				declaration = replicate_custom(
 					property,
-					Dot2DNetSync.write_position,
-					Dot2DNetSync.read_position
+					GS2DNetSync.write_position,
+					GS2DNetSync.read_position
 				)
 			else:
 				declaration = replicate_custom(
 					property,
-					Dot2DNetSync.write_velocity,
-					Dot2DNetSync.read_velocity
+					GS2DNetSync.write_velocity,
+					GS2DNetSync.read_velocity
 				)
 		else:
-			declaration = replicate(property, DotNetVar.Type[spec["type"]])
+			declaration = replicate(property, GSNetVar.Type[spec["type"]])
 
 			if int(spec["bits"]) > 0:
 				declaration.bits(int(spec["bits"]))
@@ -99,19 +99,19 @@ func _register_net_vars() -> void:
 	# The blind goes to its owner alone. Nobody else's screen changes, and an opponent who
 	# received it would know the moment somebody could not see them coming.
 	# Server-driven: the owner's prediction never changes either, so a change is not a misprediction.
-	replicate(&"net_blind", DotNetVar.Type.BOOL).to_owner_only().server_driven()
-	replicate(&"net_beacon", DotNetVar.Type.BOOL).server_driven()
+	replicate(&"net_blind", GSNetVar.Type.BOOL).to_owner_only().server_driven()
+	replicate(&"net_beacon", GSNetVar.Type.BOOL).server_driven()
 
 
 # --- Input -----------------------------------------------------------------
 
 ## Takes one tick of a peer's intent.
 ##
-## Already sanitised: [method DotNetManager._apply_input] calls
-## [method DotNetInput.sanitise] before this runs, on the server, because everything in
+## Already sanitised: [method GSNetManager._apply_input] calls
+## [method GSNetInput.sanitise] before this runs, on the server, because everything in
 ## it came from a client. It is handed to the bridge rather than kept here, because a
 ## monster's command belongs to the monster and not to each of its sixteen pieces.
-func _net_apply_input(input: DotNetInput, _tick: int) -> void:
+func _net_apply_input(input: GSNetInput, _tick: int) -> void:
 	var command := input as HungryNetCommand
 
 	if command == null or bridge == null or piece == null:
@@ -159,14 +159,14 @@ func _net_simulate(tick: int, delta: float) -> void:
 
 ## Copies the simulation into the replicated properties, and onto the node.
 ##
-## The node's position is not decoration: [method DotNetIdentity.world_position] reads it
+## The node's position is not decoration: [method GSNetIdentity.world_position] reads it
 ## and that is what interest management and prioritisation are computed from. A piece
 ## whose node never moved would be judged relevant from wherever it spawned.
 func pull() -> void:
 	if piece == null:
 		return
 
-	Dot2DNetSync.pull(piece.state, self)
+	GS2DNetSync.pull(piece.state, self)
 
 	var monster := _monster()
 
@@ -192,7 +192,7 @@ func pull() -> void:
 ##
 ## Runs for a remote piece, where it is the only thing that moves it, and for the owning
 ## client, where it is the rewind half of reconciliation — the server's answer is adopted
-## wholesale and [DotNetPredictor] replays every unacknowledged command on top of it.
+## wholesale and [GSNetPredictor] replays every unacknowledged command on top of it.
 ##
 ## The radius is [i]derived[/i] from the received mass rather than replicated. Sending
 ## both would let them disagree by a rounding error and put a monster's eat radius and
@@ -203,8 +203,8 @@ func _net_state_applied(tick: int) -> void:
 
 	last_state_tick = tick
 
-	var rules: Dot2DMassRules = bridge.mass_rules() if bridge != null else null
-	Dot2DNetSync.push(self, piece.state, rules)
+	var rules: GS2DMassRules = bridge.mass_rules() if bridge != null else null
+	GS2DNetSync.push(self, piece.state, rules)
 
 	# The effect bits belong to the monster, not to this piece: speed is a property of the
 	# whole set, every piece of one monster carries the same set, and reading it off the
@@ -222,7 +222,7 @@ func _net_state_applied(tick: int) -> void:
 			monster.beacon = net_beacon
 
 	# [b]Not on the owning client.[/b] There the node is where the prediction drew it, and
-	# [DotNetPredictor] measures a correction as how far reconciling moved it: moving it
+	# [GSNetPredictor] measures a correction as how far reconciling moved it: moving it
 	# to the snapshot first made every reconcile measure the replay itself -- one tick of
 	# motion, 2.0 units -- as a correction, 0.968 of snapshots. The replay's own `pull`
 	# puts the node where the reconciled piece is. Every other game in the family has
@@ -250,8 +250,8 @@ func _net_interpolated(_tick: int) -> void:
 	if piece == null:
 		return
 
-	var rules: Dot2DMassRules = bridge.mass_rules() if bridge != null else null
-	Dot2DNetSync.push(self, piece.state, rules)
+	var rules: GS2DMassRules = bridge.mass_rules() if bridge != null else null
+	GS2DNetSync.push(self, piece.state, rules)
 
 	var node := identity.entity as Node2D if identity != null else null
 

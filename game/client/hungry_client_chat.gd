@@ -4,7 +4,7 @@ extends "./hungry_client_state.gd"
 
 
 ## The chat box, or null before the presentation layer exists.
-func _chat_window() -> DotChatWindow:
+func _chat_window() -> GSChatWindow:
 	return presentation.chat_window if presentation != null else null
 
 
@@ -22,7 +22,7 @@ func _wire_chat_window() -> void:
 			voice.release()
 	)
 
-	var client_link := DotRegistry.get_service(&"dot_client_link")
+	var client_link := GSRegistry.get_service(&"dot_client_link")
 
 	if client_link != null and client_link.has_signal("chat_received"):
 		client_link.connect("chat_received", _on_server_chat_state)

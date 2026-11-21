@@ -33,16 +33,16 @@ func _build_roster() -> void:
 
 ## The session id, not the peer id: a peer id is reassigned on reconnect and the next
 ## player to join would inherit this one's monster.
-func _seat_player(session: DotClientSession) -> Variant:
+func _seat_player(session: GSClientSession) -> Variant:
 	return hbridge.add_player(
 		session.peer_id, session.userid, session.display_name, _avatar_for(session)
 	)
 
-func _unseat_player(session: DotClientSession) -> void:
+func _unseat_player(session: GSClientSession) -> void:
 	hbridge.remove_peer(session.peer_id)
 
 ## The roster has added them to the world and told the services (so chat and voice have somewhere to put a frame).
-func _on_seated(session: DotClientSession) -> void:
+func _on_seated(session: GSClientSession) -> void:
 	_apply_stored_loadout(session.userid)
 	_begin_stats(session)
 
@@ -64,7 +64,7 @@ func _on_peer_admitted(peer_id: int, player_id: int) -> void:
 ## What somebody is told once they are in: the backlog, and what is already in the arena.
 ## After the admission, never before: sent before the client builds its scene it is lost, one
 ## "Node not found" per call.
-func _welcome(session: DotClientSession) -> void:
+func _welcome(session: GSClientSession) -> void:
 	if not hbridge.peer_is_ready(session.peer_id):
 		return
 
@@ -90,7 +90,7 @@ func _welcome(session: DotClientSession) -> void:
 		for row in hazards.wire_rows():
 			hbridge.send_hazard(session.peer_id, row[0], row[1], row[2], true)
 
-func _on_client_disconnected(session: DotClientSession, _reason: String) -> void:
+func _on_client_disconnected(session: GSClientSession, _reason: String) -> void:
 	if not _joined.has(session.userid):
 		return
 
@@ -115,14 +115,14 @@ func _on_client_disconnected(session: DotClientSession, _reason: String) -> void
 	_end_stats(session)
 
 ## The world player id a session is in the arena under, or zero.
-func _player_of_session(session: DotClientSession) -> int:
+func _player_of_session(session: GSClientSession) -> int:
 	return hbridge.player_for_peer(session.peer_id) if hbridge != null else 0
 
 
 ## Somebody said something through dot-server's own chat path.
-## Taken and cancelled, not watched: [DotChatRouter] owns this game's rules, so cancelling keeps one
+## Taken and cancelled, not watched: [GSChatRouter] owns this game's rules, so cancelling keeps one
 ## path, and the line still reaches every player after sanitising, the gag check and hearing range.
-func _on_player_chat(event: DotEvent) -> void:
+func _on_player_chat(event: GSEvent) -> void:
 	event.cancel("routed by the game's chat", _module_name())
 
 	var session := event.get_session()
@@ -151,7 +151,7 @@ func _on_say_requested(peer_id: int, channel_id: StringName, text: String) -> vo
 func _on_voice_requested(peer_id: int, payload: PackedByteArray) -> void:
 	hservices.voice.relay(peer_id, payload)
 
-func _on_chat_accepted(message: DotChatMessage, _recipients: PackedInt32Array) -> void:
+func _on_chat_accepted(message: GSChatMessage, _recipients: PackedInt32Array) -> void:
 	# Nothing to draw over a head here — a monster is not a nameplate — but the server's
 	# own view of who last spoke is what `hungry_status` reports from, and it is taken off
 	# the accepted line rather than off the request so a refused one is not counted.
@@ -168,7 +168,7 @@ func _on_chat_command(peer_id: int, command: String, args: PackedStringArray) ->
 		return
 
 	if server.console.find_command(command) == null:
-		DotLog.debug(CHANNEL, "an unknown chat command was ignored", {
+		GSLog.debug(CHANNEL, "an unknown chat command was ignored", {
 			"peer": peer_id, "command": command,
 		})
 		return
@@ -176,7 +176,7 @@ func _on_chat_command(peer_id: int, command: String, args: PackedStringArray) ->
 	var ctx := session.make_context(
 		command,
 		args,
-		DotCmdContext.Source.CHAT,
+		GSCmdContext.Source.CHAT,
 		func(line: String) -> void:
 			hservices.chat.notice(peer_id, line, HungryServices.CHANNEL_ALL)
 	)
@@ -189,7 +189,7 @@ func _on_chat_command(peer_id: int, command: String, args: PackedStringArray) ->
 	server.console.execute(line, ctx)
 
 ## `rtv`, `nominate <id>`, `vote <n>`, `extend` from this game's own wire.
-## A token resolved here, not an enum on the wire: what can be voted for is a [DotVoteSource]'s
+## A token resolved here, not an enum on the wire: what can be voted for is a [GSVoteSource]'s
 ## business, so one engine drives games and maps.
 func _on_vote_requested(peer_id: int, token: String) -> void:
 	if maps == null or maps.director == null:
@@ -208,7 +208,7 @@ func _on_vote_requested(peer_id: int, token: String) -> void:
 	if parts.is_empty():
 		return
 
-	var result: DotResult = null
+	var result: GSResult = null
 
 	match parts[0].to_lower():
 		"rtv":
@@ -224,8 +224,8 @@ func _on_vote_requested(peer_id: int, token: String) -> void:
 			# is what the ballot's own "extend" option exists to make a decision of the
 			# players. This line let anybody on the wire do it, as often as it allowed.
 			if not _voter_is_admin(voter):
-				result = DotResult.fail(
-					DotError.CODE_FORBIDDEN, "Only an admin can extend without a vote."
+				result = GSResult.fail(
+					GSError.CODE_FORBIDDEN, "Only an admin can extend without a vote."
 				)
 			else:
 				result = maps.director.extend()
@@ -242,7 +242,7 @@ func _voter_is_admin(voter: StringName) -> bool:
 	# CHANGEMAP, not any flag: `is_admin()` is "holds a flag at all", which a reserved slot
 	# or admin chat satisfies, and this gates extending the map, an instant rtv and the
 	# nomination bypasses. The console's own extend asks for CHANGEMAP; the wire must too.
-	return session != null and session.has_permission(DotAdminFlags.CHANGEMAP)
+	return session != null and session.has_permission(GSAdminFlags.CHANGEMAP)
 
 func _on_vote_announced(line: String) -> void:
 	if hservices != null and hservices.chat != null:
@@ -283,7 +283,7 @@ func _on_piece_hunted(player_id: int, _mass: float) -> void:
 	if key != &"":
 		stats.record(key, &"hunted", 1.0)
 
-func _on_hazard_placed(place_id: int, def: DotPropDef, at: Vector2) -> void:
+func _on_hazard_placed(place_id: int, def: GSPropDef, at: Vector2) -> void:
 	hbridge.broadcast_hazard(place_id, HungryHazards.index_of(def.id), at, true)
 
 func _on_hazard_cleared(place_id: int) -> void:
@@ -311,12 +311,12 @@ static func game_id_of(preset_id: StringName) -> StringName:
 	return StringName("hungry_%s" % preset_id)
 
 ## The modes, so `changegame` and a vote have something to change to.
-## Both ship inside the build, so [member DotGameDescriptor.manifest_url] is empty; a game whose
+## Both ship inside the build, so [member GSGameDescriptor.manifest_url] is empty; a game whose
 ## content lives on a CDN sets it instead.
 ##
-## [b]Delivered, the modes carry a content key.[/b] Mounted at [code]res://dot_cloud/<id>/<version>/[/code] the rebased scene paths are absolute, which [method DotGameDescriptor.needs_delivered_content] reads as "bundled": the vote could pick a mode and send no content sync, and a web shell that ships no games fails ("sent no content"). So when [param here] is a mount, each mode gets the pack's content id and version and a scene relative to the mount, as its own [code]game.yml[/code] says. Built in, nothing changes. [param here] is a parameter so a suite can test the mounted case.
-static func game_descriptors(here: String = "") -> Array[DotGameDescriptor]:
-	var out: Array[DotGameDescriptor] = []
+## [b]Delivered, the modes carry a content key.[/b] Mounted at [code]res://dot_cloud/<id>/<version>/[/code] the rebased scene paths are absolute, which [method GSGameDescriptor.needs_delivered_content] reads as "bundled": the vote could pick a mode and send no content sync, and a web shell that ships no games fails ("sent no content"). So when [param here] is a mount, each mode gets the pack's content id and version and a scene relative to the mount, as its own [code]game.yml[/code] says. Built in, nothing changes. [param here] is a parameter so a suite can test the mounted case.
+static func game_descriptors(here: String = "") -> Array[GSGameDescriptor]:
+	var out: Array[GSGameDescriptor] = []
 	var mount := _mount_of(here if here != "" else HungryPaths.root())
 
 	for row in [
@@ -329,7 +329,7 @@ static func game_descriptors(here: String = "") -> Array[DotGameDescriptor]:
 		[GAME_FAMINE, "Hungario: Famine", "res://game/modes/famine.tscn"],
 		[GAME_FEAST, "Hungario: Feast", "res://game/modes/feast.tscn"],
 	]:
-		var descriptor := DotGameDescriptor.new()
+		var descriptor := GSGameDescriptor.new()
 		descriptor.game_id = String(row[0])
 		descriptor.display_name = String(row[1])
 		descriptor.scene = String(row[2])
@@ -337,7 +337,7 @@ static func game_descriptors(here: String = "") -> Array[DotGameDescriptor]:
 			descriptor.scene = String(row[2]).trim_prefix("res://")
 			descriptor.content_id = mount.content_id
 			descriptor.version = mount.version
-				# Deliberately empty: [DotClientLink] refuses an absolute scene path outside dot-cloud's mount
+				# Deliberately empty: [GSClientLink] refuses an absolute scene path outside dot-cloud's mount
 				# prefix, and this game ships inside the build, so the client owns its scene ([HungryClient]).
 				# A game delivered through dot-cloud sets a relative path here.
 		descriptor.client_scene = "game/client/hungry_client.tscn" if not mount.is_empty() else ""
@@ -363,7 +363,7 @@ static func _mount_of(root: String) -> Dictionary:
 
 
 ## Registers both modes, unless the host already did.
-## A host wanting one as [member DotGameManager.initial_game] adds them before the server boots, so
+## A host wanting one as [member GSGameManager.initial_game] adds them before the server boots, so
 ## registration here is idempotent; [method game_descriptors] is the same list for that case.
 func _register_games() -> void:
 	if server.games == null:
@@ -381,7 +381,7 @@ func _register_games() -> void:
 			})
 
 
-## The hunters' level of detail and sense workers follow the `npc_lod*` cvars (dot-game's DotGameNpcLod; all off by default).
+## The hunters' level of detail and sense workers follow the `npc_lod*` cvars (dot-game's GSGameNpcLod; all off by default).
 func _follow_npc_lod() -> void:
 	if hunters == null or hunters.spawner == null:
 		return

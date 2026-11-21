@@ -1,4 +1,4 @@
-extends DotAudioSink
+extends GSAudioSink
 
 const HungrySound := preload("hungry_sound.gd")
 const HungryEvents := preload("../net/hungry_events.gd")
@@ -15,7 +15,7 @@ const HungryEvents := preload("../net/hungry_events.gd")
 ## What `HungrySound` does not have is the half dot-audio is: a catalogue a server can
 ## check, per-id concurrency caps, cooldowns, a distance cull, priorities, a mixer with a
 ## `linear_to_db` curve, and a manager that says **why** a sound was refused. So the two
-## meet at the seam the addon was built around — [DotAudioSink] — and everything above it
+## meet at the seam the addon was built around — [GSAudioSink] — and everything above it
 ## is dot-audio's while the last four lines stay this game's.
 ##
 ## The seam exists because **`AudioServer` reports a working sound card when there is
@@ -49,7 +49,7 @@ const CUES := {
 	HungryEvents.CUE_VOTE_COUNT: HungrySound.Cue.VOTE_COUNT,
 	# An administrator's beacon. See `HungryPresentation.BEACON_SOUND`.
 	"beacon": HungrySound.Cue.BEACON,
-	# An eaten monster going down: dot-player-char's sound ids (DotPlayerDeathReactions.SOUND_*,
+	# An eaten monster going down: dot-player-char's sound ids (GSPlayerDeathReactions.SOUND_*,
 	# spelled out because this table's keys are Strings; headless_presentation checks they
 	# match), this bank's noises.
 	"ragdoll.thud": HungrySound.Cue.FALL_THUD,
@@ -83,7 +83,7 @@ func play(request: Dictionary) -> int:
 		# decided this sound should be heard; whether this game has a noise for it is a
 		# separate question, and a red line per bite on a client whose bank has not
 		# finished baking is how a real error stops being read.
-		DotLog.debug(CHANNEL, "no cue for that sound", {"id": id})
+		GSLog.debug(CHANNEL, "no cue for that sound", {"id": id})
 		return 0
 
 	var handle := _next

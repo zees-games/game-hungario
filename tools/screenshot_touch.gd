@@ -7,12 +7,12 @@ var _frames := 0
 
 
 func _initialize() -> void:
-	DotPlatform.touch_override = 1
+	GSPlatform.touch_override = 1
 	root.add_child((load("res://examples/play.tscn") as PackedScene).instantiate())
 
 
-## Frame sequence after each still (GS_SHOT_FRAMES, set by the .sh); see DotShotSeq. The state machine holds still while it records, and `_seq_end` defers the quit until it is done.
-var _seq := DotShotSeq.new()
+## Frame sequence after each still (GS_SHOT_FRAMES, set by the .sh); see GSShotSeq. The state machine holds still while it records, and `_seq_end` defers the quit until it is done.
+var _seq := GSShotSeq.new()
 var _seq_active := false
 var _seq_end := false
 

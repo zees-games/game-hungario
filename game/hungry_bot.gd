@@ -20,9 +20,9 @@ const HungryWorld := preload("hungry_world.gd")
 ## bot's command is a pure function of the world, its own id and the tick, so a replay of
 ## a recorded round produces the same one. The little bit of variety that stops eight bots
 ## from moving as one body comes from hashing the id, which is the same trick
-## [Dot2DScatter] uses to place a field.
+## [GS2DScatter] uses to place a field.
 ##
-## [b]How well it plays is dot-bot's `bot_difficulty`[/b] ([DotBotSettings] on the world: the
+## [b]How well it plays is dot-bot's `bot_difficulty`[/b] ([GSBotSettings] on the world: the
 ## module binds the cvars, the offline client the console variables). Three of the settings
 ## mean something on a plate: `bot_sight` scales how far it looks ([constant SIGHT] at medium),
 ## `bot_reaction` how soon it runs from something that can eat it (the margin past six radii,
@@ -38,7 +38,7 @@ const SIGHT := 900.0
 const FLEE_MARGIN := 180.0
 
 ## The preset every scale is relative to, so medium plays as this file always did.
-static var _medium: DotBotProfile = DotBotProfile.new()
+static var _medium: GSBotProfile = GSBotProfile.new()
 
 ## How much bigger something has to be before it is worth running from. Slightly under
 ## the eat ratio, so a bot starts moving before it is actually in danger.
@@ -57,8 +57,8 @@ static func command_for(
 	world: HungryWorld,
 	monster: HungryMonster,
 	tick: int
-) -> Dot2DCommand:
-	var command := Dot2DCommand.new()
+) -> GS2DCommand:
+	var command := GS2DCommand.new()
 
 	if world == null or monster == null or not monster.alive:
 		return command
@@ -69,7 +69,7 @@ static func command_for(
 		return command
 
 	var origin := head.position()
-	var skill := DotBotSettings.of(world).profile
+	var skill := GSBotSettings.of(world).profile
 	var sight := SIGHT * skill.sight / _medium.sight
 	var rules := world.tunables.mass_rules
 
@@ -120,7 +120,7 @@ static func command_for(
 		# Without that check a bot splits itself into a snack.
 		if prey_distance < reach and rules.can_split(head.mass(), monster.piece_count()) \
 				and half >= prey.mass() * rules.eat_ratio:
-			command.set_button(Dot2DCommand.BUTTON_SPLIT, true)
+			command.set_button(GS2DCommand.BUTTON_SPLIT, true)
 
 		deciding = false
 
@@ -142,7 +142,7 @@ static func command_for(
 		target = enemy.position()
 		# The world throws on the press edge; a held button never fires again after the
 		# cooldown, so two bots on top of each other would aim at one another forever.
-		command.set_button(Dot2DCommand.BUTTON_ACTION, tick % 2 == 0)
+		command.set_button(GS2DCommand.BUTTON_ACTION, tick % 2 == 0)
 
 	target = _off_the_wall(target, world.arena.bounds, head.radius())
 
@@ -181,7 +181,7 @@ class Look:
 		return "-" if piece == null else str(piece.id)
 
 
-## [method look_for] asks dot-sim's `DotSimGrid2D` (kept beside the world's grid by
+## [method look_for] asks dot-sim's `GSSimGrid2D` (kept beside the world's grid by
 ## [HungryGrid]) for the neighbour loop when the library has it, to the script's bit
 ## (`headless_native_forage`); off, or with no library (the web), the script looks.
 static var native_forage := true
@@ -359,12 +359,12 @@ static func _off_the_wall(target: Vector2, bounds: Rect2, radius: float) -> Vect
 
 ## Degrees a throw leaves off its target: between `bot_aim_floor` and `bot_aim_error`, to
 ## either side, drawn from the id and the quarter second so it is the same on a replay.
-static func _throw_error(id: int, tick: int, skill: DotBotProfile) -> float:
-	var h := Dot2DScatter._hash(id, 0x7A + tick / 16)
-	var size := lerpf(skill.aim_floor, skill.aim_error, Dot2DScatter._unit(h))
-	return size if Dot2DScatter._unit(Dot2DScatter._hash(h, 1)) < 0.5 else -size
+static func _throw_error(id: int, tick: int, skill: GSBotProfile) -> float:
+	var h := GS2DScatter._hash(id, 0x7A + tick / 16)
+	var size := lerpf(skill.aim_floor, skill.aim_error, GS2DScatter._unit(h))
+	return size if GS2DScatter._unit(GS2DScatter._hash(h, 1)) < 0.5 else -size
 
 
 ## A stable value in [0, 1) for a bot, so eight of them do not orbit in lockstep.
 static func _jitter(id: int) -> float:
-	return Dot2DScatter._unit(Dot2DScatter._hash(id, 0xB07))
+	return GS2DScatter._unit(GS2DScatter._hash(id, 0xB07))

@@ -209,8 +209,8 @@ func send_carry(player_id: int) -> void:
 
 	_tell(peer_id, HungryEvents.Kind.CARRY, HungryEvents.write_carry(monster.carried))
 
-func _on_match_state_changed(_from: DotMatch.State, to: DotMatch.State) -> void:
-	if to != DotMatch.State.LIVE:
+func _on_match_state_changed(_from: GSMatch.State, to: GSMatch.State) -> void:
+	if to != GSMatch.State.LIVE:
 		return
 
 	# A new round has replaced the field wholesale. Nobody can derive that from a delta,
@@ -225,7 +225,7 @@ func _on_match_state_changed(_from: DotMatch.State, to: DotMatch.State) -> void:
 	_field_dirty = false
 
 
-func _on_request(message: DotNetMessage) -> void:
+func _on_request(message: GSNetMessage) -> void:
 	var ask := message as HungryRequest
 
 	if ask == null or net == null or not net.is_server:
@@ -259,7 +259,7 @@ func _on_request(message: DotNetMessage) -> void:
 			if bool(said["ok"]):
 				# Emitted rather than acted on. Everything about what a line means — the
 				# channel's audience, the gag, the rate limit, the command prefix — is
-				# [DotChatRouter]'s, and the router is [HungryModule]'s.
+				# [GSChatRouter]'s, and the router is [HungryModule]'s.
 				say_requested.emit(
 					peer_id, StringName(str(said["channel"])), str(said["text"])
 				)
@@ -270,7 +270,7 @@ func _on_request(message: DotNetMessage) -> void:
 ## Takes a client's avatar, through the schema.
 ## The schema is the whole check and loads nothing: every index is validated against the slot and part
 ## tables, so a bad part is refused, not clamped, and a server with no art can still say no.
-func _apply_avatar(player_id: int, reader: DotNetReader) -> void:
+func _apply_avatar(player_id: int, reader: GSNetReader) -> void:
 	var monster := world.monster_for(player_id)
 
 	if monster == null:
@@ -279,13 +279,13 @@ func _apply_avatar(player_id: int, reader: DotNetReader) -> void:
 	var decoded := HungryEvents.read_avatar(reader, avatar_schema)
 
 	if not decoded.ok:
-		DotLog.info(CHANNEL, "refused an avatar", {
+		GSLog.info(CHANNEL, "refused an avatar", {
 			"player": player_id, "error": str(decoded.error)
 		})
 		return
 
-	var avatar: DotAvatar = decoded.value
-	var conformed := avatar_schema.conform(avatar, DotAvatarEntitlements.everything())
+	var avatar: GSAvatar = decoded.value
+	var conformed := avatar_schema.conform(avatar, GSAvatarEntitlements.everything())
 
 	if not conformed.ok:
 		return
@@ -298,7 +298,7 @@ func _apply_avatar(player_id: int, reader: DotNetReader) -> void:
 ## Takes a client's loadout, through the schema. Suspends on the store write; see the caller.
 ## Validated, never conformed: conforming is right out of a store, but here it would let a client make
 ## the server pick the nearest legal thing for any slot.
-func _apply_loadout(player_id: int, reader: DotNetReader) -> void:
+func _apply_loadout(player_id: int, reader: GSNetReader) -> void:
 	var monster := world.monster_for(player_id)
 
 	if monster == null:
@@ -307,17 +307,17 @@ func _apply_loadout(player_id: int, reader: DotNetReader) -> void:
 	var decoded := HungryEvents.read_loadout(reader)
 
 	if not decoded.ok:
-		DotLog.info(CHANNEL, "refused a malformed loadout", {
+		GSLog.info(CHANNEL, "refused a malformed loadout", {
 			"player": player_id, "error": str(decoded.error)
 		})
 		return
 
-	var loadout: DotLoadout = decoded.value
+	var loadout: GSLoadout = decoded.value
 	var owns := _entitlements_for(player_id)
-	var valid := DotLoadoutValidator.validate(loadout, loadout_schema, owns)
+	var valid := GSLoadoutValidator.validate(loadout, loadout_schema, owns)
 
 	if not valid.ok:
-		DotLog.info(CHANNEL, "refused a loadout", {
+		GSLog.info(CHANNEL, "refused a loadout", {
 			"player": player_id, "error": str(valid.error)
 		})
 		return
@@ -331,9 +331,9 @@ func _apply_loadout(player_id: int, reader: DotNetReader) -> void:
 		# was called without `await` would have its result read before it had one.
 		var stored: Variant = await loadout_sink.call(player_id, loadout)
 
-		if stored is DotResult and not (stored as DotResult).ok:
-			DotLog.info(CHANNEL, "a loadout was refused by the store", {
-				"player": player_id, "error": str((stored as DotResult).error)
+		if stored is GSResult and not (stored as GSResult).ok:
+			GSLog.info(CHANNEL, "a loadout was refused by the store", {
+				"player": player_id, "error": str((stored as GSResult).error)
 			})
 			return
 

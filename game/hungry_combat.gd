@@ -7,7 +7,7 @@ const HungryTuning := preload("hungry_tuning.gd")
 ##
 ## [b]Eating is deliberately NOT here, and that has not changed.[/b] This project's own
 ## notes say health and damage are the wrong model for being devoured — it is a mass ratio,
-## not a hit-point total — and forcing it through [DotDamageResolver] would be a worse
+## not a hit-point total — and forcing it through [GSDamageResolver] would be a worse
 ## version of both. What *is* damage is a **throwable**: somebody aimed something at
 ## somebody else from a distance, and every question that raises is one dot-combat already
 ## answers.
@@ -17,12 +17,12 @@ const HungryTuning := preload("hungry_tuning.gd")
 ##   the wrong shape for it — so the rules say no and the world's own eject is how you
 ##   split on purpose.
 ## - **Falloff.** A pepper thrown from across the arena scatters somebody less than one
-##   thrown at point blank. That is [member DotDamageType.falloff_start] and `falloff_end`,
+##   thrown at point blank. That is [member GSDamageType.falloff_start] and `falloff_end`,
 ##   and it turns a throwable from a hitscan into something with a range worth judging.
 ## - **Clamping**, and a floor. Below the minimum a hit is refused outright rather than
 ##   applied as nothing, so "it hit and did nothing" and "it missed" are one outcome
 ##   instead of two that look the same.
-## - **A hook.** `DotDamageResolver.adjust` is where the rind fruit could live if a server
+## - **A hook.** `GSDamageResolver.adjust` is where the rind fruit could live if a server
 ##   wanted it to reduce a burst rather than eat one, without touching the world.
 ##
 ## [b]The amount becomes a piece count, and that is the whole bridge.[/b] dot-combat's
@@ -39,13 +39,13 @@ const FALLOFF_END := 2200.0
 
 
 ## Something landed on somebody. Server side; carries what the resolver decided.
-signal landed(damage: DotDamage, pieces: int)
+signal landed(damage: GSDamage, pieces: int)
 
 
-var resolver: DotDamageResolver = null
-var rules: DotDamageRules = null
+var resolver: GSDamageResolver = null
+var rules: GSDamageRules = null
 
-## item id -> [DotDamageType].
+## item id -> [GSDamageType].
 var _types: Dictionary = {}
 
 
@@ -57,7 +57,7 @@ var _types: Dictionary = {}
 static func damage_types() -> Dictionary:
 	var out: Dictionary = {}
 
-	var pepper := DotDamageType.make(&"pepper", "Pepper")
+	var pepper := GSDamageType.make(&"pepper", "Pepper")
 	pepper.falloff_start = FALLOFF_START
 	pepper.falloff_end = FALLOFF_END
 	# A third at maximum range rather than nothing: a throwable that did nothing at range
@@ -73,7 +73,7 @@ static func damage_types() -> Dictionary:
 
 	# Frost does not scatter anybody; what it has is a range. Its damage is used only for
 	# the falloff, and the world turns "did it land at all" into an effect.
-	var frost := DotDamageType.make(&"frost", "Frost")
+	var frost := GSDamageType.make(&"frost", "Frost")
 	frost.falloff_start = FALLOFF_START
 	frost.falloff_end = FALLOFF_END
 	frost.falloff_floor = 0.5
@@ -85,8 +85,8 @@ static func damage_types() -> Dictionary:
 
 
 ## The server's policy on who may hurt whom.
-static func damage_rules() -> DotDamageRules:
-	var out := DotDamageRules.new()
+static func damage_rules() -> GSDamageRules:
+	var out := GSDamageRules.new()
 	# Free-for-all: everybody is fair game and there are no teams for the resolver to
 	# compare. Said explicitly rather than left, because a mode that adds teams changes
 	# exactly this line.
@@ -105,34 +105,34 @@ static func damage_rules() -> DotDamageRules:
 	return out
 
 
-func setup() -> DotResult:
+func setup() -> GSResult:
 	rules = damage_rules()
 	_types = damage_types()
 
-	resolver = DotDamageResolver.with_rules(rules)
+	resolver = GSDamageResolver.with_rules(rules)
 	# No hit groups: a monster is a circle and has no head. Left null deliberately rather
 	# than given an empty table, because an empty table would multiply by whatever its
 	# default is and this way the resolver skips the stage.
 	resolver.hit_groups = null
 
-	return DotResult.success(null)
+	return GSResult.success(null)
 
 
 ## What a throwable does to somebody, or a refusal.
 ##
-## [b]Returns the [DotDamage] rather than acting.[/b] What "scattered" means is the
+## [b]Returns the [GSDamage] rather than acting.[/b] What "scattered" means is the
 ## world's, exactly as dot-timer never moves a player — and the same object carries why it
 ## was scaled, which is what makes a console able to explain a hit that did less than a
 ## player expected.
 func resolve_throw(
 	thrower_id: int, victim_id: int, item: StringName, distance: float
-) -> DotDamage:
-	var type: DotDamageType = _types.get(item)
+) -> GSDamage:
+	var type: GSDamageType = _types.get(item)
 
 	if type == null:
 		return null
 
-	var damage := DotDamage.make(thrower_id, victim_id, HungryTuning.settings().pepper_damage, type)
+	var damage := GSDamage.make(thrower_id, victim_id, HungryTuning.settings().pepper_damage, type)
 	damage.distance = distance
 	damage.context["item"] = String(item)
 
@@ -145,7 +145,7 @@ func resolve_throw(
 ## and the maximum, so a hit at the edge of usefulness still does something and a point
 ## blank one does the full amount — and it is clamped to at least two, because "burst into
 ## one piece" is not a burst and the world would refuse it anyway.
-func pieces_for(damage: DotDamage) -> int:
+func pieces_for(damage: GSDamage) -> int:
 	if damage == null or damage.refused:
 		return 0
 
@@ -175,7 +175,7 @@ func gate(
 	var pieces := pieces_for(damage)
 	# DEBUG: a decision, and the one a player asks about — "it hit and did nothing". The
 	# console can explain a single hit from `describe`; this is the record of all of them.
-	DotLog.debug(CHANNEL, "a throw was refused" if damage.refused else "a throw landed", {
+	GSLog.debug(CHANNEL, "a throw was refused" if damage.refused else "a throw landed", {
 		"thrower": thrower_id, "victim": victim_id, "item": String(item),
 		"distance": snappedf(distance, 0.1), "amount": snappedf(damage.amount, 0.01),
 		"pieces": pieces,

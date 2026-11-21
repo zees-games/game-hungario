@@ -1,5 +1,5 @@
 @tool
-extends DotConfig
+extends GSConfig
 
 ## One mode's dials as a config, so `cfg/game/game-hungario/mode_<id>/<id>.yml` and the workbench can change them. Built from the mode's code values by [HungryTuning]; the preset takes them back in [method HungryPreset.for_id].
 ##
@@ -40,7 +40,7 @@ func cli_prefix() -> String:
 	return "--hungry-mode-%s-" % _mode_id
 
 
-func validate() -> DotResult:
+func validate() -> GSResult:
 	if minf(world_width, world_height) < 400.0:
-		return DotResult.fail(DotError.CODE_INVALID, "A world smaller than 400 units is smaller than a grown monster.")
-	return DotResult.success(null)
+		return GSResult.fail(GSError.CODE_INVALID, "A world smaller than 400 units is smaller than a grown monster.")
+	return GSResult.success(null)

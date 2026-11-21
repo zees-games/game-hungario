@@ -1,5 +1,5 @@
 @tool
-extends DotConfig
+extends GSConfig
 
 ## The server's tunables, which only the server decides: reachable as `hungry_<field>` cvars, `cfg/game/game-hungario/config_arena|play|server/game.yml`, and the workbench (see [HungryTuning]).
 ##
@@ -14,8 +14,8 @@ const CFG_FILES := {
 
 
 ## The binder every entry point uses: [param config] layered, one cfg file per [constant CFG_FILES] entry.
-static func make_binder(config: DotConfig, json_path := "") -> DotGameConfigBinder:
-	var b := DotGameConfigBinder.create(config, "game-hungario", "hungry", json_path)
+static func make_binder(config: GSConfig, json_path := "") -> GSGameConfigBinder:
+	var b := GSGameConfigBinder.create(config, "game-hungario", "hungry", json_path)
 	b.grouped = true
 	b.group_files = CFG_FILES
 	return b
@@ -118,9 +118,9 @@ func cli_prefix() -> String:
 	return "--hungry-server-"
 
 
-func validate() -> DotResult:
+func validate() -> GSResult:
 	if not ["", "accept", "cap", "eject"].has(outgrown.strip_edges().to_lower()):
-		return DotResult.fail(DotError.CODE_INVALID, "outgrown must be accept, cap, eject or empty")
+		return GSResult.fail(GSError.CODE_INVALID, "outgrown must be accept, cap, eject or empty")
 	if not ["", "open", "quartered"].has(warrens_corners.strip_edges().to_lower()):
-		return DotResult.fail(DotError.CODE_INVALID, "warrens_corners must be open, quartered or empty")
-	return DotResult.success(null)
+		return GSResult.fail(GSError.CODE_INVALID, "warrens_corners must be open, quartered or empty")
+	return GSResult.success(null)

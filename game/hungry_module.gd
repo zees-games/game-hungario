@@ -4,17 +4,17 @@ func _game_service() -> StringName:
 	return HungryWorld.SERVICE
 
 func _game_missing_hint() -> String:
-	return "load a mode scene first, or set DotGameManager.initial_game to '%s'" % GAME_CLASSIC
+	return "load a mode scene first, or set GSGameManager.initial_game to '%s'" % GAME_CLASSIC
 
-func _net_config() -> DotNetConfig:
-	var config := DotNetConfig.new()
+func _net_config() -> GSNetConfig:
+	var config := GSNetConfig.new()
 	config.tick_rate = (game as HungryWorld).tick_rate
 	config.snapshot_rate = SNAPSHOT_RATE
 	config.enable_prediction = true
 	config.enable_lag_compensation = false
 	# The pieces are what a snapshot is made of, and a crowded fight is a lot of them.
 	config.max_entities_per_snapshot = 0
-	config.world_extent = Dot2DNetSync.WORLD_EXTENT
+	config.world_extent = GS2DNetSync.WORLD_EXTENT
 	config.reconcile_position_epsilon = HungryNetBridge.RECONCILE_EPSILON
 	return config
 
@@ -38,7 +38,7 @@ func _map_config_keys() -> Dictionary:
 func _map_config_game() -> String:
 	return HungryMapConfig.GAME_ID
 
-func _game_load() -> DotResult:
+func _game_load() -> GSResult:
 	# Strict on a dedicated server: a typo in cfg/ stops the boot instead of being ignored.
 	var tuned := HungryTuning.result()
 
@@ -46,7 +46,7 @@ func _game_load() -> DotResult:
 		tuned = HungryModes.result()
 
 	if not tuned.ok:
-		DotGameConfigBinder.fail_boot(get_tree(), tuned)
+		GSGameConfigBinder.fail_boot(get_tree(), tuned)
 		return tuned
 
 	world.ragdoll_rules = ragdoll_rules
@@ -58,7 +58,7 @@ func _game_load() -> DotResult:
 		return loadouts_ready
 
 	if hservices == null:
-		return DotResult.fail(DotError.CODE_STATE, "The services could not be set up")
+		return GSResult.fail(GSError.CODE_STATE, "The services could not be set up")
 
 	_wire_services()
 
@@ -111,7 +111,7 @@ func _game_load() -> DotResult:
 		"food": world.field.food_count(),
 	})
 
-	return DotResult.success(null)
+	return GSResult.success(null)
 
 ## Bridge and chat signals, mod tools, and the pre-hook that keeps dot-chat's rules authoritative.
 func _wire_services() -> void:
@@ -134,7 +134,7 @@ func _wire_services() -> void:
 
 func _game_unload() -> void:
 	if stats != null:
-		DotRegistry.unregister_instance(DotGameStatsFeed.SERVICE, stats)
+		GSRegistry.unregister_instance(GSGameStatsFeed.SERVICE, stats)
 
 	if workbench != null:
 		workbench.queue_free()
@@ -167,10 +167,10 @@ func _game_unload() -> void:
 
 ## Rebinds onto the world the new mode brought with it.
 ##
-## Called by [DotModuleHost] after [DotGameManager] has swapped the scene. The world is a
+## Called by [GSModuleHost] after [GSGameManager] has swapped the scene. The world is a
 ## different object; every player and every connection is the same one.
 func _module_game_changed(content_key: String) -> void:
-	var next := DotRegistry.get_node_service(HungryWorld.SERVICE) as HungryWorld
+	var next := GSRegistry.get_node_service(HungryWorld.SERVICE) as HungryWorld
 
 	if next == null:
 		log_warn("the new game registered no world; the module is now idle", {
@@ -203,7 +203,7 @@ func _module_game_changed(content_key: String) -> void:
 	# The moderator's return history goes too, for everybody. Every position in it is a point
 	# in the arena that was just freed, so `return <player>` after a change put them where
 	# they had stood in a different mode — inside a rock of the reef, or past the edge of a
-	# smaller arena. [method DotModTools.respawned] keeps the history on purpose, because a
+	# smaller arena. [method GSModTools.respawned] keeps the history on purpose, because a
 	# respawn in the same arena leaves a return meaningful; a game change is the one case
 	# where none of it can be, and that includes players who left before the change.
 	if mod_tools != null:
@@ -257,7 +257,7 @@ func _hand_world_to_layers() -> void:
 func _build_mod_tools() -> void:
 	var world_fn := func() -> HungryWorld: return world
 
-	mod_tools = DotModTools.new()
+	mod_tools = GSModTools.new()
 	mod_tools.name = "ModTools"
 	mod_tools.register_service = false
 	mod_tools.manager = hservices.moderation
@@ -288,7 +288,7 @@ func _build_mod_tools() -> void:
 
 	_watch_spawns(world)
 
-	mod_commands = DotModToolCommands.install(self, mod_tools, server)
+	mod_commands = GSModToolCommands.install(self, mod_tools, server)
 	mod_commands.alive_fn = func(id: StringName) -> bool:
 		var monster := world.monster_for(String(id).to_int()) if world != null else null
 		return monster != null and monster.alive
@@ -313,7 +313,7 @@ func _on_player_spawned_for_tools(player_id: int) -> void:
 	if mod_tools != null:
 		mod_tools.respawned(StringName(str(player_id)))
 
-func _build_combat() -> DotResult:
+func _build_combat() -> GSResult:
 	combat = HungryCombat.new()
 	combat.name = "Combat"
 	add_child(combat)
@@ -327,7 +327,7 @@ func _build_combat() -> DotResult:
 	# without this addon has — leaves the constants this game has always used.
 	world.damage_gate = combat.gate
 
-	return DotResult.success(null)
+	return GSResult.success(null)
 
 ## Lays out `hungry_hazards_count` rocks for the world that just loaded (0 = none). The count is the
 ## map's value, because the map config is applied by report_map before this runs. The world budget
@@ -345,7 +345,7 @@ func _scatter_hazards_at_load() -> void:
 		})
 
 
-func _build_hunters() -> DotResult:
+func _build_hunters() -> GSResult:
 	hunters = HungryHunters.new()
 	hunters.name = "Hunters"
 	hunters.npc_skill = npc_skill
@@ -373,9 +373,9 @@ func _build_hunters() -> DotResult:
 	hazards.cleared.connect(_on_hazard_cleared)
 	hazards.struck.connect(_on_hazard_struck)
 
-	return DotResult.success(null)
+	return GSResult.success(null)
 
-func _build_progress() -> DotResult:
+func _build_progress() -> GSResult:
 	progress = HungryProgress.new()
 	progress.name = "Progress"
 	progress.stats = stats
@@ -390,14 +390,14 @@ func _build_progress() -> DotResult:
 
 	progress.earned.connect(_on_earned)
 
-	return DotResult.success(null)
+	return GSResult.success(null)
 
-func _build_maps() -> DotResult:
+func _build_maps() -> GSResult:
 	maps = HungryMaps.new()
 	maps.name = "Maps"
 	# People, not bots: a bot never votes, so counting one raised every threshold, and a server
 	# of bots with nobody on it was never "empty" to the vote — its limit opened a ballot
-	# nobody answered instead of moving on (DotVoteRules.empty_choice).
+	# nobody answered instead of moving on (GSVoteRules.empty_choice).
 	maps.player_count_fn = func() -> int: return maxi(world.player_ids().size() - _bots.size(), 0)
 	maps.is_admin_fn = _voter_is_admin
 
@@ -407,7 +407,7 @@ func _build_maps() -> DotResult:
 		for session in server.playing_sessions():
 			var data := state.duplicate()
 			data["you"] = str(session.userid)
-			server.send_notice(session, DotNotice.make(
+			server.send_notice(session, GSNotice.make(
 				&"", "", float(state.get("seconds", -1.0)), MAP_BALLOT_TOPIC, data
 			))
 
@@ -439,7 +439,7 @@ func _build_maps() -> DotResult:
 
 	# The match a round ends in, and the leading score, for the vote. Callables, because a
 	# mode change replaces the world and the match with it.
-	maps.match_fn = func() -> DotMatch:
+	maps.match_fn = func() -> GSMatch:
 		return world.match_node if world != null else null
 	maps.score_fn = func() -> int:
 		var best := 0.0
@@ -454,20 +454,20 @@ func _build_maps() -> DotResult:
 		return int(best)
 
 	var commanded := maps.install_commands(self)
-	DotLog.result(CHANNEL, "the vote's commands", commanded)
+	GSLog.result(CHANNEL, "the vote's commands", commanded)
 
-	return DotResult.success(null)
+	return GSResult.success(null)
 
 
-func _build_loadouts() -> DotResult:
-	loadouts = DotLoadoutManager.new()
+func _build_loadouts() -> GSResult:
+	loadouts = GSLoadoutManager.new()
 	loadouts.name = "Loadouts"
 	loadouts.schema = hbridge.loadout_schema
 	loadouts.register_service = true
 	loadouts.load_layered_config = false
 	loadouts.config_file = ""
 
-	var config := DotLoadoutConfig.new()
+	var config := GSLoadoutConfig.new()
 	config.backend = "memory"
 	config.allow_default_loadout = true
 	# Conform on the way out of the store, validate on the way in from a client. Retiring
@@ -488,8 +488,8 @@ func _build_loadouts() -> DotResult:
 	if not ready_result.ok:
 		return ready_result.wrap("The loadout manager could not start")
 
-	loadouts.entitlement_source = DotLoadoutSiteSource.layered(_entitlements_for_key)
+	loadouts.entitlement_source = GSLoadoutSiteSource.layered(_entitlements_for_key)
 	hbridge.entitlement_source = _entitlements_for_player
 	hbridge.loadout_sink = _store_loadout
 
-	return DotResult.success(null)
+	return GSResult.success(null)

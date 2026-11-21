@@ -86,7 +86,7 @@ func _handshake_field_matches() -> void:
 func _test_replication() -> void:
 	_section("state")
 
-	var command := Dot2DCommand.new()
+	var command := GS2DCommand.new()
 	command.aim = Vector2.RIGHT
 	command.reach = 800.0
 
@@ -128,7 +128,7 @@ func _test_prediction() -> void:
 	_section("prediction")
 
 			# Not zero here, and correct: a client does not predict what its monster ate (the authority's).
-			# It must not be most snapshots: a second reconcile on top of [method DotNetManager.receive_snapshot]'s
+			# It must not be most snapshots: a second reconcile on top of [method GSNetManager.receive_snapshot]'s
 			# replayed the same inputs twice.
 	var rate := _client_net.predictor.correction_rate()
 	_check(
@@ -140,7 +140,7 @@ func _test_prediction() -> void:
 	# The client's own monster must respond on the tick the input is given, not a round
 	# trip later. Measured against the client's own previous position, because that is
 	# what the player sees.
-	var command := Dot2DCommand.new()
+	var command := GS2DCommand.new()
 	command.aim = Vector2.UP
 	command.reach = 900.0
 
@@ -165,7 +165,7 @@ func _test_prediction() -> void:
 	_prediction_same_tick(command)
 	_done()
 
-func _prediction_same_tick(command: Dot2DCommand) -> void:
+func _prediction_same_tick(command: GS2DCommand) -> void:
 	# Tick N against tick N: the correction rate cannot see a client a whole tick ahead, because a
 	# constant offset reconciles to itself. One tick of this monster's motion is 2 units.
 	var server_at := {}
@@ -199,7 +199,7 @@ func _prediction_same_tick(command: Dot2DCommand) -> void:
 ## A frame is stalled under half the steady step, doubled over one and a half.
 func _test_drawn_through_a_slip() -> void:
 	_section("your own monster is drawn through a frame with no tick, or two")
-	var command := Dot2DCommand.new()
+	var command := GS2DCommand.new()
 	command.aim = Vector2.RIGHT
 	command.reach = 900.0
 	# Eating mid-window grows the monster a tick before the client hears of it, and the replay
@@ -281,8 +281,8 @@ func _test_admin_is_predicted() -> void:
 
 	var server_fn := func() -> HungryWorld: return _server_world
 	var tools := HungryModTools.handlers(server_fn)
-	var noclip: Callable = tools[DotModTools.ACTION_NOCLIP]
-	var freeze: Callable = tools[DotModTools.ACTION_FREEZE]
+	var noclip: Callable = tools[GSModTools.ACTION_NOCLIP]
+	var freeze: Callable = tools[GSModTools.ACTION_FREEZE]
 
 	# A rock on the monster's path, in BOTH worlds — the client predicts around the level's
 	# rocks, which is the whole reason a server-only noclip would disagree with it.
@@ -293,18 +293,18 @@ func _test_admin_is_predicted() -> void:
 	_server_world.layout = _rock_at(rock)
 	_client_world.layout = _rock_at(rock)
 
-	var command := Dot2DCommand.new()
+	var command := GS2DCommand.new()
 	command.aim = heading
 	command.reach = 900.0
 
-	var on: DotResult = noclip.call(&"7", {"on": true})
+	var on: GSResult = noclip.call(&"7", {"on": true})
 	_check(on.ok, "the moderator handler noclips player 7 on the server", str(on.error))
 
 	var shipped := _admin_window(90, command)
 
 	var client_piece := _client_world.monster_for(7).rider_piece()
 	_check(
-		client_piece != null and Dot2DAdminModifiers.is_noclipped(client_piece.state),
+		client_piece != null and GS2DAdminModifiers.is_noclipped(client_piece.state),
 		"the client learned it from the snapshots"
 	)
 	# Past the rock's CENTRE, which a monster the rock stopped can never reach: it is held
@@ -319,7 +319,7 @@ func _test_admin_is_predicted() -> void:
 
 	# The same move made the naive way: noclip off, and the rock taken out of the SERVER's
 	# world only — a server that lets somebody through without telling the client why.
-	var _off: DotResult = noclip.call(&"7", {"on": false})
+	var _off: GSResult = noclip.call(&"7", {"on": false})
 	_back_to(from)
 	_server_world.layout = HungryLayout.none()
 	var naive := _admin_window(90, command)
@@ -341,9 +341,9 @@ func _test_admin_is_predicted() -> void:
 	_back_to(from)
 	_done()
 
-func _admin_freeze(freeze: Callable, command: Dot2DCommand) -> void:
+func _admin_freeze(freeze: Callable, command: GS2DCommand) -> void:
 	# Freeze: held still with the pointer at full reach, on both ends.
-	var frozen: DotResult = freeze.call(&"7", {"on": true})
+	var frozen: GSResult = freeze.call(&"7", {"on": true})
 	_check(frozen.ok, "the moderator handler freezes player 7", str(frozen.error))
 	var held_at := _server_world.monster_for(7).centre()
 	var still := _admin_window(60, command)
@@ -360,7 +360,7 @@ func _admin_freeze(freeze: Callable, command: Dot2DCommand) -> void:
 
 	# Naive: the server alone refuses to move anybody. dot-net rewinds a predicted entity to the server's
 	# whole state, so this is an ordinary rubber band: the client leads, every snapshot pulls it back.
-	var _thaw: DotResult = freeze.call(&"7", {"on": false})
+	var _thaw: GSResult = freeze.call(&"7", {"on": false})
 	var speed := _server_world.tunables.max_speed
 	_server_world.tunables.max_speed = 0.0
 	var naive_freeze := _admin_window(60, command)

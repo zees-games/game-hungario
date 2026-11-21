@@ -23,7 +23,7 @@ func _process(_delta: float) -> void:
 	if _built:
 		return
 	_built = true
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.ERROR)
 	_client = CLIENT_SCENE.instantiate() as HungryClient
 	_client.force_offline = true
 	_client.offline_bots = 0

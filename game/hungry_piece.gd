@@ -11,7 +11,7 @@ const HungryPiece := preload("hungry_piece.gd")
 ## a set rather than on a point, which is why this class is small and [HungryMonster] is
 ## not.
 ##
-## It holds a [Dot2DState] rather than a node. The state is what the simulation reads and
+## It holds a [GS2DState] rather than a node. The state is what the simulation reads and
 ## writes, what the grid indexes and what goes on the wire; a node would be a fourth copy
 ## of a position that has to be kept in step with three others.
 
@@ -21,7 +21,7 @@ var id: int = 0
 ## Which player this belongs to.
 var owner_id: int = 0
 
-var state: Dot2DState = null
+var state: GS2DState = null
 
 ## Tick this piece may merge with its siblings on. Until then they push apart.
 var merge_tick: int = 0
@@ -41,7 +41,7 @@ static func make(
 	p_owner: int,
 	at: Vector2,
 	mass: float,
-	rules: Dot2DMassRules,
+	rules: GS2DMassRules,
 	tick: int
 ) -> HungryPiece:
 	var piece := HungryPiece.new()
@@ -49,7 +49,7 @@ static func make(
 	piece.owner_id = p_owner
 	piece.born_tick = tick
 	piece.merge_tick = tick
-	piece.state = Dot2DState.at(at, rules.radius_for(mass))
+	piece.state = GS2DState.at(at, rules.radius_for(mass))
 	piece.state.mass = mass
 	return piece
 
@@ -76,7 +76,7 @@ var drawn_two_back: Vector2 = Vector2(NAN, NAN)
 ## Where a frame [param alpha] of the way through this piece's last tick draws it, for a piece
 ## this machine simulates: between the last two ticks, on along the last step past 1 and
 ## between the two before below 0 (a connected client's alpha is dot-net's
-## `DotNetClock.render_alpha`, -1 to 2 for a moment after a physics frame that ran no tick or
+## `GSNetClock.render_alpha`, -1 to 2 for a moment after a physics frame that ran no tick or
 ## two). The tick's own position when nothing has been recorded.
 ##
 ## [b]A predicted piece was drawn where its tick left it[/b], so at 144 Hz against 60 ticks it
@@ -99,7 +99,7 @@ func drawn_position(alpha: float) -> Vector2:
 
 
 ## How far through its tick a frame drawn now is: [param clock]'s `render_alpha()` (dot-net's
-## `DotNetClock`, asked by name so a shell older than it draws at the engine's fraction), else
+## `GSNetClock`, asked by name so a shell older than it draws at the engine's fraction), else
 ## the engine's physics fraction, which is exact offline where every physics frame is a tick.
 static func frame_alpha(clock: Object) -> float:
 	if clock != null and is_instance_valid(clock) and clock.has_method(&"render_alpha"):
@@ -109,11 +109,11 @@ static func frame_alpha(clock: Object) -> float:
 
 ## Sets the mass and the radius together.
 ##
-## Going through [Dot2DMassRules] rather than assigning [member Dot2DState.mass] is not
+## Going through [GS2DMassRules] rather than assigning [member GS2DState.mass] is not
 ## a style preference: assigning the mass leaves the radius describing the old one until
 ## the next tick, and anything that queries in between — an eat check, an interest
 ## rectangle — uses the stale one.
-func set_mass(value: float, rules: Dot2DMassRules) -> void:
+func set_mass(value: float, rules: GS2DMassRules) -> void:
 	state.mass = maxf(1.0, value)
 	state.radius = rules.radius_for(state.mass)
 

@@ -1,4 +1,4 @@
-extends DotMenuGameSettings
+extends GSMenuGameSettings
 
 const HungryBindings := preload("hungry_bindings.gd")
 const HungryConfig := preload("../hungry_config.gd")
@@ -16,7 +16,7 @@ const HungryConfig := preload("../hungry_config.gd")
 ##
 ## [b]The document holds this game's own settings beside the stock ones.[/b] The camera and
 ## interface keys are still declared by [HungryConfig] and read out of it with
-## [method DotSettingsSchema.from_config], so a range tightened there tightens the slider and
+## [method GSSettingsSchema.from_config], so a range tightened there tightens the slider and
 ## the console at once; the presentation layer writes each value back into the config the
 ## game reads. The keys are [HungryBindings]' table; help (H), the map menu (M) and Leave are
 ## dot-menu's stock.
@@ -26,7 +26,7 @@ const HungryConfig := preload("../hungry_config.gd")
 ## keys, so all of that carries over untouched. What moved is everything dot-ui's screens
 ## kept in files of their own until 2026-10-12, which [method migrate] reads once.
 
-## This file's log channel. Not `CHANNEL`, which is DotMenuSettings' own ("menu.settings").
+## This file's log channel. Not `CHANNEL`, which is GSMenuSettings' own ("menu.settings").
 const SETTINGS_CHANNEL := "hungry.settings"
 
 ## 2 is the first document that holds everything. A version-1 document (or none) is migrated
@@ -38,17 +38,17 @@ const APP_NAMESPACE := &"game_hungario"
 
 ## What dot-ui's settings screen saved (`HungryConfig.save`, a flat JSON object).
 const LEGACY_CONFIG_PATH := "user://cfg/hungry.json"
-## What dot-ui's Controls screen saved (`DotBindingsPanel.save`, `{bindings: {action: [event]}}`).
+## What dot-ui's Controls screen saved (`GSBindingsPanel.save`, `{bindings: {action: [event]}}`).
 const LEGACY_BINDINGS_PATH := "user://cfg/bindings.json"
 
 ## Which of the config's keys follow the person rather than the machine: the one thing
 ## `HungryConfig` cannot say about itself. A camera follow time is about this screen; a name
 ## plate preference and a feed length are about the person.
 const SCOPES := {
-	&"show_names": DotSettingsDef.Scope.ACCOUNT,
-	&"show_threat": DotSettingsDef.Scope.ACCOUNT,
-	&"feed_lines": DotSettingsDef.Scope.ACCOUNT,
-	&"show_minimap": DotSettingsDef.Scope.ACCOUNT,
+	&"show_names": GSSettingsDef.Scope.ACCOUNT,
+	&"show_threat": GSSettingsDef.Scope.ACCOUNT,
+	&"feed_lines": GSSettingsDef.Scope.ACCOUNT,
+	&"show_minimap": GSSettingsDef.Scope.ACCOUNT,
 }
 
 ## Stock keys nothing here could apply, left out so no row is a switch that does nothing: the world is 2D (no 3D render scale, no field of view), the mouse
@@ -75,7 +75,7 @@ const LEGACY_KEYS := [
 ]
 
 ## The store [method setup] uses when it is not handed one: a suite's memory store.
-var store: DotSettingsStore = null
+var store: GSSettingsStore = null
 ## Where [method migrate] looks. Empty skips that file (a suite).
 var legacy_config_path: String = LEGACY_CONFIG_PATH
 var legacy_bindings_path: String = LEGACY_BINDINGS_PATH
@@ -94,28 +94,28 @@ func _init() -> void:
 ## `manage_pointer` stays off). M is the mode list (dot-menu's map menu, on by default): `HungryClient._build_ui` hands it
 ## the six modes and the change. The help hint and the touch Menu button sit top left: the top right is the leaderboard's,
 ## the bottom corners the minimap's and the mass bar's.
-static func spec_for() -> DotMenuGameSpec:
-	var s := DotMenuGameSpec.new()
+static func spec_for() -> GSMenuGameSpec:
+	var s := GSMenuGameSpec.new()
 	s.schema_version = SCHEMA_VERSION
 	s.brand_name = "Hungario"
 	s.settings_dir = SETTINGS_DIR
 	s.app_namespace = APP_NAMESPACE
 	s.has_fov = false
-	s.base_schema = func() -> DotSettingsSchema:
-		var base := DotSettingsSchema.from_config(HungryConfig.new(), SCOPES)
-		var _net := DotMenuStock.declare_net_stat(base, &"top_left")
+	s.base_schema = func() -> GSSettingsSchema:
+		var base := GSSettingsSchema.from_config(HungryConfig.new(), SCOPES)
+		var _net := GSMenuStock.declare_net_stat(base, &"top_left")
 		return base
 	s.ambient_text = "Quiet sounds under the arena."
 	s.not_applied = NOT_APPLIED
-	s.bindings_maker = func() -> DotMenuBindings: return HungryBindings.make()
+	s.bindings_maker = func() -> GSMenuBindings: return HungryBindings.make()
 	s.help_hint = &"top_left"
 	s.menu_button_corner = &"top_left"
 	s.config_settings = {"master_volume": {"default": DEFAULT_MASTER}}
 	# Migrates the old files into the document first, then dot-menu's setup.
-	s.before_setup = func(node: DotMenuGameSettings, p_store: DotSettingsStore) -> DotSettingsStore:
-		var where: DotSettingsStore = p_store if p_store != null else node.get(&"store")
+	s.before_setup = func(node: GSMenuGameSettings, p_store: GSSettingsStore) -> GSSettingsStore:
+		var where: GSSettingsStore = p_store if p_store != null else node.get(&"store")
 		if where == null:
-			where = DotSettingsStoreFile.new(node.directory)
+			where = GSSettingsStoreFile.new(node.directory)
 		node.set(&"migrated", migrate_store(where, node.app_namespace, node.get(&"legacy_config_path"), node.get(&"legacy_bindings_path")))
 		return where
 	s.page_makers = [[game_page, &"video"]]
@@ -130,7 +130,7 @@ static func spec_for() -> DotMenuGameSpec:
 
 
 ## This game's camera and interface keys, net_stat and the stock settings, as the spec declares them.
-static func schema_for() -> DotSettingsSchema:
+static func schema_for() -> GSSettingsSchema:
 	return spec_for().make_schema()
 
 
@@ -143,7 +143,7 @@ static func schema_for() -> DotSettingsSchema:
 ## loaded `hungry.json` and then laid the document over it, so a key the console had set was
 ## the one in force.
 static func migrate_store(
-	where: DotSettingsStore, app: StringName, config_path: String, bindings_path: String
+	where: GSSettingsStore, app: StringName, config_path: String, bindings_path: String
 ) -> PackedStringArray:
 	var loaded := where.load_document(app, &"local")
 	if not loaded.ok:
@@ -165,10 +165,10 @@ static func migrate_store(
 
 	var saved := where.save_document(app, &"local", {"version": SCHEMA_VERSION, "values": out["values"]})
 	if not saved.ok:
-		DotLog.warn(SETTINGS_CHANNEL, "the migrated settings were not saved; they are migrated again next start",
+		GSLog.warn(SETTINGS_CHANNEL, "the migrated settings were not saved; they are migrated again next start",
 			{"why": saved.error.message})
 	else:
-		DotLog.info(SETTINGS_CHANNEL, "settings migrated to dot-menu's document", {"carried": ", ".join(carried)})
+		GSLog.info(SETTINGS_CHANNEL, "settings migrated to dot-menu's document", {"carried": ", ".join(carried)})
 	return carried
 
 
@@ -213,14 +213,14 @@ static func migrate(body: Dictionary, legacy_config: Dictionary, legacy_keys: Di
 			var event := _decode(e)
 			if event == null or (event is InputEventMouseButton) != bool(entry[2]):
 				continue
-			values[setting] = DotInputBinding.to_text(event)
+			values[setting] = GSInputBinding.to_text(event)
 			carried.append(setting)
 			break
 
 	return {"values": values, "carried": carried}
 
 
-## dot-ui's own encoding of one event (`DotBindingsPanel._encode`), read back.
+## dot-ui's own encoding of one event (`GSBindingsPanel._encode`), read back.
 static func _decode(data: Variant) -> InputEvent:
 	if not (data is Dictionary):
 		return null
@@ -250,9 +250,9 @@ static func _decode(data: Variant) -> InputEvent:
 static func _read_object(path: String) -> Dictionary:
 	if path == "" or not FileAccess.file_exists(path):
 		return {}
-	var read := DotPaths.read_json(path)
+	var read := GSPaths.read_json(path)
 	if not read.ok or not (read.value is Dictionary):
-		DotLog.warn(SETTINGS_CHANNEL, "an old settings file could not be read; it is not migrated",
+		GSLog.warn(SETTINGS_CHANNEL, "an old settings file could not be read; it is not migrated",
 			{"path": path, "why": read.error.message if not read.ok else "not an object"})
 		return {}
 	return read.value
@@ -262,16 +262,16 @@ static func _read_object(path: String) -> Dictionary:
 
 ## This game's own page: the camera and what is drawn over the arena, the keys
 ## [HungryConfig] declares.
-static func game_page() -> DotMenuPage:
-	var p := DotMenuPage.make(&"game", "Game", "The camera, and what is drawn over the arena.")
+static func game_page() -> GSMenuPage:
+	var p := GSMenuPage.make(&"game", "Game", "The camera, and what is drawn over the arena.")
 	p.section("Camera") \
-		.add(DotMenuRow.slider(&"follow_sec", "Camera lag", "How long the camera takes to catch up with you. Off snaps.")
+		.add(GSMenuRow.slider(&"follow_sec", "Camera lag", "How long the camera takes to catch up with you. Off snaps.")
 			.formatted(func(v: float) -> String: return "Off" if v <= 0.0 else "%.2f s" % v)) \
-		.add(DotMenuRow.toggle(&"zoom_with_size", "Zoom out as you grow", "Off keeps one zoom: you see less, and react faster."))
+		.add(GSMenuRow.toggle(&"zoom_with_size", "Zoom out as you grow", "Off keeps one zoom: you see less, and react faster."))
 	p.section("On the arena") \
-		.add(DotMenuRow.toggle(&"show_threat", "Threat rings", "Rings every monster by whether you could eat it, or it you.")) \
-		.add(DotMenuRow.toggle(&"show_names", "Names", "Everybody's name above their monster.")) \
-		.add(DotMenuRow.toggle(&"show_minimap", "Minimap", "In the bottom-right corner.")) \
-		.add(DotMenuRow.slider(&"feed_lines", "Message lines", "Lines the feed keeps on screen at once.")
+		.add(GSMenuRow.toggle(&"show_threat", "Threat rings", "Rings every monster by whether you could eat it, or it you.")) \
+		.add(GSMenuRow.toggle(&"show_names", "Names", "Everybody's name above their monster.")) \
+		.add(GSMenuRow.toggle(&"show_minimap", "Minimap", "In the bottom-right corner.")) \
+		.add(GSMenuRow.slider(&"feed_lines", "Message lines", "Lines the feed keeps on screen at once.")
 			.formatted(func(v: float) -> String: return "Off" if v <= 0.0 else "%d" % roundi(v)))
 	return p

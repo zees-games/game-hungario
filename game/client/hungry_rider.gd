@@ -8,10 +8,10 @@ const HungryRider := preload("hungry_rider.gd")
 ## [b]This is the join between dot-user-avatar and dot-cloud, and it is the whole reason
 ## an avatar is a document of ids.[/b] The server validated this player's rider without
 ## holding any art; the client turns the same ids into something to look at, through
-## [DotAvatarCatalogue], which asks dot-cloud when there is a dot-cloud and falls back to
+## [GSAvatarCatalogue], which asks dot-cloud when there is a dot-cloud and falls back to
 ## the build when there is not.
 ##
-## [b]Two paths, and both are real.[/b] [method DotAvatarBuilder.plan] works out which
+## [b]Two paths, and both are real.[/b] [method GSAvatarBuilder.plan] works out which
 ## part goes in which slot, in what order, with which colours and which have fallen back —
 ## pure logic over ids, no scene touched, so it is the same answer on a headless server as
 ## in a browser. Where that plan names a scene this instantiates it. Where it does not,
@@ -24,15 +24,15 @@ const HungryRider := preload("hungry_rider.gd")
 const CHANNEL := "hungry.rider"
 
 ## The document being worn. Set through [method wear].
-var avatar: DotAvatar = null
+var avatar: GSAvatar = null
 
-var schema: DotAvatarSchema = null
+var schema: GSAvatarSchema = null
 
 ## How content ids become scenes. Shared, because it caches.
-var catalogue: DotAvatarCatalogue = null
+var catalogue: GSAvatarCatalogue = null
 
-## What [method DotAvatarBuilder.plan] worked out. Kept so [method _draw] can use it.
-var _steps: Array[DotAvatarBuilder.Step] = []
+## What [method GSAvatarBuilder.plan] worked out. Kept so [method _draw] can use it.
+var _steps: Array[GSAvatarBuilder.Step] = []
 
 ## slot -> the [Node2D] built for it, for the slots whose content resolved.
 ##
@@ -41,14 +41,14 @@ var _steps: Array[DotAvatarBuilder.Step] = []
 ## for something already known.
 var _built: Dictionary = {}
 
-## slot -> the [DotAvatarBuilder.Step] it came from, so a resize can re-dress it.
+## slot -> the [GSAvatarBuilder.Step] it came from, so a resize can re-dress it.
 var _step_of: Dictionary = {}
 
 ## Radius the rider is drawn at. The monster sets this as it grows.
 var scale_radius: float = 18.0
 
 
-static func make(p_schema: DotAvatarSchema, p_catalogue: DotAvatarCatalogue) -> HungryRider:
+static func make(p_schema: GSAvatarSchema, p_catalogue: GSAvatarCatalogue) -> HungryRider:
 	var rider := HungryRider.new()
 	rider.name = "Rider"
 	rider.schema = p_schema
@@ -57,7 +57,7 @@ static func make(p_schema: DotAvatarSchema, p_catalogue: DotAvatarCatalogue) -> 
 
 
 ## Dresses the rider. Safe to call repeatedly with the same document.
-func wear(document: DotAvatar) -> void:
+func wear(document: GSAvatar) -> void:
 	if document == null or schema == null:
 		return
 
@@ -77,7 +77,7 @@ func _rebuild() -> void:
 
 	_built.clear()
 	_step_of.clear()
-	_steps = DotAvatarBuilder.plan(avatar, schema, catalogue)
+	_steps = GSAvatarBuilder.plan(avatar, schema, catalogue)
 
 	for step in _steps:
 		if step.scene_path == "":
@@ -89,19 +89,19 @@ func _rebuild() -> void:
 		# pack — who is not looking at this code and will otherwise see a missing hat.
 		# Once per change of avatar, since `wear` returns early on the same digest.
 		if not (packed is PackedScene):
-			DotLog.warn(CHANNEL, "an avatar part did not load as a scene", {
+			GSLog.warn(CHANNEL, "an avatar part did not load as a scene", {
 				"slot": String(step.slot), "path": step.scene_path,
 			})
 			continue
 
 		var instance: Variant = (packed as PackedScene).instantiate()
 
-		# A 2D game takes 2D content. [method DotAvatarBuilder.apply] builds a Node3D rig
+		# A 2D game takes 2D content. [method GSAvatarBuilder.apply] builds a Node3D rig
 		# and is not usable here — which is why only the *plan* is shared, and why this
 		# checks rather than casting: a 3D part in a 2D catalogue is a content mistake and
 		# should be a missing hat, not a crash.
 		if not (instance is Node2D):
-			DotLog.warn(CHANNEL, "an avatar part is not 2D content and was left off", {
+			GSLog.warn(CHANNEL, "an avatar part is not 2D content and was left off", {
 				"slot": String(step.slot), "path": step.scene_path,
 			})
 			(instance as Node).queue_free()
@@ -133,7 +133,7 @@ func _rebuild() -> void:
 ## rather than crash, because content is authored by people who are not looking at this
 ## code — and because the same pack has to keep working when this method grows an
 ## argument.
-func _dress(node: Node2D, step: DotAvatarBuilder.Step) -> void:
+func _dress(node: Node2D, step: GSAvatarBuilder.Step) -> void:
 	if node.has_method(&"hungry_dress"):
 		node.call(&"hungry_dress", step.colours, scale_radius)
 
@@ -180,7 +180,7 @@ func resize(radius: float) -> void:
 
 	for slot in _built.keys():
 		var node: Node2D = _built[slot]
-		var step: DotAvatarBuilder.Step = _step_of.get(slot)
+		var step: GSAvatarBuilder.Step = _step_of.get(slot)
 
 		if node != null and is_instance_valid(node) and step != null:
 			_dress(node, step)
@@ -193,7 +193,7 @@ func resize(radius: float) -> void:
 ## Deliberately crude and deliberately deterministic: the shape comes from the slot and
 ## the id, so two clients drawing the same document draw the same rider, and a part whose
 ## content has not downloaded still reads as that part rather than as a grey blob.
-func _draw_part(step: DotAvatarBuilder.Step, unit: float) -> void:
+func _draw_part(step: GSAvatarBuilder.Step, unit: float) -> void:
 	var primary := _colour(step, 0, Color(0.95, 0.95, 0.98))
 	var secondary := _colour(step, 1, Color(0.15, 0.16, 0.20))
 	var shown := step.resolved.id if step.resolved != null else &"?"
@@ -253,7 +253,7 @@ func _draw_part(step: DotAvatarBuilder.Step, unit: float) -> void:
 				)
 
 
-func _colour(step: DotAvatarBuilder.Step, channel: int, fallback: Color) -> Color:
+func _colour(step: GSAvatarBuilder.Step, channel: int, fallback: Color) -> Color:
 	if channel >= step.colours.size():
 		return fallback
 

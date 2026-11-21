@@ -6,7 +6,7 @@ const HungryModes := preload("../hungry_modes.gd")
 const HungryPreset := preload("../hungry_preset.gd")
 const HungryWorld := preload("../hungry_world.gd")
 
-## One mode of the game, as a scene a [DotGameManager] can load and unload.
+## One mode of the game, as a scene a [GSGameManager] can load and unload.
 ##
 ## [b]This is the unit dot-server switches between.[/b] `changegame frenzy` fires a
 ## cancellable event, tells every client to fetch the new content, waits for them, frees
@@ -14,7 +14,7 @@ const HungryWorld := preload("../hungry_world.gd")
 ## time. For that to work the world has to live [i]inside[/i] the scene rather than beside
 ## it, so that freeing the scene is what ends the old game.
 ##
-## What deliberately does not live in here is the netcode. A [DotNetManager] holds its
+## What deliberately does not live in here is the netcode. A [GSNetManager] holds its
 ## message ids and its peer records for the length of a connection, and rebuilding one on
 ## every map change would drop everybody. [HungryModule] keeps the manager and the bridge,
 ## and rebinds the bridge to whatever world this scene brought with it.
@@ -52,14 +52,14 @@ func _ready() -> void:
 	var built := build()
 
 	if not built.ok:
-		DotLog.error(CHANNEL, "the mode could not be built", {
+		GSLog.error(CHANNEL, "the mode could not be built", {
 			"preset": String(preset_id), "error": str(built.error)
 		})
 
 
-func build() -> DotResult:
+func build() -> GSResult:
 	if world != null:
-		return DotResult.success(world)
+		return GSResult.success(world)
 
 	var preset := HungryModes.preset_for(preset_id)
 
@@ -81,13 +81,13 @@ func build() -> DotResult:
 	if auto_start:
 		world.start(0)
 
-	DotLog.info(CHANNEL, "mode ready", {
+	GSLog.info(CHANNEL, "mode ready", {
 		"preset": String(preset.id),
 		"world": preset.world_size,
 		"food": preset.food_target,
 	})
 
-	return DotResult.success(world)
+	return GSResult.success(world)
 
 
 static func _seed_from_clock() -> int:

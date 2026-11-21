@@ -18,29 +18,29 @@ const SERVER_DIR := "user://hungry_sandbox_server"
 ## Every check this suite runs. See the guard at the end of [method _run].
 const CHECKS := 119
 
-var _server: DotServer = null
-var _hub: DotPlatformHub = null
-var _users: DotUserManager = null
-var _avatars: DotAvatarManager = null
+var _server: GSServer = null
+var _hub: GSPlatformHub = null
+var _users: GSUserManager = null
+var _avatars: GSAvatarManager = null
 var _client_side: Node = null
 
 ## What the client's sampler hands the game each tick. The test drives it.
-var _command := Dot2DCommand.new()
+var _command := GS2DCommand.new()
 
 ## The second player. Built later, in its own subtree with its own MultiplayerAPI.
 var _other_side: Node = null
-var _other_link: DotClientLink = null
+var _other_link: GSClientLink = null
 var _other: HungryClient = null
-var _other_command := Dot2DCommand.new()
-var _other_heard: Array[DotChatMessage] = []
+var _other_command := GS2DCommand.new()
+var _other_heard: Array[GSChatMessage] = []
 
 
 func _ready() -> void:
 	# Quiet by default so the checks are readable; `-- --verbose` when one of them
 	# fails and the reason is in a log line rather than in the assertion.
-	DotLog.set_level(
-		DotLog.Level.DEBUG if "--verbose" in OS.get_cmdline_user_args()
-		else DotLog.Level.ERROR
+	GSLog.set_level(
+		GSLog.Level.DEBUG if "--verbose" in OS.get_cmdline_user_args()
+		else GSLog.Level.ERROR
 	)
 	_run.call_deferred()
 
@@ -83,9 +83,9 @@ func _run() -> void:
 
 
 func _cleanup() -> void:
-	DotPaths.remove_tree(PROFILE_DIR)
-	DotPaths.remove_tree(AVATAR_DIR)
-	DotPaths.remove_tree(SERVER_DIR)
+	GSPaths.remove_tree(PROFILE_DIR)
+	GSPaths.remove_tree(AVATAR_DIR)
+	GSPaths.remove_tree(SERVER_DIR)
 
 	if FileAccess.file_exists(SCOPE_KEY):
 		DirAccess.open("user://").remove(SCOPE_KEY.get_file())
@@ -128,7 +128,7 @@ func _build() -> bool:
 
 	# Named "Server" on purpose: an RPC is addressed by the receiver's node path relative to its MultiplayerAPI root,
 	# so any other name on the client fails with "Node not found: Server".
-	_link = DotClientLink.new()
+	_link = GSClientLink.new()
 	_link.name = "Server"
 	_link.player_name = "Sandbox Visitor"
 	_client_side.add_child(_link)
@@ -137,13 +137,13 @@ func _build() -> bool:
 
 
 func _build_platform() -> bool:
-	_users = DotUserManager.new()
+	_users = GSUserManager.new()
 	_users.register_service = true
 	_users.load_layered_config = false
 	_users.config_file = ""
 	_users.server_id = "hungry-sandbox"
 
-	var user_config := DotUserConfig.new()
+	var user_config := GSUserConfig.new()
 	user_config.backend = "local"
 	user_config.directory = PROFILE_DIR
 	user_config.scope = "server:hungry-sandbox"
@@ -152,12 +152,12 @@ func _build_platform() -> bool:
 	_users.config = user_config
 	add_child(_users)
 
-	var users_ready: DotResult = await _users.setup()
+	var users_ready: GSResult = await _users.setup()
 
 	if not _check(users_ready.ok, "profiles are up", str(users_ready.error)):
 		return false
 
-	_avatars = DotAvatarManager.new()
+	_avatars = GSAvatarManager.new()
 	# The same schema the game validates riders against. A server holding no art still
 	# decides whether an avatar is legal, which is dot-user-avatar's one idea.
 	_avatars.schema = HungryContent.avatar_schema()
@@ -165,42 +165,42 @@ func _build_platform() -> bool:
 	_avatars.load_layered_config = false
 	_avatars.config_file = ""
 
-	var avatar_config := DotAvatarConfig.new()
+	var avatar_config := GSAvatarConfig.new()
 	avatar_config.backend = "local"
 	avatar_config.directory = AVATAR_DIR
 	_avatars.config = avatar_config
 	add_child(_avatars)
 
-	var avatars_ready: DotResult = await _avatars.setup()
+	var avatars_ready: GSResult = await _avatars.setup()
 
 	if not _check(avatars_ready.ok, "avatars are up", str(avatars_ready.error)):
 		return false
 
-	_hub = DotPlatformHub.new()
+	_hub = GSPlatformHub.new()
 	_hub.register_service = true
 	_hub.load_layered_config = false
 	_hub.config_file = ""
-	_hub.config = DotPlatformConfig.new()
+	_hub.config = GSPlatformConfig.new()
 	add_child(_hub)
 
-	var hub_ready: DotResult = await _hub.setup()
+	var hub_ready: GSResult = await _hub.setup()
 	return _check(hub_ready.ok, "the platform is up", str(hub_ready.error))
 
 
 func _build_server(server_side: Node) -> bool:
 	# Guests, so no backbone is involved and this runs offline.
-	var auth_config := DotAuthConfig.new()
-	auth_config.strategy = DotAuthConfig.Strategy.ANONYMOUS
+	var auth_config := GSAuthConfig.new()
+	auth_config.strategy = GSAuthConfig.Strategy.ANONYMOUS
 	auth_config.allow_guests = true
 
-	var auth := DotAuthServer.new()
+	var auth := GSAuthServer.new()
 	auth.name = "Auth"
 	auth.config = auth_config
 	auth.config_file = ""
 	auth.register_service = true
 	server_side.add_child(auth)
 
-	var config := DotServerConfig.new()
+	var config := GSServerConfig.new()
 	config.hostname = "hungry sandbox"
 	config.port = PORT
 	config.bind_address = "127.0.0.1"
@@ -212,14 +212,14 @@ func _build_server(server_side: Node) -> bool:
 	config.startup_config = ""
 	config.autoexec_config = ""
 
-	_server = DotServer.new()
+	_server = GSServer.new()
 	_server.name = "Server"
 	_server.config = config
 	_server.config_file = ""
 	_server.auto_boot = false
 	server_side.add_child(_server)
 
-	var booted: DotResult = await _server.boot()
+	var booted: GSResult = await _server.boot()
 
 	if not _check(booted.ok, "the server boots and listens", str(booted.error)):
 		return false
@@ -227,14 +227,14 @@ func _build_server(server_side: Node) -> bool:
 	for descriptor in HungryModule.game_descriptors():
 		_server.games.add_game(descriptor)
 
-	var loaded: DotResult = await _server.games.change_game(
+	var loaded: GSResult = await _server.games.change_game(
 		HungryModule.GAME_CLASSIC, "boot"
 	)
 
 	if not _check(loaded.ok, "the classic mode loads", str(loaded.error)):
 		return false
 
-	var platform: DotResult = await _server.modules.load_module(
+	var platform: GSResult = await _server.modules.load_module(
 		"res://addons/dot_platform/dot_platform_module.gd"
 	)
 
@@ -245,7 +245,7 @@ func _build_server(server_side: Node) -> bool:
 	# Before this line every run wrote the moderator's warnings into the real store.
 	HungryModule.punishments_path = "%s/punishments.json" % SERVER_DIR
 
-	var hungry: DotResult = await _server.modules.load_module(
+	var hungry: GSResult = await _server.modules.load_module(
 		"res://game/hungry_module.gd"
 	)
 
@@ -326,7 +326,7 @@ func _test_join() -> bool:
 
 	_link.spawned.connect(func() -> void: spawned[0] = true)
 	_link.disconnected.connect(func(reason: String) -> void: refused[0] = reason)
-	# dot-server's own `chat_received` is deliberately not what this listens on: the module routes every line through [DotChatRouter] onto this game's wire.
+	# dot-server's own `chat_received` is deliberately not what this listens on: the module routes every line through [GSChatRouter] onto this game's wire.
 	_link.chat_received.connect(func(payload: Dictionary) -> void:
 		if str(payload.get("kind", "")) == "state":
 			_chat_state.append(payload)
@@ -335,7 +335,7 @@ func _test_join() -> bool:
 		_legacy_heard.append(payload)
 	)
 
-	var connecting: DotResult = await _link.connect_to_server("127.0.0.1:%d" % PORT)
+	var connecting: GSResult = await _link.connect_to_server("127.0.0.1:%d" % PORT)
 
 	if not _check(connecting.ok, "the client starts connecting", str(connecting.error)):
 		_done()
@@ -360,7 +360,7 @@ func _test_join() -> bool:
 	_check(on_platform, "the platform admitted them")
 
 	if on_platform:
-		var player: DotPlatformPlayer = _hub.players()[0]
+		var player: GSPlatformPlayer = _hub.players()[0]
 		_check(player.is_ready(), "and they reached READY", player.stage_name())
 		_check(player.is_guest(), "as a guest, since this server has no accounts")
 		_check(player.avatar != null, "with an avatar resolved for them")
@@ -381,7 +381,7 @@ func _test_join() -> bool:
 	# No client scene exists yet, so no cover has lifted: the seat is loading, and nothing
 	# may hurt it. Deterministic, not a race.
 	var module := _module()
-	var seat: DotClientSession = _server.sessions()[0] if not _server.sessions().is_empty() else null
+	var seat: GSClientSession = _server.sessions()[0] if not _server.sessions().is_empty() else null
 	_check(
 		seat != null and module.is_peer_loading(seat.peer_id)
 			and not module.can_peer_be_harmed(seat.peer_id)
@@ -395,7 +395,7 @@ func _test_join() -> bool:
 func _test_client_scene() -> void:
 	_section("the client scene")
 
-	# The server does not name this: [DotClientLink] refuses an absolute scene path outside dot-cloud's mount, so a game shipped in the build owns its client scene.
+	# The server does not name this: [GSClientLink] refuses an absolute scene path outside dot-cloud's mount, so a game shipped in the build owns its client scene.
 	var packed: Variant = load("res://game/client/hungry_client.tscn")
 
 	if not _check(packed is PackedScene, "the client scene loads"):
@@ -442,7 +442,7 @@ func _test_client_scene() -> void:
 	# The pointer is what drives this game, and a headless run has none. The sampler's
 	# command source is the documented seam for exactly that - the same one a bot in a
 	# client's seat or a demo playback would use.
-	_client.sampler.command_source = func() -> Dot2DCommand:
+	_client.sampler.command_source = func() -> GS2DCommand:
 		return _command
 
 	_done()
@@ -499,7 +499,7 @@ func _test_playing() -> void:
 	_playing_avatar(module, mine)
 	await _test_mass_actions_are_heard(module, mine)
 
-	_command = Dot2DCommand.new()
+	_command = GS2DCommand.new()
 	_done()
 
 
@@ -507,7 +507,7 @@ func _test_playing() -> void:
 func _playing_moves(module: HungryModule, mine: int) -> void:
 	var before := module.world.monster_for(mine).centre()
 
-	_command = Dot2DCommand.new()
+	_command = GS2DCommand.new()
 	_command.aim = Vector2.RIGHT
 	_command.reach = 900.0
 
@@ -593,16 +593,16 @@ func _test_admin_over_the_socket() -> void:
 	module.world.layout = layout
 	_client.world.layout = layout
 
-	var on: DotResult = await module.mod_tools.toggle(&"console", id, DotModTools.ACTION_NOCLIP, true, 100)
+	var on: GSResult = await module.mod_tools.toggle(&"console", id, GSModTools.ACTION_NOCLIP, true, 100)
 	_check(on.ok, "the server's tools noclip the player", str(on.error))
 
 	var learned := await _until(func() -> bool:
 		var piece := client_monster.rider_piece()
-		return piece != null and Dot2DAdminModifiers.is_noclipped(piece.state)
+		return piece != null and GS2DAdminModifiers.is_noclipped(piece.state)
 	, 5.0)
 	_check(learned, "and the client learns it from a snapshot")
 
-	_command = Dot2DCommand.new()
+	_command = GS2DCommand.new()
 	_command.aim = heading
 	_command.reach = 900.0
 
@@ -615,16 +615,16 @@ func _test_admin_over_the_socket() -> void:
 		"%.1f past its centre" % (server_monster.centre() - rock).dot(heading))
 	_check(worst[0] < 60.0, "and the client stays with it the whole way (worst %.1f units apart)" % worst[0])
 
-	var _off: DotResult = await module.mod_tools.toggle(&"console", id, DotModTools.ACTION_NOCLIP, false, 100)
+	var _off: GSResult = await module.mod_tools.toggle(&"console", id, GSModTools.ACTION_NOCLIP, false, 100)
 	module.world.layout = kept_server
 	_client.world.layout = kept_client
 
 	# Freeze with the pointer still held at full reach.
-	var frozen: DotResult = await module.mod_tools.toggle(&"console", id, DotModTools.ACTION_FREEZE, true, 100)
+	var frozen: GSResult = await module.mod_tools.toggle(&"console", id, GSModTools.ACTION_FREEZE, true, 100)
 	_check(frozen.ok, "the server's tools freeze the player", str(frozen.error))
 	var _told := await _until(func() -> bool:
 		var piece := client_monster.rider_piece()
-		return piece != null and Dot2DAdminModifiers.is_frozen(piece.state)
+		return piece != null and GS2DAdminModifiers.is_frozen(piece.state)
 	, 5.0)
 	var server_at := server_monster.centre()
 	var client_at := client_monster.centre()
@@ -634,8 +634,8 @@ func _test_admin_over_the_socket() -> void:
 	_check(client_monster.centre().distance_to(client_at) < 1.0,
 		"and the client predicts it held too (%.2f units)" % client_monster.centre().distance_to(client_at))
 
-	var _thaw: DotResult = await module.mod_tools.toggle(&"console", id, DotModTools.ACTION_FREEZE, false, 100)
-	_command = Dot2DCommand.new()
+	var _thaw: GSResult = await module.mod_tools.toggle(&"console", id, GSModTools.ACTION_FREEZE, false, 100)
+	_command = GS2DCommand.new()
 	_done()
 
 
@@ -660,19 +660,19 @@ func _test_mass_actions_are_heard(module: HungryModule, mine: int) -> void:
 	# Eject first, while there is one piece, pointing just past its own centre: near is
 	# slow, so the monster does not walk onto the blob it spat out and eat it back inside
 	# the same snapshot — which nets to nothing and is correctly not heard.
-	_command = Dot2DCommand.new()
+	_command = GS2DCommand.new()
 	_command.aim = Vector2.UP
 	_command.reach = 4.0
-	_command.set_button(Dot2DCommand.BUTTON_EJECT, true)
+	_command.set_button(GS2DCommand.BUTTON_EJECT, true)
 
 	var ejected := await _until(func() -> bool: return sink.count_of(&"eject") > 0, 4.0)
 	_check(ejected, "an eject is heard (%s)" % ", ".join(sink.played_ids()))
 
-	_command = Dot2DCommand.new()
+	_command = GS2DCommand.new()
 	await _frames(3)
 	_command.aim = Vector2.LEFT
 	_command.reach = 400.0
-	_command.set_button(Dot2DCommand.BUTTON_SPLIT, true)
+	_command.set_button(GS2DCommand.BUTTON_SPLIT, true)
 
 	var split := await _until(func() -> bool:
 		var monster := _client.world.monster_for(mine)
@@ -747,7 +747,7 @@ func _two_players_connect() -> bool:
 		MultiplayerAPI.create_default_interface(), _other_side.get_path()
 	)
 
-	_other_link = DotClientLink.new()
+	_other_link = GSClientLink.new()
 	# Named "Server" like the first one: the name is the RPC routing.
 	_other_link.name = "Server"
 	_other_link.player_name = "Second Visitor"
@@ -759,7 +759,7 @@ func _two_players_connect() -> bool:
 		_legacy_heard.append(payload)
 	)
 
-	var connecting: DotResult = await _other_link.connect_to_server(
+	var connecting: GSResult = await _other_link.connect_to_server(
 		"127.0.0.1:%d" % PORT
 	)
 
@@ -776,7 +776,7 @@ func _two_players_connect() -> bool:
 	var packed: Variant = load("res://game/client/hungry_client.tscn")
 	_other = (packed as PackedScene).instantiate() as HungryClient
 	_other_side.add_child(_other)
-	_other.sampler.command_source = func() -> Dot2DCommand:
+	_other.sampler.command_source = func() -> GS2DCommand:
 		return _other_command
 
 	var told := await _until(func() -> bool:
@@ -806,15 +806,15 @@ func _two_players_see_each_other(mine: int, theirs: int) -> void:
 
 	# A join owes an announcement to those here and the backlog to the newcomer; neither can be sent from `client_spawn`.
 	var announced := await _until(func() -> bool:
-		for message: DotChatMessage in _heard:
-			if message.kind == DotChatMessage.Kind.JOIN:
+		for message: GSChatMessage in _heard:
+			if message.kind == GSChatMessage.Kind.JOIN:
 				return true
 		return false
 	, 6.0)
 	_check(announced, "the first client is told somebody joined")
 
 	var caught_up := await _until(func() -> bool:
-		for message: DotChatMessage in _other.chat.history.recent_all(50):
+		for message: GSChatMessage in _other.chat.history.recent_all(50):
 			if message.text.contains("hello from the sandbox"):
 				return true
 		return false
@@ -834,7 +834,7 @@ func _two_players_movement(module: HungryModule, theirs: int) -> void:
 	)
 
 	var before := _client.world.monster_for(theirs).centre()
-	_other_command = Dot2DCommand.new()
+	_other_command = GS2DCommand.new()
 	_other_command.aim = Vector2.UP
 	_other_command.reach = 900.0
 
@@ -849,7 +849,7 @@ func _two_players_movement(module: HungryModule, theirs: int) -> void:
 			% _client.world.monster_for(theirs).centre().distance_to(before)
 	)
 
-	_other_command = Dot2DCommand.new()
+	_other_command = GS2DCommand.new()
 
 	# Moving is the easy half; a view that drifts while they move gets eaten by something drawn elsewhere.
 	var settled := await _until(func() -> bool:
@@ -876,7 +876,7 @@ func _two_players_movement(module: HungryModule, theirs: int) -> void:
 
 	# A published loadout is broadcast to all: the trait changes how fast that monster moves.
 	var schema := _other.bridge.loadout_schema
-	var chosen := DotLoadout.empty(schema.id)
+	var chosen := GSLoadout.empty(schema.id)
 	chosen.set_item(HungryContent.SLOT_STARTER, HungryContent.ITEM_FROST)
 	chosen.set_item(HungryContent.SLOT_TRAIT, HungryContent.TRAIT_STURDY)
 	_other.bridge.publish_loadout(chosen)
@@ -914,8 +914,8 @@ func _two_players_leave(module: HungryModule, theirs: int) -> void:
 ## An administrator's blind and beacon with two real clients: who ELSE is told.
 func _test_blind_and_beacon_audience(module: HungryModule, theirs: int) -> void:
 	var id := StringName(str(theirs))
-	var blinded: DotResult = await module.mod_tools.toggle(&"console", id, DotModTools.ACTION_BLIND, true, 100)
-	var lit: DotResult = await module.mod_tools.toggle(&"console", id, DotModTools.ACTION_BEACON, true, 100)
+	var blinded: GSResult = await module.mod_tools.toggle(&"console", id, GSModTools.ACTION_BLIND, true, 100)
+	var lit: GSResult = await module.mod_tools.toggle(&"console", id, GSModTools.ACTION_BEACON, true, 100)
 
 	var dark := await _until(func() -> bool:
 		var monster := _other.world.monster_for(theirs)
@@ -939,8 +939,8 @@ func _test_blind_and_beacon_audience(module: HungryModule, theirs: int) -> void:
 		"and the other client is never told about the blind, and its screen stays lit"
 	)
 
-	var _unblind: DotResult = await module.mod_tools.toggle(&"console", id, DotModTools.ACTION_BLIND, false, 100)
-	var _unlit: DotResult = await module.mod_tools.toggle(&"console", id, DotModTools.ACTION_BEACON, false, 100)
+	var _unblind: GSResult = await module.mod_tools.toggle(&"console", id, GSModTools.ACTION_BLIND, false, 100)
+	var _unlit: GSResult = await module.mod_tools.toggle(&"console", id, GSModTools.ACTION_BEACON, false, 100)
 	var cleared := await _until(func() -> bool:
 		return not _other.world.monster_for(theirs).blinded \
 			and not _client.world.monster_for(theirs).beacon \
@@ -949,35 +949,35 @@ func _test_blind_and_beacon_audience(module: HungryModule, theirs: int) -> void:
 	_check(cleared, "and turning both off reaches both clients")
 
 
-## The player's block list (`sm`) reaches this game's voice via dot-chat's DotChatSelfMute; armed: dropping either end fails a check.
+## The player's block list (`sm`) reaches this game's voice via dot-chat's GSChatSelfMute; armed: dropping either end fails a check.
 func _test_voice_mute() -> void:
 	_section("sm mutes a player's voice")
 
 	# The one client in this process so far, as in a real one (a second publishes its own; the registry holds the last).
 	var voice: Variant = _client.voice if _client != null else null
-	var manager: DotVoiceManager = voice.manager if voice != null else null
-	if not _check(manager != null and DotRegistry.get_service(&"dot_voice_client") == manager,
+	var manager: GSVoiceManager = voice.manager if voice != null else null
+	if not _check(manager != null and GSRegistry.get_service(&"dot_voice_client") == manager,
 			"the client's voice is published as dot_voice_client"):
 		_done()
 		return
 
-	var self_mute := DotChatSelfMute.new()
+	var self_mute := GSChatSelfMute.new()
 	self_mute.path = "user://hungry_sandbox_self_mute.json"
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(self_mute.path))
 	const TALKER := 1_900_000_001
 	self_mute.set_roster([{"id": 9, "name": "Loud", "key": "loud-key", "peer": TALKER}], 2)
-	self_mute.attach_voice(DotRegistry.get_service(&"dot_voice_client"))
+	self_mute.attach_voice(GSRegistry.get_service(&"dot_voice_client"))
 
 	var talk := func() -> void:
-		var codec := DotVoiceCodec.instance_for(manager.config.codec_id)
+		var codec := GSVoiceCodec.instance_for(manager.config.codec_id)
 		for i in range(10):
-			var packet := DotVoicePacket.new()
+			var packet := GSVoicePacket.new()
 			packet.speaker = TALKER
 			packet.sequence = i
 			packet.starts_talk_spurt = i == 0
 			packet.sample_count = manager.config.frame_samples()
 			packet.codec_id = manager.config.codec_id
-			packet.payload = codec.encode(DotVoiceSourceBuffer.tone(
+			packet.payload = codec.encode(GSVoiceSourceBuffer.tone(
 				300.0, manager.config.frame_ms / 1000.0, manager.config.sample_rate, 0.4))
 			voice.receive(packet.to_bytes())
 
@@ -1008,7 +1008,7 @@ func _test_game_change() -> void:
 	# Moved once, so `return` has a position in THIS arena.
 	var who := StringName(str(mine))
 	var here: Variant = module.mod_tools.position_fn.call(who)
-	var _moved: DotResult = await module.mod_tools.teleport(&"", who,
+	var _moved: GSResult = await module.mod_tools.teleport(&"", who,
 		(here as Vector2) + Vector2(40.0, 0.0) if here is Vector2 else Vector2.ZERO)
 	_check(module.mod_tools.can_return(who), "a moderator moves the player, so `return` has somewhere to put them")
 
@@ -1034,7 +1034,7 @@ func _test_game_change() -> void:
 		_shot("3_map_change")
 	)
 
-	var changed: DotResult = await _server.games.change_game(
+	var changed: GSResult = await _server.games.change_game(
 		HungryModule.GAME_REEF, "sandbox"
 	)
 	if not _check(changed.ok, "the server changes to the reef", str(changed.error)):
@@ -1107,7 +1107,7 @@ func _game_change_loading(module: HungryModule, mine: int, seen: Dictionary, clo
 		"and is harmable once its cover lifts"
 	)
 
-	var returned: DotResult = await module.mod_tools.return_player(&"", who)
+	var returned: GSResult = await module.mod_tools.return_player(&"", who)
 	_check(
 		not module.mod_tools.can_return(who) and not returned.ok,
 		"and `return` has nowhere to put them, rather than a spot in the arena that is gone",

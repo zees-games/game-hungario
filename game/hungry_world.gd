@@ -41,7 +41,7 @@ signal projectile_impact(shot: HungryProjectile, at: Vector2, hit_player: int)
 ## Somebody was burst by a pepper.
 signal monster_burst(player_id: int, by_player: int, pieces: int)
 
-signal match_state_changed(from: DotMatch.State, to: DotMatch.State)
+signal match_state_changed(from: GSMatch.State, to: GSMatch.State)
 
 ## The food field changed and a delta is waiting in [member field].
 signal field_changed()
@@ -84,17 +84,17 @@ var layout_variant: String = ""
 ## How deep into a rock counts as wedged, in units: less than this is a piece brushing one.
 const WEDGED_DEPTH := 1.0
 
-var match_node: DotMatch = null
+var match_node: GSMatch = null
 
 ## What an eaten monster does on every screen, and which death reactions the server allows:
 ## dot-player-char's `sv_ragdoll*` set. The module hands this world its own (bound to the
 ## cvars, which outlive a mode change); offline it is the stock set. See [method decide_death].
-var ragdoll_rules: DotPlayerRagdollRules = DotPlayerRagdollRules.new()
-var motor: Dot2DMotor = null
+var ragdoll_rules: GSPlayerRagdollRules = GSPlayerRagdollRules.new()
+var motor: GS2DMotor = null
 
 ## The throwables a monster may carry. dot-loadout's, so the server can check one
 ## without loading anything.
-var items: DotItemCatalogue = null
+var items: GSItemCatalogue = null
 
 ## What decides whether a thrown item does anything, and how much.
 var damage_gate: Callable = Callable()
@@ -121,20 +121,20 @@ var _registered_name: StringName = &""
 
 ## Tunables with a monster's current speed multiplier folded in. One instance, reused:
 ## see [method _tunables_for].
-var _scaled: Dot2DTunables = null
+var _scaled: GS2DTunables = null
 
 ## One piece's view of its monster's command. One instance, reused: see
 ## [method command_for_piece].
-var _piece_command: Dot2DCommand = Dot2DCommand.new()
+var _piece_command: GS2DCommand = GS2DCommand.new()
 
 
 func _exit_tree() -> void:
 	if _registered_name != &"":
-		DotRegistry.unregister_instance(_registered_name, self)
+		GSRegistry.unregister_instance(_registered_name, self)
 		_registered_name = &""
 
 
-func setup() -> DotResult:
+func setup() -> GSResult:
 	if preset == null:
 		preset = HungryPreset.classic()
 
@@ -170,10 +170,10 @@ func setup() -> DotResult:
 
 	_build_arena()
 
-	motor = Dot2DMotor.with_tunables(tunables)
+	motor = GS2DMotor.with_tunables(tunables)
 	motor.body = arena.body
 
-	_scaled = tunables.duplicate() as Dot2DTunables
+	_scaled = tunables.duplicate() as GS2DTunables
 	# The same rules object, not a copy of it: the eat ratio and the radius curve are
 	# global, and two copies that drifted apart would put a monster's drawn radius and
 	# its eat radius in different places.
@@ -202,15 +202,15 @@ func setup() -> DotResult:
 	_build_player_stack()
 
 	if register_service:
-		_registered_name = DotRegistry.scoped_name(SERVICE, service_scope) if service_scope != &"" else SERVICE
-		DotRegistry.register(_registered_name, self)
+		_registered_name = GSRegistry.scoped_name(SERVICE, service_scope) if service_scope != &"" else SERVICE
+		GSRegistry.register(_registered_name, self)
 
-	return DotResult.success(null)
+	return GSResult.success(null)
 
 
 ## The bounded plane the pieces live on, sized to this world and added as its child.
 func _build_arena() -> void:
-	arena = Dot2DArena.new()
+	arena = GS2DArena.new()
 	arena.name = "Arena"
 	arena.register_service = false
 	arena.bounds = Rect2(-world_size * 0.5, world_size)
@@ -236,13 +236,13 @@ func _build_player_stack() -> void:
 	var res := player_stack.setup(self)
 
 	if not res.ok:
-		DotLog.warn(CHANNEL, "the player stack is off", {"why": res.error.message})
+		GSLog.warn(CHANNEL, "the player stack is off", {"why": res.error.message})
 		remove_child(player_stack)
 		player_stack.queue_free()
 		player_stack = null
 
 
-func _build_match() -> DotResult:
+func _build_match() -> GSResult:
 	var rules := HungryContent.rules(tick_rate)
 	rules.mass_to_win = preset.win_mass
 	rules.time_limit_sec = preset.time_limit_sec
@@ -252,23 +252,23 @@ func _build_match() -> DotResult:
 		var monster := monster_for(int(key))
 		return monster.mass() if monster != null else 0.0
 
-	match_node = DotMatch.new()
+	match_node = GSMatch.new()
 	match_node.name = "Match"
 	match_node.rules = rules
 	match_node.register_service = false
 	# Its own point only. Left to look for itself the match collects every spawn point under
 	# the current scene, and a solo mode change has the old client's world in the tree beside
 	# this one, freed a moment later (dot-match's history: it crashed the engine).
-	match_node.spawns_ref = DotNodeRef.of_self()
+	match_node.spawns_ref = GSNodeRef.of_self()
 
-	var config := DotMatchConfig.new()
+	var config := GSMatchConfig.new()
 	config.tick_rate = tick_rate
 	config.auto_start = false
 	config.balance_between_rounds = false
 	config.idle_seconds = 0.0
 	match_node.config = config
 
-	# Before the match node enters the tree: [method DotMatch.refresh_spawns] runs from
+	# Before the match node enters the tree: [method GSMatch.refresh_spawns] runs from
 	# `_ready` and warns when it finds nothing, so a point added afterwards silences every
 	# respawn but not the one at startup.
 	_add_spawn_point()
@@ -276,21 +276,21 @@ func _build_match() -> DotResult:
 
 	match_node.respawn_due.connect(_on_respawn_due)
 	match_node.state_changed.connect(
-		func(from: DotMatch.State, to: DotMatch.State) -> void:
+		func(from: GSMatch.State, to: GSMatch.State) -> void:
 			# Reset first, announce afterwards: a listener told the round started while the old field is still there sends clients a field about to be thrown away,
 			# and the new one then arrives as a delta on top of it (clients hold double the food).
-			if to == DotMatch.State.LIVE:
+			if to == GSMatch.State.LIVE:
 				reset_world()
 
 			match_state_changed.emit(from, to)
 	)
 
-	return DotResult.success(null)
+	return GSResult.success(null)
 
 
 ## Gives dot-match one spawn point, which this game then ignores.
 func _add_spawn_point() -> void:
-	var point := DotSpawnPoint.new()
+	var point := GSSpawnPoint.new()
 	point.name = "Nominal"
 	# No cooldown: with one point, a cooldown would make it unavailable for two seconds
 	# after every respawn and put the warning straight back.
@@ -338,7 +338,7 @@ func reset_world() -> void:
 func _chosen_layout_variant() -> String:
 	if layout_variant != "":
 		return layout_variant
-	var console: Object = DotRegistry.get_service(&"dot_console")
+	var console: Object = GSRegistry.get_service(&"dot_console")
 	if console != null and console.has_method("get_string"):
 		var operator := str(console.call("get_string", "hungry_warrens_corners", "")).strip_edges().to_lower()
 		if HungryLayout.CORNER_VARIANTS.has(operator):
@@ -376,9 +376,9 @@ func apply_field_delta(
 	field_changed.emit()
 
 
-func add_player(id: int, display_name: String) -> DotResult:
+func add_player(id: int, display_name: String) -> GSResult:
 	if _monsters.has(id):
-		return DotResult.fail(DotError.CODE_STATE, "Player %d is already here." % id)
+		return GSResult.fail(GSError.CODE_STATE, "Player %d is already here." % id)
 
 	var monster := HungryMonster.make(id, display_name)
 	monster.predicted = predicted
@@ -393,7 +393,7 @@ func add_player(id: int, display_name: String) -> DotResult:
 	if player_stack != null:
 		player_stack.add_player(id, display_name)
 
-	return DotResult.success(monster)
+	return GSResult.success(monster)
 
 
 func remove_player(id: int) -> void:
@@ -494,7 +494,7 @@ func _safe_spawn(id: int) -> Vector2:
 		var chosen := player_stack.choose_spawn(id)
 
 		if chosen.ok:
-			var at3 := (chosen.value as DotSpawnChoice).transform.origin
+			var at3 := (chosen.value as GSSpawnChoice).transform.origin
 			return _clear_of_layout(Vector2(at3.x, at3.y))
 
 	var start_radius := tunables.mass_rules.radius_for(HungryContent.START_MASS)
@@ -556,7 +556,7 @@ func attach_piece(
 
 	if is_authority:
 		monster.flags = monster.effect_flags(_tick)
-		Dot2DAdminModifiers.adopt(piece.state, monster.admin)
+		GS2DAdminModifiers.adopt(piece.state, monster.admin)
 
 	_apply_flags(monster, piece)
 
@@ -591,7 +591,7 @@ func wedged_depth(piece: HungryPiece, mass: float = -1.0) -> float:
 	if layout == null or layout.is_empty():
 		return 0.0
 	var radius := piece.radius() if mass < 0.0 else tunables.mass_rules.radius_for(mass)
-	var probe := Dot2DState.new()
+	var probe := GS2DState.new()
 	probe.position = piece.state.position
 	var _moved := layout.resolve_circle(probe, radius)
 	probe.position = arena.clamp_position(probe.position, radius)
@@ -743,14 +743,14 @@ func client_tick(tick_value: int) -> void:
 func simulate_piece(
 	piece: HungryPiece,
 	monster: HungryMonster,
-	command: Dot2DCommand,
+	command: GS2DCommand,
 	delta: float,
 	tick_value: int
 ) -> void:
 	if piece == null:
 		return
 
-	var used := command if command != null else Dot2DCommand.new()
+	var used := command if command != null else GS2DCommand.new()
 
 	# What a frame is drawn between: where this tick starts, and where the last one did.
 	# Here, on the prediction path, so a replay leaves them as the last replayed tick's.
@@ -777,7 +777,7 @@ func block_piece(piece: HungryPiece) -> bool:
 	# An administrator's noclip is the rocks not being there. Here, and not around the
 	# call, because this is the function a client's replay runs: skipped on the server
 	# only, every tick inside a rock is a correction back out of it.
-	if Dot2DAdminModifiers.is_noclipped(piece.state):
+	if GS2DAdminModifiers.is_noclipped(piece.state):
 		return false
 
 	if not layout.resolve_circle(piece.state, piece.radius()):
@@ -801,7 +801,7 @@ func _expire_effects() -> void:
 
 
 ## Tunables with this monster's current speed multiplier folded in.
-func _tunables_for(monster: HungryMonster, tick_value: int) -> Dot2DTunables:
+func _tunables_for(monster: HungryMonster, tick_value: int) -> GS2DTunables:
 	var multiplier := monster.speed_multiplier(tick_value)
 
 	if is_equal_approx(multiplier, 1.0):
@@ -812,7 +812,7 @@ func _tunables_for(monster: HungryMonster, tick_value: int) -> Dot2DTunables:
 
 
 ## Where the player is pointing, in world units.
-static func pointer_of(monster: HungryMonster, command: Dot2DCommand) -> Vector2:
+static func pointer_of(monster: HungryMonster, command: GS2DCommand) -> Vector2:
 	if monster == null or command == null:
 		return Vector2.ZERO
 
@@ -821,10 +821,10 @@ static func pointer_of(monster: HungryMonster, command: Dot2DCommand) -> Vector2
 
 ## One piece's command: the monster's, re-aimed at the pointer from where this piece is.
 func command_for_piece(
-	command: Dot2DCommand,
+	command: GS2DCommand,
 	piece: HungryPiece,
 	pointer: Vector2
-) -> Dot2DCommand:
+) -> GS2DCommand:
 	_piece_command.move = command.move
 	_piece_command.buttons = command.buttons
 
@@ -847,12 +847,12 @@ func _simulate_monsters(commands: Dictionary, delta: float) -> void:
 		if not monster.alive:
 			continue
 
-		var command: Dot2DCommand = commands.get(id)
+		var command: GS2DCommand = commands.get(id)
 
 		if command == null:
 			command = (
 				monster.last_command if monster.last_command != null
-				else Dot2DCommand.new()
+				else GS2DCommand.new()
 			)
 		else:
 			# Everything in here came from a client. A move vector of length 40 is not a
@@ -862,14 +862,14 @@ func _simulate_monsters(commands: Dictionary, delta: float) -> void:
 		# An administrator's freeze holds the whole monster, and a split, a throw or an
 		# eject is movement by another route: a frozen player who could split would cross
 		# the arena half a body at a time.
-		if is_authority and not Dot2DAdminModifiers.bits_frozen(monster.admin):
-			if command.just_pressed(Dot2DCommand.BUTTON_SPLIT, monster.last_command):
+		if is_authority and not GS2DAdminModifiers.bits_frozen(monster.admin):
+			if command.just_pressed(GS2DCommand.BUTTON_SPLIT, monster.last_command):
 				_split(monster, command)
 
-			if command.just_pressed(Dot2DCommand.BUTTON_ACTION, monster.last_command):
+			if command.just_pressed(GS2DCommand.BUTTON_ACTION, monster.last_command):
 				_throw(monster, command)
 
-			if command.just_pressed(Dot2DCommand.BUTTON_EJECT, monster.last_command):
+			if command.just_pressed(GS2DCommand.BUTTON_EJECT, monster.last_command):
 				_eject(monster, command)
 
 		monster.last_command = command.duplicate_command()
@@ -881,7 +881,7 @@ func _simulate_monsters(commands: Dictionary, delta: float) -> void:
 		for piece in monster.pieces:
 			# The monster's admin bits into every piece, every tick, on the authority only.
 			if is_authority:
-				Dot2DAdminModifiers.adopt(piece.state, monster.admin)
+				GS2DAdminModifiers.adopt(piece.state, monster.admin)
 
 			# What a frame is drawn between, as [method simulate_piece] records it: offline
 			# every monster is simulated here, the bots included.
@@ -1037,7 +1037,7 @@ func _take_item(monster: HungryMonster, grid_id: int) -> bool:
 	# mismatch rather than a legal pickup, and swallowing it silently would hand the
 	# player a charge of nothing.
 	if items.find(item) == null:
-		DotLog.warn(CHANNEL, "item drop names an id the catalogue does not have", {
+		GSLog.warn(CHANNEL, "item drop names an id the catalogue does not have", {
 			"item": String(item)
 		})
 		return false
@@ -1117,7 +1117,7 @@ func can_be_harmed(player_id: int) -> bool:
 	return not bool(loading_fn.call(player_id))
 
 
-func _absorb(eater: HungryPiece, victim: HungryPiece, rules: Dot2DMassRules) -> void:
+func _absorb(eater: HungryPiece, victim: HungryPiece, rules: GS2DMassRules) -> void:
 	var gained := victim.mass()
 	# Before the eater grows: how many times the victim's size it was is how hard it hit.
 	var ratio := eater.mass() / maxf(gained, 0.001)
@@ -1167,11 +1167,11 @@ static func power_of(ratio: float) -> float:
 
 ## The fall an eaten monster gets: dot-player-char's reaction rule over `sv_ragdoll_reactions`, seeded from the player and tick so every client draws the same one.
 ## [param mass] is the damage, [param away] the push on the plane. Authority only; a client draws the one that came on DIED.
-func decide_death(player_id: int, swallowed: bool, power: float, mass: float, away: Vector2) -> DotPlayerDeath:
-	return DotPlayerDeath.decide(
-		ragdoll_rules.reactions() if ragdoll_rules != null else DotPlayerDeathReactions.stock(),
+func decide_death(player_id: int, swallowed: bool, power: float, mass: float, away: Vector2) -> GSPlayerDeath:
+	return GSPlayerDeath.decide(
+		ragdoll_rules.reactions() if ragdoll_rules != null else GSPlayerDeathReactions.stock(),
 		swallowed, mass, Vector3(away.x, 0.0, away.y),
-		DotPlayerDeath.seed_of(player_id, _tick), null, power
+		GSPlayerDeath.seed_of(player_id, _tick), null, power
 	)
 
 
@@ -1194,7 +1194,7 @@ func _sorted_piece_ids() -> Array[int]:
 
 
 ## Halves every eligible piece and throws one half along the aim.
-func _split(monster: HungryMonster, command: Dot2DCommand) -> int:
+func _split(monster: HungryMonster, command: GS2DCommand) -> int:
 	var rules := tunables.mass_rules
 
 	if _tick < monster.split_ready_tick or command.aim == Vector2.ZERO:
@@ -1342,7 +1342,7 @@ func _resolve_merges() -> void:
 
 
 ## Throws the oldest carried item along the aim.
-func _throw(monster: HungryMonster, command: Dot2DCommand) -> HungryProjectile:
+func _throw(monster: HungryMonster, command: GS2DCommand) -> HungryProjectile:
 	if _tick < monster.throw_ready_tick or command.aim == Vector2.ZERO:
 		return null
 
@@ -1377,7 +1377,7 @@ func _throw(monster: HungryMonster, command: Dot2DCommand) -> HungryProjectile:
 
 
 ## Spits a blob of mass out along the aim.
-func _eject(monster: HungryMonster, command: Dot2DCommand) -> int:
+func _eject(monster: HungryMonster, command: GS2DCommand) -> int:
 	if _tick < monster.eject_ready_tick or command.aim == Vector2.ZERO:
 		return 0
 
@@ -1574,7 +1574,7 @@ func _sync_scores() -> void:
 			record.score = int(monster.mass())
 
 
-func _on_respawn_due(key: String, _spawn: DotSpawnPoint, _tick_value: int) -> void:
+func _on_respawn_due(key: String, _spawn: GSSpawnPoint, _tick_value: int) -> void:
 	spawn(int(key))
 
 
@@ -1683,4 +1683,4 @@ func adopt_world_size(size: Vector2) -> void:
 
 	field.set_bounds(arena.bounds)
 
-	DotLog.debug(CHANNEL, "adopted the authority's world size", {"size": size})
+	GSLog.debug(CHANNEL, "adopted the authority's world size", {"size": size})

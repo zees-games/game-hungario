@@ -68,7 +68,7 @@ func _test_the_inlet() -> void:
 
 
 ## Placed: in the middle bay, a leader's water in front, no hidden gate.
-func _the_inlet_placed_in_the_middle_bay_a_l(preset: HungryPreset, leader_mass: float, world: HungryWorld, bounds: Rect2, layout: HungryLayout, rules: Dot2DMassRules, lines: int, door: float, widths: PackedFloat32Array, won: float, last_line: Vector2i, a: Vector3, b: Vector3, a_at: Vector2, b_at: Vector2, built: PackedFloat32Array) -> void:
+func _the_inlet_placed_in_the_middle_bay_a_l(preset: HungryPreset, leader_mass: float, world: HungryWorld, bounds: Rect2, layout: HungryLayout, rules: GS2DMassRules, lines: int, door: float, widths: PackedFloat32Array, won: float, last_line: Vector2i, a: Vector3, b: Vector3, a_at: Vector2, b_at: Vector2, built: PackedFloat32Array) -> void:
 	var face := layout.blocks[last_line.x].x + layout.blocks[last_line.x].z
 	var front := minf(a.x - a.z, b.x - b.z)
 	var to_line := front - face
@@ -131,7 +131,7 @@ func _the_inlet_placed_in_the_middle_bay_a_l(preset: HungryPreset, leader_mass: 
 
 
 ## Hunters: refused, as the pools are.
-func _the_inlet_hunters_refused_as_the_pools(preset: HungryPreset, leader_mass: float, world: HungryWorld, bounds: Rect2, layout: HungryLayout, rules: Dot2DMassRules, door: float, won: float, a: Vector3, b: Vector3, built: PackedFloat32Array, face: float, front: float, to_line: float, to_groyne: float, mid_y: float, holds: float, inside: Vector2, bay: Vector2) -> void:
+func _the_inlet_hunters_refused_as_the_pools(preset: HungryPreset, leader_mass: float, world: HungryWorld, bounds: Rect2, layout: HungryLayout, rules: GS2DMassRules, door: float, won: float, a: Vector3, b: Vector3, built: PackedFloat32Array, face: float, front: float, to_line: float, to_groyne: float, mid_y: float, holds: float, inside: Vector2, bay: Vector2) -> void:
 	var lurker := HungryHunters.largest_radius()
 	var region := layout.main_region(bounds, lurker)
 	var seeded := 0
@@ -152,7 +152,7 @@ func _the_inlet_hunters_refused_as_the_pools(preset: HungryPreset, leader_mass: 
 
 
 ## Driven: a starting monster in, a leader across in front.
-func _the_inlet_driven_a_starting_monster_in(preset: HungryPreset, leader_mass: float, world: HungryWorld, bounds: Rect2, layout: HungryLayout, rules: Dot2DMassRules, door: float, won: float, a: Vector3, b: Vector3, built: PackedFloat32Array, face: float, front: float, to_line: float, to_groyne: float, mid_y: float, holds: float, inside: Vector2, bay: Vector2) -> void:
+func _the_inlet_driven_a_starting_monster_in(preset: HungryPreset, leader_mass: float, world: HungryWorld, bounds: Rect2, layout: HungryLayout, rules: GS2DMassRules, door: float, won: float, a: Vector3, b: Vector3, built: PackedFloat32Array, face: float, front: float, to_line: float, to_groyne: float, mid_y: float, holds: float, inside: Vector2, bay: Vector2) -> void:
 	world.spawn(1, bay)
 	_run_ticks(world, 2)
 	var monster := world.monster_for(1)
@@ -214,7 +214,7 @@ func _the_inlet_driven_a_starting_monster_in(preset: HungryPreset, leader_mass: 
 
 
 ## Straight at the middle door.
-func _the_inlet_straight_at_the_middle_door(preset: HungryPreset, world: HungryWorld, bounds: Rect2, layout: HungryLayout, rules: Dot2DMassRules, door: float, a: Vector3, b: Vector3, built: PackedFloat32Array, face: float, front: float, to_line: float, to_groyne: float, mid_y: float, holds: float, bay: Vector2, monster: HungryMonster) -> void:
+func _the_inlet_straight_at_the_middle_door(preset: HungryPreset, world: HungryWorld, bounds: Rect2, layout: HungryLayout, rules: GS2DMassRules, door: float, a: Vector3, b: Vector3, built: PackedFloat32Array, face: float, front: float, to_line: float, to_groyne: float, mid_y: float, holds: float, bay: Vector2, monster: HungryMonster) -> void:
 	var run_from := Vector2(face + 200.0, mid_y)
 	var run_to := Vector2(bounds.end.x + 400.0, mid_y)
 	var fits := rules.mass_for(door * 0.5 - 16.0)
@@ -241,7 +241,7 @@ func _the_inlet_straight_at_the_middle_door(preset: HungryPreset, world: HungryW
 
 
 ## Bots, playing on their own.
-func _the_inlet_bots_playing_on_their_own(preset: HungryPreset, bounds: Rect2, layout: HungryLayout, rules: Dot2DMassRules, door: float, a: Vector3, b: Vector3, front: float, mid_y: float, bay: Vector2, held: float) -> void:
+func _the_inlet_bots_playing_on_their_own(preset: HungryPreset, bounds: Rect2, layout: HungryLayout, rules: GS2DMassRules, door: float, a: Vector3, b: Vector3, front: float, mid_y: float, bay: Vector2, held: float) -> void:
 	# Four HungryBots from the middle bay, steering themselves for thirty seconds: the
 	# inlet is a place they go into and come out of by its doors, and the push-out holds
 	# them at every tick. A grown one among them never gets in.
@@ -306,7 +306,7 @@ func _the_inlet_bots_playing_on_their_own(preset: HungryPreset, bounds: Rect2, l
 	_the_inlet_part7(rules, door, bots, entered, left, deepest, grown_in, grown_mass)
 
 
-func _the_inlet_part7(rules: Dot2DMassRules, door: float, bots: HungryWorld, entered: Dictionary, left: Dictionary, deepest: float, grown_in: int, grown_mass: float) -> void:
+func _the_inlet_part7(rules: GS2DMassRules, door: float, bots: HungryWorld, entered: Dictionary, left: Dictionary, deepest: float, grown_in: int, grown_mass: float) -> void:
 	_check(
 		entered.size() >= 2 and left.size() >= 1 and deepest > -2.0,
 		"HungryBots playing from the middle bay go into the inlet and out again, never into a post",
@@ -369,7 +369,7 @@ func _test_the_sills() -> void:
 
 
 ## The doors, which are the level.
-func _the_sills_the_doors_which_are_the_leve(world: HungryWorld, bounds: Rect2, layout: HungryLayout, rules: Dot2DMassRules, lines: int, widths: PackedFloat32Array, door: float) -> void:
+func _the_sills_the_doors_which_are_the_leve(world: HungryWorld, bounds: Rect2, layout: HungryLayout, rules: GS2DMassRules, lines: int, widths: PackedFloat32Array, door: float) -> void:
 	var built := PackedFloat32Array()
 	var bands := PackedInt32Array()
 	var joined := true
@@ -415,7 +415,7 @@ func _the_sills_the_doors_which_are_the_leve(world: HungryWorld, bounds: Rect2, 
 
 
 ## The detour: one crossing past each sill, planned either side of the door.
-func _the_sills_the_detour_one_crossing_past(world: HungryWorld, bounds: Rect2, layout: HungryLayout, rules: Dot2DMassRules, widths: PackedFloat32Array, door: float, bands: PackedInt32Array) -> void:
+func _the_sills_the_detour_one_crossing_past(world: HungryWorld, bounds: Rect2, layout: HungryLayout, rules: GS2DMassRules, widths: PackedFloat32Array, door: float, bands: PackedInt32Array) -> void:
 	var start := rules.radius_for(HungryContent.START_MASS)
 	var froms: Array[Vector2] = []
 	var tos: Array[Vector2] = []
@@ -469,7 +469,7 @@ func _the_sills_the_detour_one_crossing_past(world: HungryWorld, bounds: Rect2, 
 
 
 ## Driven: past the second band's sill and one of the third's.
-func _the_sills_driven_past_the_second_band_(world: HungryWorld, bounds: Rect2, layout: HungryLayout, rules: Dot2DMassRules, widths: PackedFloat32Array, door: float, bands: PackedInt32Array, froms: Array[Vector2], tos: Array[Vector2], planned: PackedStringArray) -> void:
+func _the_sills_driven_past_the_second_band_(world: HungryWorld, bounds: Rect2, layout: HungryLayout, rules: GS2DMassRules, widths: PackedFloat32Array, door: float, bands: PackedInt32Array, froms: Array[Vector2], tos: Array[Vector2], planned: PackedStringArray) -> void:
 	var resident := door * 0.5 + 40.0
 
 	for s in [0, 1]:
@@ -529,7 +529,7 @@ func _the_sills_driven_past_the_second_band_(world: HungryWorld, bounds: Rect2, 
 
 
 ## Straight at the second band's inner door.
-func _the_sills_straight_at_the_second_band_(world: HungryWorld, bounds: Rect2, layout: HungryLayout, rules: Dot2DMassRules, door: float, bands: PackedInt32Array, planned: PackedStringArray) -> void:
+func _the_sills_straight_at_the_second_band_(world: HungryWorld, bounds: Rect2, layout: HungryLayout, rules: GS2DMassRules, door: float, bands: PackedInt32Array, planned: PackedStringArray) -> void:
 	var sill := layout.blocks[layout.sills[0].x]
 	var door_x := sill.x - sill.z - door * 0.5
 	var run_from := Vector2(door_x, sill.y - 400.0)
@@ -622,7 +622,7 @@ func _test_the_den() -> void:
 	_the_den_part2(world, bounds, centre, layout, rules, den_gate, ring_gate)
 
 
-func _the_den_part2(world: HungryWorld, bounds: Rect2, centre: Vector2, layout: HungryLayout, rules: Dot2DMassRules, den_gate: float, ring_gate: float) -> void:
+func _the_den_part2(world: HungryWorld, bounds: Rect2, centre: Vector2, layout: HungryLayout, rules: GS2DMassRules, den_gate: float, ring_gate: float) -> void:
 	# The moat: the ring's inner face to the den's outer face.
 	var ring_rock: Vector3 = layout.blocks[layout.rings[0].x]
 	var den_rock: Vector3 = layout.blocks[layout.rings[1].x]
@@ -667,7 +667,7 @@ func _the_den_part2(world: HungryWorld, bounds: Rect2, centre: Vector2, layout: 
 
 
 ## Driven: a starting monster from the wall to the centre.
-func _the_den_driven_a_starting_monster_fr(world: HungryWorld, bounds: Rect2, centre: Vector2, layout: HungryLayout, rules: Dot2DMassRules, den_gate: float, ring_rock: Vector3, den_rock: Vector3, ring_at: float, den_at: float, moat: float, wall: Vector2) -> void:
+func _the_den_driven_a_starting_monster_fr(world: HungryWorld, bounds: Rect2, centre: Vector2, layout: HungryLayout, rules: GS2DMassRules, den_gate: float, ring_rock: Vector3, den_rock: Vector3, ring_at: float, den_at: float, moat: float, wall: Vector2) -> void:
 	world.spawn(1, wall)
 	_run_ticks(world, 2)
 
@@ -726,7 +726,7 @@ func _the_den_driven_a_starting_monster_fr(world: HungryWorld, bounds: Rect2, ce
 	_the_den_part4(world, centre, rules, den_gate, den_rock, den_at, moat, monster, route, reached, deepest, ring_crossed, drive_from, drive_covered, drive_ground, drive_ticks)
 
 
-func _the_den_part4(world: HungryWorld, centre: Vector2, rules: Dot2DMassRules, den_gate: float, den_rock: Vector3, den_at: float, moat: float, monster: HungryMonster, route: PackedVector2Array, reached: int, deepest: float, ring_crossed: bool, drive_from: Vector2, drive_covered: float, drive_ground: float, drive_ticks: int) -> void:
+func _the_den_part4(world: HungryWorld, centre: Vector2, rules: GS2DMassRules, den_gate: float, den_rock: Vector3, den_at: float, moat: float, monster: HungryMonster, route: PackedVector2Array, reached: int, deepest: float, ring_crossed: bool, drive_from: Vector2, drive_covered: float, drive_ground: float, drive_ticks: int) -> void:
 	_drive_report(drive_from, route, drive_covered, drive_ticks, drive_ground)
 	_check(
 		deepest > -2.0,

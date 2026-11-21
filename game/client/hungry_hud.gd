@@ -1,5 +1,5 @@
 @tool
-extends DotHud
+extends GSHud
 
 const HungryBeacon := preload("hungry_beacon.gd")
 const HungryBindings := preload("hungry_bindings.gd")
@@ -24,15 +24,15 @@ var player_id: int = 0
 ## else while this player is dead. Optional; without it the status line just says dead.
 var watching_source: Callable = Callable()
 
-var mass_bar: DotStatBar = null
+var mass_bar: GSStatBar = null
 
 ## The mass bar's number, drawn by a [Label] over the bar instead of by the bar itself.
 var mass_label: Label = null
-var leaderboard: DotTableView = null
-var feed: DotFeedView = null
+var leaderboard: GSTableView = null
+var feed: GSFeedView = null
 ## The round clock, dot-ui's: the time on its plate, or the match's state as the line under
 ## it while there is no time to count. See [method piece_theme] for its colours.
-var strip: DotScoreStrip = null
+var strip: GSScoreStrip = null
 
 ## The countdown before a mode-vote ballot, directly under the round clock's plate.
 var vote_label: Label = null
@@ -66,7 +66,7 @@ const LOW_CLOCK_SEC := 10.0
 
 ## Where the strip starts, and where the vote countdown starts under its plate.
 const STRIP_TOP := 10.0
-const VOTE_TOP := STRIP_TOP + DotScoreStrip.H + 6.0
+const VOTE_TOP := STRIP_TOP + GSScoreStrip.H + 6.0
 
 const BOARD_LEFT := -280.0
 const BOARD_RIGHT := -16.0
@@ -182,7 +182,7 @@ func build(p_world: HungryWorld, p_bridge: HungryNetBridge, p_player_id: int) ->
 	blind_overlay = ColorRect.new()
 	blind_overlay.name = "Blind"
 	blind_overlay.color = BLIND_COLOUR
-	# Not anchored to this HUD's rect: `DotHud` insets itself by the safe area, which would leave a frame of the arena showing round a blind.
+	# Not anchored to this HUD's rect: `GSHud` insets itself by the safe area, which would leave a frame of the arena showing round a blind.
 	# Sized to the whole viewport in [method present_blind] instead.
 	blind_overlay.set_anchors_preset(Control.PRESET_TOP_LEFT)
 	blind_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -210,7 +210,7 @@ func build(p_world: HungryWorld, p_bridge: HungryNetBridge, p_player_id: int) ->
 
 
 func _build_stats() -> void:
-	mass_bar = DotStatBar.new()
+	mass_bar = GSStatBar.new()
 	mass_bar.name = "Mass"
 	mass_bar.format = "%d"
 	mass_bar.suffix = " mass"
@@ -254,7 +254,7 @@ func _build_stats() -> void:
 
 
 func _build_board() -> void:
-	leaderboard = DotTableView.new()
+	leaderboard = GSTableView.new()
 	leaderboard.name = "Leaderboard"
 	leaderboard.max_rows = BOARD_ROWS
 	leaderboard.set_anchors_preset(Control.PRESET_TOP_RIGHT)
@@ -269,7 +269,7 @@ func _build_board() -> void:
 		{"key": &"mass", "title": "Mass", "align": HORIZONTAL_ALIGNMENT_RIGHT},
 	])
 
-	feed = DotFeedView.new()
+	feed = GSFeedView.new()
 	feed.name = "Feed"
 	feed.alignment = HORIZONTAL_ALIGNMENT_LEFT
 	feed.newest_last = true
@@ -306,12 +306,12 @@ func _build_board() -> void:
 func _build_top() -> void:
 	# Top centre, full width: the strip centres its plate on its own middle. Its own theme is
 	# the accent; the plate and words are the menu theme's, set on this HUD by the menu.
-	strip = DotScoreStrip.new()
+	strip = GSScoreStrip.new()
 	strip.name = "Clock"
 	strip.theme = piece_theme()
 	strip.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
 	strip.offset_top = STRIP_TOP
-	strip.offset_bottom = STRIP_TOP + DotScoreStrip.H + 28.0
+	strip.offset_bottom = STRIP_TOP + GSScoreStrip.H + 28.0
 	add_child(strip)
 
 	vote_label = Label.new()
@@ -371,7 +371,7 @@ func say_welcome(keys) -> void:
 	say(
 		"%s is the board, %s is chat, %s is help, %s the modes, Escape is the menu and your loadout." % [
 			keys.key_for(HungryBindings.SCOREBOARD), keys.key_for(HungryBindings.CHAT),
-			keys.key_for(DotMenuBindings.HELP_ACTION), DotInputBinding.describe_action(&"dot_menu_maps"),
+			keys.key_for(GSMenuBindings.HELP_ACTION), GSInputBinding.describe_action(&"dot_menu_maps"),
 		],
 		Color(0.62, 0.68, 0.78)
 	)
@@ -506,7 +506,7 @@ static func _top_and_me(rows: Array[Dictionary], room: int) -> Array[Dictionary]
 ## Everything drawn over this HUD by somebody else — the shell's ballot panels — as one
 ## rect in this HUD's own coordinates, or an empty rect when nothing is. See [member _board_room].
 func covered_rect() -> Rect2:
-	return DotHudPiece.covered_rect(self)
+	return GSHudPiece.covered_rect(self)
 
 
 ## Shrinks the board to the rows that fit above whatever covers its corner, and gives it the
@@ -609,13 +609,13 @@ func _refresh_clock() -> void:
 		state = behaviour.state_name()
 	elif world.match_node != null:
 		remaining = world.match_node.seconds_remaining()
-		state = String(DotMatch.State.keys()[world.match_node.state])
+		state = String(GSMatch.State.keys()[world.match_node.state])
 
 	if remaining < 0.0:
 		# No time to count (warmup, between rounds): no plate, the state's words under it.
 		strip.show_clock("", false, state.capitalize())
 	else:
-		strip.show_clock(DotScoreStrip.clock_text(remaining), remaining <= LOW_CLOCK_SEC)
+		strip.show_clock(GSScoreStrip.clock_text(remaining), remaining <= LOW_CLOCK_SEC)
 
 
 func _refresh_vote() -> void:
@@ -628,7 +628,7 @@ func _refresh_mass() -> void:
 		return
 
 	var monster := _me()
-	# Not lagged like the bar: the number is the current value (DotStatBar's rule).
+	# Not lagged like the bar: the number is the current value (GSStatBar's rule).
 	mass_label.text = "%d mass" % int(monster.mass() if monster != null else 0.0)
 
 
@@ -636,7 +636,7 @@ func _refresh_mass() -> void:
 ## The plate, words and outline are the theme's, so a light or high-contrast theme can change them. Static for render tools.
 static func piece_theme() -> Theme:
 	var t := Theme.new()
-	var type := DotHudPiece.THEME_TYPE
+	var type := GSHudPiece.THEME_TYPE
 	t.set_color(&"plate_edge", type, Color(1.0, 1.0, 1.0, 0.22))
 	t.set_color(&"highlight", type, Color(1.0, 0.85, 0.40))
 	return t

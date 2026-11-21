@@ -4,11 +4,11 @@
 
 NPC monsters that roam, eat what they can and run from what they cannot. Three addons, each for the half this game would otherwise get wrong:
 
-- **dot-npc**: catalogue, budget, per-kind cap and **perception**. `DotNpcSenses` acquires at one threshold, drops at a weaker one, and keeps chasing for a grace from the last sighting — a hunter that asked "who is nearest" every tick flickers between targets.
+- **dot-npc**: catalogue, budget, per-kind cap and **perception**. `GSNpcSenses` acquires at one threshold, drops at a weaker one, and keeps chasing for a grace from the last sighting — a hunter that asked "who is nearest" every tick flickers between targets.
 - **dot-npc-ai**: a three-state machine (a tree would be three leaves under a selector), a wander that wanders, separation so a pack does not stack, and a **reaction time** so a hunter cannot commit on the tick it first sees you. Difficulty is per kind (`skill` in the catalogue: swarmling normal, stalker hard, lurker easy); `npc_skill`, `npc_reaction_scale` and `npc_reaction_min` move every kind at once. Without a character, `has_reacted()` answers true on the first tick and the reaction time is zero.
 - **dot-npc-ai-director**: *when*. Pressure builds, sustains, fades and relaxes against an estimate of what the players experience, which here is **how close the nearest hunter that could actually eat them is**, reported as the "health" the director understands. A lurker a player is about to swallow is not pressure.
 
-**A 2D world is dot-npc's XZ plane**: `(x, y)` is `Vector3(x, 0, y)` (`DotNpcSpawner.spawn_2d`, `two_dimensional`). Every sense, steering rule and director measure is a 3D distance, and on a plane with one component fixed that is the 2D one.
+**A 2D world is dot-npc's XZ plane**: `(x, y)` is `Vector3(x, 0, y)` (`GSNpcSpawner.spawn_2d`, `two_dimensional`). Every sense, steering rule and director measure is a 3D distance, and on a plane with one component fixed that is the 2D one.
 
 **Hunters are not dot-net entities.** A piece is predicted, reconciled and interest-managed because a player's own input needs it. A hunter is server-authoritative and unpredicted (a corrected NPC reads worse than a slightly late one), and there are few, so one reliable event a few times a second is cheaper and adds no second id space.
 
@@ -32,6 +32,6 @@ A hunter's radius is `HungryHunters.radius_of`, `4 √(mass / π)`: 15 for a swa
 
 ## Hazards: dot-props in an arena
 
-Rocks, spikes and lures through `DotPropSpawner.spawn_2d`. dot-props supplies the catalogue, budget, world cap, undo and cleanup; **what a hazard does is this game's**: `HungryHazards.resolve` runs inside the world tick after movement and before eating.
+Rocks, spikes and lures through `GSPropSpawner.spawn_2d`. dot-props supplies the catalogue, budget, world cap, undo and cleanup; **what a hazard does is this game's**: `HungryHazards.resolve` runs inside the world tick after movement and before eating.
 
 Everything is **frozen the moment it lands**, because rigid-body simulation is not reproducible across machines; a frozen body is a fixed obstacle both ends derive from the replicated position and the catalogue radius. The spawn interval is zero: dot-props' interval exists because a player can hold a spawn key, and nothing here is placed by a player. The budget and world cap still apply.

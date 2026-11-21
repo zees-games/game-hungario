@@ -10,7 +10,7 @@ func _test_game_change() -> void:
 	# compared against null once freed. An int cannot be freed; nothing here may hold the old world.
 	var before_id := _world().get_instance_id()
 
-	var changed: DotResult = await _server.games.change_game(
+	var changed: GSResult = await _server.games.change_game(
 		HungryModule.GAME_FRENZY, "test"
 	)
 
@@ -101,7 +101,7 @@ func _test_game_change_modes() -> void:
 	)
 
 	var shallows_id := shallows.get_instance_id() if shallows != null else 0
-	var back: DotResult = await _server.games.change_game(HungryModule.GAME_FRENZY, "test")
+	var back: GSResult = await _server.games.change_game(HungryModule.GAME_FRENZY, "test")
 	var returned := await _until(func() -> bool:
 		var now := _world()
 		return now != null and now.get_instance_id() != shallows_id
@@ -127,7 +127,7 @@ func _test_services() -> void:
 	)
 	_check(
 		services.chat.channel(HungryServices.CHANNEL_NEAR).scope
-			== DotChatChannel.Scope.RADIUS,
+			== GSChatChannel.Scope.RADIUS,
 		"one of which is a radius, because an arena is bigger than a screen"
 	)
 
@@ -135,11 +135,11 @@ func _test_services() -> void:
 	# one, and neither imports the other — so the only thing that makes a gag work is that
 	# something is registered under that name.
 	_check(
-		DotRegistry.has(DotModerationManager.MUTE_SERVICE),
+		GSRegistry.has(GSModerationManager.MUTE_SERVICE),
 		"a mute source is registered, which is the only thing that makes a gag work"
 	)
 	_check(
-		DotRegistry.has(DotModerationManager.BAN_SERVICE),
+		GSRegistry.has(GSModerationManager.BAN_SERVICE),
 		"and a ban source, which dot-server's admission check consults"
 	)
 
@@ -147,7 +147,7 @@ func _test_services() -> void:
 	# somebody creeping up on you is information in an arena and noise in a room.
 	_check(
 		services.voice != null
-			and services.voice.default_channel == DotVoiceRouter.Channel.PROXIMITY,
+			and services.voice.default_channel == GSVoiceRouter.Channel.PROXIMITY,
 		"voice is proximity here rather than the whole server"
 	)
 	_check(
@@ -158,8 +158,8 @@ func _test_services() -> void:
 
 	# The operator's switch: registered by the module, replicated so clients hide their key,
 	# and enforced on the router.
-	var voice_cvar: DotConVar = _server.console.find_cvar("sv_voice_enable")
-	_check(voice_cvar != null and DotConsole.is_replicated(voice_cvar),
+	var voice_cvar: GSConVar = _server.console.find_cvar("sv_voice_enable")
+	_check(voice_cvar != null and GSConsole.is_replicated(voice_cvar),
 		"sv_voice_enable is registered and replicated to clients")
 	var off_enabled := true
 	if voice_cvar != null:
@@ -184,7 +184,7 @@ func _test_moderation() -> void:
 	_section("moderation")
 
 	var services := _module().services
-	var subject := DotPunishmentSubject.for_uid("uid-hungry-test")
+	var subject := GSPunishmentSubject.for_uid("uid-hungry-test")
 
 	# [b]The store, and that it is empty before this run writes to it.[/b] The second is
 	# what says the first worked on THIS run: a path that is right and a directory that was
@@ -196,28 +196,28 @@ func _test_moderation() -> void:
 		"and it starts empty, so nothing a previous run did is in it",
 		"%d records" % services.moderation.count())
 
-	var gagged: DotResult = await services.moderation.issue(
-		DotPunishment.Kind.GAG, subject, "testing", "console", 60
+	var gagged: GSResult = await services.moderation.issue(
+		GSPunishment.Kind.GAG, subject, "testing", "console", 60
 	)
 	_check(gagged.ok, "a gag is issued and stored", str(gagged.error))
 
 	# Round-tripped through the store: dot-moderation once shipped a voice mute that loaded back
 	# as a WARN, and a punishment surviving a reconnect is the point of the addon.
-	var reloaded := DotModerationManager.new()
-	reloaded.store = DotPunishmentStoreFile.new(services.punishments_path)
+	var reloaded := GSModerationManager.new()
+	reloaded.store = GSPunishmentStoreFile.new(services.punishments_path)
 	reloaded.register_mute_source = false
 	reloaded.register_ban_source = false
 	add_child(reloaded)
 	reloaded.load_all()
 
-	var found := reloaded.active_of_kind(subject, DotPunishment.Kind.GAG)
+	var found := reloaded.active_of_kind(subject, GSPunishment.Kind.GAG)
 	_check(
-		found != null and found.kind == DotPunishment.Kind.GAG,
+		found != null and found.kind == GSPunishment.Kind.GAG,
 		"and comes back off disk as a GAG rather than as a WARN"
 	)
 
-	var muted: DotResult = await services.moderation.issue(
-		DotPunishment.Kind.VOICE_MUTE, subject, "testing", "console", 60
+	var muted: GSResult = await services.moderation.issue(
+		GSPunishment.Kind.VOICE_MUTE, subject, "testing", "console", 60
 	)
 	_check(muted.ok, "a voice mute is issued", str(muted.error))
 	_check(
@@ -239,7 +239,7 @@ func _test_live_tools() -> void:
 		"the live tools' commands are on the console"
 	)
 
-	var session := DotClientSession.new()
+	var session := GSClientSession.new()
 	session.peer_id = 3131
 	session.userid = 313
 	session.display_name = "Chomp"
@@ -264,7 +264,7 @@ func _test_live_tools() -> void:
 
 	# A peer with nobody in the world yet votes as nobody. They all answered as player 0,
 	# so every such peer rocked, nominated and voted as one voter.
-	var director: DotVoteDirector = hungry.get("maps").director if hungry.get("maps") != null else null
+	var director: GSVoteDirector = hungry.get("maps").director if hungry.get("maps") != null else null
 	var rocks_before := director.clock.rtv_votes() if director != null else -1
 	hungry.call("_on_vote_requested", 987654, "rtv")
 	_check(director != null and director.clock.rtv_votes() == rocks_before
@@ -282,7 +282,7 @@ func _test_live_tools() -> void:
 	_done()
 
 
-func _test_live_tools_acts(world: HungryWorld, monster: HungryMonster, session: DotClientSession) -> void:
+func _test_live_tools_acts(world: HungryWorld, monster: HungryMonster, session: GSClientSession) -> void:
 	if monster.piece_count() == 0:
 		world.spawn(313)
 		monster.alive = true
@@ -306,19 +306,19 @@ func _test_live_tools_acts(world: HungryWorld, monster: HungryMonster, session: 
 	# where the prediction itself is measured; this is the console reaching it.
 	var clipped := await _live("noclip Chomp")
 	_check(
-		Dot2DAdminModifiers.bits_noclip(monster.admin)
-			and monster.pieces.all(func(p: Variant) -> bool: return Dot2DAdminModifiers.is_noclipped(p.state)),
+		GS2DAdminModifiers.bits_noclip(monster.admin)
+			and monster.pieces.all(func(p: Variant) -> bool: return GS2DAdminModifiers.is_noclipped(p.state)),
 		"`noclip Chomp` reaches the monster and every piece's state", " | ".join(clipped))
 
 	var held := await _live("freeze Chomp")
 	_check(
-		Dot2DAdminModifiers.bits_frozen(monster.admin)
-			and monster.pieces.all(func(p: Variant) -> bool: return Dot2DAdminModifiers.is_frozen(p.state)),
+		GS2DAdminModifiers.bits_frozen(monster.admin)
+			and monster.pieces.all(func(p: Variant) -> bool: return GS2DAdminModifiers.is_frozen(p.state)),
 		"`freeze Chomp` holds every piece", " | ".join(held))
 
 	var quick := await _live("speed Chomp 2.2")
 	_check(
-		is_equal_approx(Dot2DAdminModifiers.bits_speed(monster.admin), 2.0)
+		is_equal_approx(GS2DAdminModifiers.bits_speed(monster.admin), 2.0)
 			and _said_any(quick, "2×") and not _said_any(quick, "2.2"),
 		"`speed Chomp 2.2` lands on the 2x step, and says so", " | ".join(quick))
 
@@ -327,15 +327,15 @@ func _test_live_tools_acts(world: HungryWorld, monster: HungryMonster, session: 
 	# monster — which outlives its pieces — into the next life.
 	var _again := await _live("respawn Chomp")
 	_check(
-		not Dot2DAdminModifiers.bits_noclip(monster.admin)
-			and not Dot2DAdminModifiers.bits_frozen(monster.admin)
-			and monster.pieces.all(func(p: Variant) -> bool: return (p.state as Dot2DState).admin == 0),
+		not GS2DAdminModifiers.bits_noclip(monster.admin)
+			and not GS2DAdminModifiers.bits_frozen(monster.admin)
+			and monster.pieces.all(func(p: Variant) -> bool: return (p.state as GS2DState).admin == 0),
 		"and a respawn arrives clean: no noclip, no freeze, normal speed",
-		str(Dot2DAdminModifiers.words(monster.admin)))
+		str(GS2DAdminModifiers.words(monster.admin)))
 	await _test_live_tools_flags(monster, session)
 
 
-func _test_live_tools_flags(monster: HungryMonster, session: DotClientSession) -> void:
+func _test_live_tools_flags(monster: HungryMonster, session: GSClientSession) -> void:
 	# Blind and beacon are two flags on the monster, carried on every piece's entity (blind to its
 	# owner alone, the beacon to everybody); this is the console reaching them.
 	var dark := await _live("blind Chomp")
@@ -477,7 +477,7 @@ func _test_hunters() -> void:
 	# [b]The plane, which is the whole of the 2D mapping.[/b] Get it wrong and a sight
 	# range of 1400 is a sight range of nothing, silently.
 	_check(
-		DotNpcInstance.from_plane(DotNpcInstance.to_plane(Vector2(3.0, -7.0)))
+		GSNpcInstance.from_plane(GSNpcInstance.to_plane(Vector2(3.0, -7.0)))
 			== Vector2(3.0, -7.0),
 		"a 2D point round-trips through dot-npc's plane"
 	)
@@ -671,7 +671,7 @@ func _time_path_searches() -> void:
 		var layout := HungryLayout.for_id(preset.layout, bounds)
 		var built_at := Time.get_ticks_usec()
 		var data := HungryHunters.nav_for(layout, bounds)
-		var graph := DotNpcNavGraph.new()
+		var graph := GSNpcNavGraph.new()
 		graph.rebuild(data)
 		var build_ms := float(Time.get_ticks_usec() - built_at) / 1000.0
 
@@ -753,7 +753,7 @@ func _test_hazards() -> void:
 	_check(hazards.count() == 0, "a clear empties it")
 
 	# hungry_hazards_count rocks are scattered when a world loads.
-	var count_cvar: DotConVar = _server.console.find_cvar("hungry_hazards_count")
+	var count_cvar: GSConVar = _server.console.find_cvar("hungry_hazards_count")
 	count_cvar.set_value("5")
 	var old_world_id := _world().get_instance_id()
 	await _server.games.change_game(HungryModule.GAME_FRENZY, "test")

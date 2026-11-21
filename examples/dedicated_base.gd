@@ -22,7 +22,7 @@ const SERVER_DIR := "user://hungry_dedicated"
 
 ## The app's URL segment on the website (this game's code name); display only, never proof.
 const APP_URL := "hungario"
-var _server: DotServer = null
+var _server: GSServer = null
 
 
 ## Sections entered, and sections that ran to their last line.
@@ -61,13 +61,13 @@ func _module() -> HungryModule:
 
 
 func _world() -> HungryWorld:
-	return DotRegistry.get_node_service(HungryWorld.SERVICE) as HungryWorld
+	return GSRegistry.get_node_service(HungryWorld.SERVICE) as HungryWorld
 
 
 func _build(serving: bool) -> bool:
 	print("booting")
 
-	var config := DotServerConfig.new()
+	var config := GSServerConfig.new()
 	config.hostname = "hungry dedicated"
 	config.port = PORT
 	config.bind_address = "127.0.0.1" if not serving else "0.0.0.0"
@@ -88,7 +88,7 @@ func _build(serving: bool) -> bool:
 	# process from ever exiting (the exit probe's copy held such a pipe). `--serve` keeps it.
 	config.stdin_console_enabled = serving
 
-	_server = DotServer.new()
+	_server = GSServer.new()
 	_server.name = "Server"
 	_server.config = config
 	_server.config_file = ""
@@ -97,24 +97,24 @@ func _build(serving: bool) -> bool:
 
 	# Answering a query is its own addon, and a server only answers if a host is plugged
 	# in. Added before boot() so the listener opens with everything else.
-	var query_host := DotQueryHost.new()
+	var query_host := GSQueryHost.new()
 	query_host.name = "QueryHost"
 	query_host.app_url = APP_URL
-	query_host.server_ref = DotNodeRef.of_path(NodePath("../Server"))
+	query_host.server_ref = GSNodeRef.of_path(NodePath("../Server"))
 	add_child(query_host)
 
-	var booted: DotResult = await _server.boot()
+	var booted: GSResult = await _server.boot()
 
 	if not _check(booted.ok, "the server boots and listens on %d" % PORT, str(booted.error)):
 		return false
 
 	# Both modes are registered before the first one is loaded, because
-	# [DotGameManager.change_game] can only change to a game it already knows about and
+	# [GSGameManager.change_game] can only change to a game it already knows about and
 	# the module cannot load until there is a world for it to bind to.
 	for descriptor in HungryModule.game_descriptors():
 		_server.games.add_game(descriptor)
 
-	var loaded: DotResult = await _server.games.change_game(
+	var loaded: GSResult = await _server.games.change_game(
 		HungryModule.GAME_CLASSIC, "boot"
 	)
 
@@ -127,7 +127,7 @@ func _build(serving: bool) -> bool:
 	if not serving:
 		HungryModule.punishments_path = "%s/punishments.json" % SERVER_DIR
 
-	var module: DotResult = await _server.modules.load_module(
+	var module: GSResult = await _server.modules.load_module(
 		"res://game/hungry_module.gd"
 	)
 	return _check(module.ok, "and the module loads into it", str(module.error))
@@ -155,7 +155,7 @@ func _pieces_carry(monster: HungryMonster, property: String, want: bool) -> bool
 			return false
 
 		if property == "net_beacon":
-			var identity := piece.net.get("identity") as DotNetIdentity
+			var identity := piece.net.get("identity") as GSNetIdentity
 			if identity == null or identity.always_relevant != want:
 				return false
 
@@ -164,7 +164,7 @@ func _pieces_carry(monster: HungryMonster, property: String, want: bool) -> bool
 
 func _live(line: String) -> PackedStringArray:
 	var captured: Array[String] = []
-	var context := DotCmdContext.console("", PackedStringArray())
+	var context := GSCmdContext.console("", PackedStringArray())
 	context.reply_sink = func(text: String) -> void: captured.append(text)
 	_server.console.execute(line, context)
 	await get_tree().process_frame

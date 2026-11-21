@@ -18,26 +18,26 @@ const SERVICE := &"hungry_player_stack"
 
 var world: HungryWorld = null
 
-var physics: DotPhysicsWorld = null
-var roster: DotPlayerRoster = null
-var teams: DotTeamRoster = null
-var classes: DotPlayerClassManager = null
-var characters: DotPlayerCharCatalogue = null
-var spawns: DotSpawnDirector = null
+var physics: GSPhysicsWorld = null
+var roster: GSPlayerRoster = null
+var teams: GSTeamRoster = null
+var classes: GSPlayerClassManager = null
+var characters: GSPlayerCharCatalogue = null
+var spawns: GSSpawnDirector = null
 ## Per-preset spawn edits (`cfg/game/game-hungario/dot_spawn/spawn/<preset>.yml`); the module hands
 ## in the set its workbench shows, so an edit there and the grid here read the same object.
-var spawn_overrides: DotProfileSet = null
+var spawn_overrides: GSProfileSet = null
 
 var _registered: bool = false
 
 
-func setup(p_world: HungryWorld) -> DotResult:
+func setup(p_world: HungryWorld) -> GSResult:
 	if p_world == null:
-		return DotResult.fail(DotError.CODE_INVALID, "No world to bind to.")
+		return GSResult.fail(GSError.CODE_INVALID, "No world to bind to.")
 
 	if p_world.match_node == null:
-		return DotResult.fail(
-			DotError.CODE_STATE,
+		return GSResult.fail(
+			GSError.CODE_STATE,
 			"HungryWorld is not set up yet.",
 			"Call setup() on it first; this reads its match and its field."
 		)
@@ -59,32 +59,32 @@ func setup(p_world: HungryWorld) -> DotResult:
 	world.player_died.connect(_on_player_died)
 
 	if register_service:
-		DotRegistry.register(SERVICE, self)
+		GSRegistry.register(SERVICE, self)
 		_registered = true
 
-	DotLog.info(CHANNEL, "player stack up", {"tick_rate": world.tick_rate})
-	return DotResult.success(null)
+	GSLog.info(CHANNEL, "player stack up", {"tick_rate": world.tick_rate})
+	return GSResult.success(null)
 
 
 func _exit_tree() -> void:
 	if _registered:
-		DotRegistry.unregister_instance(SERVICE, self)
+		GSRegistry.unregister_instance(SERVICE, self)
 
 
 
 ## Builds the physics node, and applies the engine half of it only where that is wanted.
-func _build_physics() -> DotResult:
-	physics = DotPhysicsWorld.new()
+func _build_physics() -> GSResult:
+	physics = GSPhysicsWorld.new()
 	physics.name = "Physics"
 
 	# The project's own numbers with only the tick rate changed: this game does not use Godot's physics for anything that matters (dot-2d integrates over a spatial hash, the field is arithmetic).
-	physics.profile = DotPhysicsProfile.from_project()
+	physics.profile = GSPhysicsProfile.from_project()
 	physics.profile.tick_rate = world.tick_rate
 
 	# The layout is the part worth having. It is inert until a body is classified, and
 	# what it buys is that `pickup`, `hazard` and `projectile` stop being bit arithmetic
 	# at the call site the day this game grows a `CollisionObject2D`.
-	physics.layout = DotPhysicsLayout.top_down_2d()
+	physics.layout = GSPhysicsLayout.top_down_2d()
 	physics.register_service = false
 	physics.write_layer_names = false
 	add_child(physics)
@@ -96,18 +96,18 @@ func _build_physics() -> DotResult:
 		return built.wrap("The collision layout")
 
 	if not apply_physics:
-		return DotResult.success(null)
+		return GSResult.success(null)
 
 	return physics.setup().wrap("hungario's physics profile")
 
 
 func _build_roster() -> void:
-	roster = DotPlayerRoster.new()
+	roster = GSPlayerRoster.new()
 	roster.name = "Roster"
 	roster.authoritative = world.is_authority
 	roster.register_service = false
 
-	var config := DotPlayerConfig.new()
+	var config := GSPlayerConfig.new()
 	config.tick_rate = world.tick_rate
 	config.max_players = HungryTuning.settings().max_players
 	# A round is minutes and a dropped player's mass is the whole game. Holding the seat
@@ -118,15 +118,15 @@ func _build_roster() -> void:
 
 
 func _build_teams() -> void:
-	teams = DotTeamRoster.new()
+	teams = GSTeamRoster.new()
 	teams.name = "Teams"
 	teams.authoritative = world.is_authority
 	teams.register_service = false
 	# Free-for-all is ONE playing side, not none. Modelled as none, every consumer has
 	# to branch on whether teams exist, and the branch nobody writes is the one that
 	# matters — here it would be "can I eat this", which is the entire game.
-	teams.teams = DotTeamSet.free_for_all()
-	teams.policy = DotTeamPolicy.free_for_all()
+	teams.teams = GSTeamSet.free_for_all()
+	teams.policy = GSTeamPolicy.free_for_all()
 	teams.policy.tick_rate = world.tick_rate
 	teams.alive_fn = _alive_of_key
 	add_child(teams)
@@ -134,26 +134,26 @@ func _build_teams() -> void:
 	var res := teams.setup()
 
 	if not res.ok:
-		DotLog.error(CHANNEL, "team roster", {"why": res.error.message})
+		GSLog.error(CHANNEL, "team roster", {"why": res.error.message})
 
 
 func _build_characters() -> void:
 	# In pixels, not metres: dot-player-char's metrics are unit-agnostic, and a monster's "height" is a radius on a screen.
-	characters = DotPlayerCharCatalogue.sprite_2d(HungryContent.CELL_SIZE)
+	characters = GSPlayerCharCatalogue.sprite_2d(HungryContent.CELL_SIZE)
 	var res := characters.build()
 
 	if not res.ok:
-		DotLog.error(CHANNEL, "character catalogue", {"why": res.error.message})
+		GSLog.error(CHANNEL, "character catalogue", {"why": res.error.message})
 
 
 func _build_classes() -> void:
-	classes = DotPlayerClassManager.new()
+	classes = GSPlayerClassManager.new()
 	classes.name = "Classes"
 	classes.authoritative = world.is_authority
 	classes.register_service = false
 	classes.catalogue = _trait_catalogue()
 	# Traits are picked before a round and change what a monster is; changing one mid-life would change its mass rules, which `apply_on_respawn` exists for. A life ends when you are eaten, so the next spawn is the boundary.
-	classes.rules = DotPlayerClassRules.standard()
+	classes.rules = GSPlayerClassRules.standard()
 	classes.team_fn = func(key: String) -> StringName: return teams.team_of(key)
 	classes.alive_fn = _alive_of_key
 	add_child(classes)
@@ -161,19 +161,19 @@ func _build_classes() -> void:
 	var res := classes.setup()
 
 	if not res.ok:
-		DotLog.error(CHANNEL, "class manager", {"why": res.error.message})
+		GSLog.error(CHANNEL, "class manager", {"why": res.error.message})
 
 
 ## Hungario's traits, as a class catalogue a server can check.
-func _trait_catalogue() -> DotPlayerClassCatalogue:
-	var cat := DotPlayerClassCatalogue.new()
+func _trait_catalogue() -> GSPlayerClassCatalogue:
+	var cat := GSPlayerClassCatalogue.new()
 	cat.id = &"hungry_traits"
 
 	# Read off HungryContent.TRAIT_IDS rather than listed here. A trait added to the
 	# game and forgotten in this file would be a trait a player can hold and the class
 	# manager refuses, which presents as "my perk does nothing" on one server only.
 	for trait_id in HungryContent.TRAIT_IDS:
-		var def := DotPlayerClassDef.make(
+		var def := GSPlayerClassDef.make(
 			trait_id, 100.0, HungryContent.trait_speed(trait_id)
 		)
 		def.description = "A hungario trait."
@@ -191,18 +191,18 @@ func _trait_catalogue() -> DotPlayerClassCatalogue:
 		# Falls back rather than leaving the manager with nothing: a catalogue that
 		# fails to build is a content mistake, and a session where nobody can be any
 		# class at all is a worse answer than one class for everybody.
-		DotLog.error(CHANNEL, "trait catalogue", {"why": res.error.message})
-		return DotPlayerClassCatalogue.single(100.0)
+		GSLog.error(CHANNEL, "trait catalogue", {"why": res.error.message})
+		return GSPlayerClassCatalogue.single(100.0)
 
 	return cat
 
 
 func _build_spawns() -> void:
-	spawns = DotSpawnDirector.new()
+	spawns = GSSpawnDirector.new()
 	spawns.name = "Spawns"
 	spawns.tick_rate = world.tick_rate
 	spawns.register_service = false
-	spawns.rules = DotSpawnRules.deathmatch()
+	spawns.rules = GSSpawnRules.deathmatch()
 	spawns.rules.seed_value = 0x4E55
 	# Free-for-all: draw across the whole grid (dot-spawn's scatter), not the safest cell every time.
 	spawns.rules.strategy = "scatter,map"
@@ -240,7 +240,7 @@ func refresh_spawns() -> void:
 				lerpf(-half.x, half.x, (float(x) + 0.5) / float(steps)),
 				lerpf(-half.y, half.y, (float(y) + 0.5) / float(steps))
 			)
-			var site := DotSpawnSite.point(
+			var site := GSSpawnSite.point(
 				StringName("cell_%d_%d" % [x, y]), Vector3(at.x, at.y, 0.0)
 			)
 			site.is_2d = true
@@ -255,13 +255,13 @@ func refresh_spawns() -> void:
 			for site in spawns.sites():
 				site.is_2d = true
 		else:
-			DotLog.warn(CHANNEL, "spawn overrides not read", {"preset": String(world.preset.id), "error": loaded.error.message})
+			GSLog.warn(CHANNEL, "spawn overrides not read", {"preset": String(world.preset.id), "error": loaded.error.message})
 
-	DotLog.debug(CHANNEL, "spawn sites", {"count": spawns.sites().size(), "overrides": applied})
+	GSLog.debug(CHANNEL, "spawn sites", {"count": spawns.sites().size(), "overrides": applied})
 
 
 ## Takes the module's override set and lays the grid again with it applied.
-func use_spawn_overrides(set: DotProfileSet) -> void:
+func use_spawn_overrides(set: GSProfileSet) -> void:
 	spawn_overrides = set
 	if spawns != null:
 		refresh_spawns()
@@ -277,7 +277,7 @@ func add_player(id: int, display_name: String) -> void:
 	var res := roster.join(key, display_name, id, world.current_tick())
 
 	if not res.ok:
-		DotLog.warn(CHANNEL, "player not added to the roster", {
+		GSLog.warn(CHANNEL, "player not added to the roster", {
 			"key": key, "why": res.error.message
 		})
 		return
@@ -351,17 +351,17 @@ func blocks_damage(
 
 
 ## Where a monster should appear, scored by how far it is from everybody else.
-func choose_spawn(id: int) -> DotResult:
+func choose_spawn(id: int) -> GSResult:
 	var key := str(id)
 	return spawns.choose(
-		DotSpawnRequest.make(
+		GSSpawnRequest.make(
 			key, teams.team_of(key), classes.class_of(key), world.current_tick()
 		)
 	)
 
 
 ## The body metrics for a monster, in pixels.
-func character() -> DotPlayerCharDef:
+func character() -> GSPlayerCharDef:
 	return characters.fallback_for() if characters != null else null
 
 
@@ -381,9 +381,9 @@ func team_index_of(key: String) -> int:
 
 
 ## Puts [param node] on the layout's [param layer_id] layer, with that layer's mask.
-func classify(node: Node, layer_id: StringName) -> DotResult:
+func classify(node: Node, layer_id: StringName) -> GSResult:
 	if physics == null or physics.layout == null:
-		return DotResult.fail(DotError.CODE_STATE, "No collision layout.")
+		return GSResult.fail(GSError.CODE_STATE, "No collision layout.")
 
 	return physics.classify(node, layer_id)
 
@@ -462,14 +462,14 @@ func _bigger_monster_near(at: Vector2) -> bool:
 
 
 ## Refuses a site with something big enough to eat you standing on it.
-class SiteIsNotDeadly extends DotSpawnCondition:
+class SiteIsNotDeadly extends GSSpawnCondition:
 	## `func(at: Vector2) -> bool`. Left unset, nothing is deadly and every site passes.
 	var danger_fn: Callable = Callable()
 
 	func _init() -> void:
 		id = &"site_is_not_deadly"
 
-	func allows(site: DotSpawnSite, _context: Dictionary) -> bool:
+	func allows(site: GSSpawnSite, _context: Dictionary) -> bool:
 		if not danger_fn.is_valid():
 			return true
 

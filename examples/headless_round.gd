@@ -5,7 +5,7 @@ extends "headless_round_food.gd"
 const CHECKS := 494
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.ERROR)
 	_run.call_deferred()
 
 
@@ -150,7 +150,7 @@ func _test_items_and_throwing() -> void:
 	world.spawn(1, world.field.position_of(drop))
 
 	# Held still, so the two do not drift into each other while the pepper is in flight.
-	var hold := Dot2DCommand.new()
+	var hold := GS2DCommand.new()
 
 	_items_pickup(world, thrower)
 	_items_pepper(world, thrower, victim, hold)
@@ -174,7 +174,7 @@ func _test_splitting() -> void:
 	monster.clear_effect(HungryContent.FLAG_PROTECTED)
 
 	var mass_before := monster.mass()
-	var split := _aim_at(Vector2.ZERO, Vector2.RIGHT * 500.0, Dot2DCommand.BUTTON_SPLIT)
+	var split := _aim_at(Vector2.ZERO, Vector2.RIGHT * 500.0, GS2DCommand.BUTTON_SPLIT)
 	var release := _aim_at(Vector2.ZERO, Vector2.RIGHT * 500.0)
 
 	world.tick({1: split})
@@ -277,7 +277,7 @@ func _test_merging() -> void:
 	monster.rider_piece().set_mass(600.0, world.tunables.mass_rules)
 	monster.clear_effect(HungryContent.FLAG_PROTECTED)
 
-	var split := _aim_at(Vector2.ZERO, Vector2.RIGHT * 500.0, Dot2DCommand.BUTTON_SPLIT)
+	var split := _aim_at(Vector2.ZERO, Vector2.RIGHT * 500.0, GS2DCommand.BUTTON_SPLIT)
 	var release := _aim_at(Vector2.ZERO, Vector2.RIGHT * 500.0)
 
 	# Twice, with the cooldown in between, so there are three or four pieces rather than two.
@@ -295,7 +295,7 @@ func _test_merging() -> void:
 	var mass_before := monster.mass()
 
 	# Pull everything to one point: merging needs the delay *and* proximity.
-	var gather := Dot2DCommand.new()
+	var gather := GS2DCommand.new()
 
 	for _i in range(TICK_RATE * 6):
 		world.tick({1: gather})
@@ -354,7 +354,7 @@ func _test_devouring() -> void:
 	var deaths := [0]
 	world.player_died.connect(func(_p: int, _k: int) -> void: deaths[0] += 1)
 
-	var stand := Dot2DCommand.new()
+	var stand := GS2DCommand.new()
 	var chase := _aim_at(
 		big.rider_piece().position(), small.rider_piece().position()
 	)
@@ -424,7 +424,7 @@ func _test_devouring() -> void:
 func _check_devour_death_picks(world: HungryWorld, small: HungryMonster) -> void:
 	# The server picks the fall once, pushed away from the eater; armed by deciding nothing in `_absorb`.
 	_check(
-		small.death != null and DotPlayerDeathReactions.stock().find(small.death.reaction) != null
+		small.death != null and GSPlayerDeathReactions.stock().find(small.death.reaction) != null
 			and small.death.direction.length() > 0.9 and small.death.damage > 0.0,
 		"the eaten monster's fall is the server's pick, with a push",
 		str(small.death.describe()) if small.death != null else "none"
@@ -435,16 +435,16 @@ func _check_devour_death_picks(world: HungryWorld, small: HungryMonster) -> void
 	var thrown := world.decide_death(5, false, HungryWorld.power_of(12.0), 30.0, Vector2.RIGHT)
 	var nudged := world.decide_death(5, false, HungryWorld.power_of(3.0), 30.0, Vector2.RIGHT)
 	_check(
-		thrown.reaction == DotPlayerDeathReactions.POWER_LAUNCH
-			and nudged.reaction == DotPlayerDeathReactions.LIMP,
+		thrown.reaction == GSPlayerDeathReactions.POWER_LAUNCH
+			and nudged.reaction == GSPlayerDeathReactions.LIMP,
 		"a monster ten times your size can throw you, one three times cannot",
 		"%s / %s" % [thrown.reaction, nudged.reaction]
 	)
 	world.ragdoll_rules.reaction_weights = "limp=0,face_plant=0,crumple=0,power_launch=0"
 	var whole := world.decide_death(5, true, 0.0, 30.0, Vector2.RIGHT)
 	_check(
-		whole.reaction == DotPlayerDeathReactions.HEADSHOT_LAUNCH
-			and world.decide_death(5, false, 0.0, 30.0, Vector2.RIGHT).reaction == DotPlayerDeathReactions.LIMP,
+		whole.reaction == GSPlayerDeathReactions.HEADSHOT_LAUNCH
+			and world.decide_death(5, false, 0.0, 30.0, Vector2.RIGHT).reaction == GSPlayerDeathReactions.LIMP,
 		"swallowed whole is this game's headshot",
 	)
 	world.ragdoll_rules.reaction_weights = ""
@@ -720,9 +720,9 @@ func _test_hunter_round_a_rock() -> void:
 	)
 	_check(
 		nav != null and nav.is_reachable(
-			DotNpcInstance.to_plane(hunter_at), DotNpcInstance.to_plane(prey_at), 100.0
+			GSNpcInstance.to_plane(hunter_at), GSNpcInstance.to_plane(prey_at), 100.0
 		) and not nav.can_walk_straight(
-			DotNpcInstance.to_plane(hunter_at), DotNpcInstance.to_plane(prey_at)
+			GSNpcInstance.to_plane(hunter_at), GSNpcInstance.to_plane(prey_at)
 		),
 		"and it has a way from outside the ring rock to behind it, and not a straight one"
 	)
@@ -867,7 +867,7 @@ func _test_where_a_hunter_appears() -> void:
 	var outside := 0
 
 	for point in hunters.director.spawn_points:
-		var at := DotNpcInstance.from_plane(point)
+		var at := GSNpcInstance.from_plane(point)
 
 		if not second.arena.bounds.has_point(at) or second.layout.harbour_of(at, second.arena.bounds) >= 0:
 			outside += 1
@@ -1098,7 +1098,7 @@ func _test_determinism() -> void:
 			1: _aim_at(
 				Vector2.ZERO,
 				Vector2.from_angle(angle) * 400.0,
-				Dot2DCommand.BUTTON_SPLIT if step == 90 else 0
+				GS2DCommand.BUTTON_SPLIT if step == 90 else 0
 			),
 			2: _aim_at(Vector2.ZERO, Vector2.from_angle(-angle) * 300.0),
 		})
@@ -1176,7 +1176,7 @@ func _test_what_a_bot_travels_at() -> void:
 	_run_ticks(world, 2)
 	var monster := world.monster_for(1)
 	var held := _travel_ratio(world, {1: null}, TICK_RATE * 3, TICK_RATE,
-		func(m: HungryMonster, _t: int) -> Dot2DCommand:
+		func(m: HungryMonster, _t: int) -> GS2DCommand:
 			return _full_reach(m.centre(), m.centre() + Vector2.RIGHT * 1000.0))
 	print("        held at full reach: %.1f u/s against a ground speed of %.1f (%.3f), mass %.0f"
 		% [held["actual"], held["ground"], held["ratio"], monster.mass() if monster != null else 0.0])
@@ -1199,7 +1199,7 @@ func _test_what_a_bot_travels_at() -> void:
 		ids[id] = null
 
 	var bots := _travel_ratio(world, ids, TICK_RATE * 30, TICK_RATE * 2,
-		func(m: HungryMonster, t: int) -> Dot2DCommand:
+		func(m: HungryMonster, t: int) -> GS2DCommand:
 			return HungryBot.command_for(world, m, t))
 	print(("        eight bots over 28 s of classic: %.1f u/s against a ground speed of %.1f (%.3f); "
 		+ "%.0f%% of piece-ticks at 95%% or more of it, %.0f%% under half")
@@ -1289,7 +1289,7 @@ func _test_full_round() -> void:
 	var winner := [""]
 
 	world.match_node.round_ended.connect(
-		func(_round_number: int, _winner: int, _outcome: DotMatchRules.Outcome) -> void:
+		func(_round_number: int, _winner: int, _outcome: GSMatchRules.Outcome) -> void:
 			ended[0] = true
 			var leader := world.match_node.scoreboard.leader()
 			winner[0] = leader.display_name if leader != null else ""
@@ -1381,7 +1381,7 @@ func _test_rider() -> void:
 	# load(), a ResourceLoader.exists() or a scene path, that is the thing to push back
 	# on — it is the whole reason an avatar is a document.
 	var avatar := HungryContent.default_avatar(7)
-	var checked := schema.validate(avatar, DotAvatarEntitlements.everything())
+	var checked := schema.validate(avatar, GSAvatarEntitlements.everything())
 	_check(checked.ok, "and a default avatar passes it", str(checked.error))
 	_check(
 		avatar.has_slot(&"body"),
@@ -1401,11 +1401,11 @@ func _test_rider() -> void:
 
 	# An entitlement set of nothing must still dress somebody. Every part that is not
 	# free is refused, and conform fills the required slot from its default.
-	var greedy := DotAvatar.make(schema.id)
+	var greedy := GSAvatar.make(schema.id)
 	greedy.set_part(&"body", &"rider_spike")
 	greedy.set_part(&"hat", &"hat_crown")
 
-	var conformed := schema.conform(greedy, DotAvatarEntitlements.none())
+	var conformed := schema.conform(greedy, GSAvatarEntitlements.none())
 	_check(conformed.ok, "conform repairs an avatar nobody owns", str(conformed.error))
 	_check(
 		greedy.part_in(&"body") == &"rider_pip",
@@ -1419,11 +1419,11 @@ func _test_rider() -> void:
 	# The rig. Parts resolve through HungryContentSource, which prefers a mounted pack and
 	# falls back to what shipped in the build — which is the path taken here, because
 	# nothing has mounted anything.
-	var catalogue := DotAvatarCatalogue.new()
+	var catalogue := GSAvatarCatalogue.new()
 	var source := HungryContentSource.new()
 	source.install(catalogue)
 
-	var dressed := DotAvatar.make(schema.id)
+	var dressed := GSAvatar.make(schema.id)
 	dressed.set_part(&"body", &"rider_blob")
 	dressed.set_part(&"hat", &"hat_cap")
 	dressed.set_colour(&"body", 0, Color(0.9, 0.3, 0.4))
@@ -1452,7 +1452,7 @@ func _test_rider() -> void:
 	)
 	_check(
 		body != null and (body.get("tint_a") as Color).is_equal_approx(
-			DotAvatar.quantise(Color(0.9, 0.3, 0.4))
+			GSAvatar.quantise(Color(0.9, 0.3, 0.4))
 		),
 		"and wears the colour the document asked for"
 	)
@@ -1475,12 +1475,12 @@ func _test_rider() -> void:
 
 	# A part with no content anywhere falls back to being drawn rather than to nothing.
 	# A player you cannot see is a competitive advantage.
-	var ghost := DotAvatar.make(schema.id)
+	var ghost := GSAvatar.make(schema.id)
 	ghost.set_part(&"body", &"rider_pip")
 	ghost.set_part(&"trail", &"trail_ember")
 
-	var bare := DotAvatarCatalogue.new()
-	bare.resolver = func(_part: DotAvatarPart) -> String: return ""
+	var bare := GSAvatarCatalogue.new()
+	bare.resolver = func(_part: GSAvatarPart) -> String: return ""
 
 	var drawn := HungryRider.make(schema, bare)
 	add_child(drawn)
@@ -1507,10 +1507,10 @@ func _test_interface() -> void:
 	world.add_player(1, "Ada")
 	_settle(world)
 
-	var ui_config := DotUiConfig.new()
+	var ui_config := GSUiConfig.new()
 	ui_config.allow_pause = false
 
-	var stack := DotScreenStack.new()
+	var stack := GSScreenStack.new()
 	stack.name = "Screens"
 	stack.config = ui_config
 	stack.load_layered_config = false
@@ -1638,12 +1638,12 @@ func _test_ejecting() -> void:
 	var monster := world.monster_for(1)
 	monster.clear_effect(HungryContent.FLAG_PROTECTED)
 
-	var small := Dot2DCommand.new()
+	var small := GS2DCommand.new()
 	small.aim = Vector2.RIGHT
 	small.reach = 600.0
-	small.set_button(Dot2DCommand.BUTTON_EJECT, true)
+	small.set_button(GS2DCommand.BUTTON_EJECT, true)
 
-	var release := Dot2DCommand.new()
+	var release := GS2DCommand.new()
 	release.aim = Vector2.RIGHT
 	release.reach = 600.0
 
@@ -1735,8 +1735,8 @@ func _test_loadout() -> void:
 
 	# A schema whose own defaults are not legal is refused at startup, because conform
 	# never fails and a player would otherwise be unable to spawn at all.
-	var owns_nothing := DotLoadoutEntitlements.none()
-	var default_ok := DotLoadoutValidator.validate(default_loadout, schema, owns_nothing)
+	var owns_nothing := GSLoadoutEntitlements.none()
+	var default_ok := GSLoadoutValidator.validate(default_loadout, schema, owns_nothing)
 	_check(
 		default_ok.ok,
 		"which a player who owns nothing may still take",
@@ -1745,36 +1745,36 @@ func _test_loadout() -> void:
 
 	# The three things a slot refuses, each for a different reason and each with a
 	# different right answer in a loadout screen.
-	var wrong_slot := DotLoadout.empty(schema.id)
+	var wrong_slot := GSLoadout.empty(schema.id)
 	wrong_slot.set_item(HungryContent.SLOT_STARTER, HungryContent.TRAIT_STURDY)
 	wrong_slot.set_item(HungryContent.SLOT_TRAIT, HungryContent.TRAIT_NIMBLE)
 	_check(
-		not DotLoadoutValidator.validate(wrong_slot, schema, owns_nothing).ok,
+		not GSLoadoutValidator.validate(wrong_slot, schema, owns_nothing).ok,
 		"a trait in the throwable slot is refused"
 	)
 
-	var no_such := DotLoadout.empty(schema.id)
+	var no_such := GSLoadout.empty(schema.id)
 	no_such.set_item(HungryContent.SLOT_STARTER, &"trebuchet")
 	no_such.set_item(HungryContent.SLOT_TRAIT, HungryContent.TRAIT_NIMBLE)
 	_check(
-		not DotLoadoutValidator.validate(no_such, schema, owns_nothing).ok,
+		not GSLoadoutValidator.validate(no_such, schema, owns_nothing).ok,
 		"and so is an item the catalogue has never heard of"
 	)
 
-	var unowned := DotLoadout.empty(schema.id)
+	var unowned := GSLoadout.empty(schema.id)
 	unowned.set_item(HungryContent.SLOT_STARTER, HungryContent.ITEM_PEPPER)
 	unowned.set_item(HungryContent.SLOT_TRAIT, HungryContent.TRAIT_GREEDY)
 	_check(
-		not DotLoadoutValidator.validate(unowned, schema, owns_nothing).ok,
+		not GSLoadoutValidator.validate(unowned, schema, owns_nothing).ok,
 		"and so is a trait nobody has unlocked"
 	)
 
 	# Granting it is what an unlock *is*. Entitlements default to nothing so that an
 	# unwired server is wrong within thirty seconds rather than shipping a game where
 	# every unlock is free — which nobody reports as a bug.
-	var owner := DotLoadoutEntitlements.of([HungryContent.TRAIT_GREEDY_UNLOCK])
+	var owner := GSLoadoutEntitlements.of([HungryContent.TRAIT_GREEDY_UNLOCK])
 	_check(
-		DotLoadoutValidator.validate(unowned, schema, owner).ok,
+		GSLoadoutValidator.validate(unowned, schema, owner).ok,
 		"until they unlock it"
 	)
 
@@ -1782,7 +1782,7 @@ func _test_loadout() -> void:
 	var stale := unowned.duplicate_loadout()
 	# conform never fails — it returns what it changed, not whether it worked. That is the
 	# whole distinction: refusing here would be a player who cannot spawn.
-	var changes := DotLoadoutValidator.conform(stale, schema, owns_nothing)
+	var changes := GSLoadoutValidator.conform(stale, schema, owns_nothing)
 	_check(
 		changes.size() > 0,
 		"conform repairs one nobody owns any more (%d changes)" % changes.size()
@@ -1792,17 +1792,17 @@ func _test_loadout() -> void:
 		"back to the default trait (%s)" % stale.item_in(HungryContent.SLOT_TRAIT)
 	)
 	_check(
-		DotLoadoutValidator.validate(stale, schema, owns_nothing).ok,
+		GSLoadoutValidator.validate(stale, schema, owns_nothing).ok,
 		"and what it produced is legal"
 	)
 
-	# The store key is padded, because DotLoadoutKey has a minimum length and the check
+	# The store key is padded, because GSLoadoutKey has a minimum length and the check
 	# exists so a malformed key can never reach a filesystem path.
 	_check(
-		DotLoadoutKey.is_usable(HungryContent.loadout_key(7)),
+		GSLoadoutKey.is_usable(HungryContent.loadout_key(7)),
 		"a player key is usable (%s)" % HungryContent.loadout_key(7)
 	)
-	_check(not DotLoadoutKey.is_usable("7"), "and a bare id is not")
+	_check(not GSLoadoutKey.is_usable("7"), "and a bare id is not")
 
 	# And the mechanical half: three traits that are three different games.
 	var world := _make_world()
@@ -1813,7 +1813,7 @@ func _test_loadout() -> void:
 	var nimble := world.monster_for(1)
 	var sturdy := world.monster_for(2)
 
-	var chosen := DotLoadout.empty(schema.id)
+	var chosen := GSLoadout.empty(schema.id)
 	chosen.set_item(HungryContent.SLOT_STARTER, HungryContent.ITEM_FROST)
 	chosen.set_item(HungryContent.SLOT_TRAIT, HungryContent.TRAIT_STURDY)
 	sturdy.wear_loadout(chosen)

@@ -4,7 +4,7 @@ const HungryFall := preload("hungry_fall.gd")
 const HungryPiece := preload("../hungry_piece.gd")
 
 ## Where this client's eaten monsters go down: the 2D counterpart of dot-player-char's
-## [DotPlayerRagdolls]. It remembers the last piece each player lost (the eaten one is gone
+## [GSPlayerRagdolls]. It remembers the last piece each player lost (the eaten one is gone
 ## from the world before the death is announced), builds a [HungryFall] from it when the death
 ## arrives, keeps no more than the cap, and passes the sounds on.
 ##
@@ -27,10 +27,10 @@ const EVICT_FADE := 0.3
 ## A body's sound: [code](id, where, volume)[/code].
 signal sound(id: StringName, at: Vector2, volume: float)
 
-var rules: DotPlayerRagdollRules = DotPlayerRagdollRules.new()
+var rules: GSPlayerRagdollRules = GSPlayerRagdollRules.new()
 
 ## The reactions a death's id is looked up in; only the poses and sounds matter here.
-var reactions: DotPlayerDeathReactions = DotPlayerDeathReactions.stock()
+var reactions: GSPlayerDeathReactions = GSPlayerDeathReactions.stock()
 
 ## This machine's own limit: -1 for dot-player-char's default, 0 = unlimited.
 var local_cap: int = -1
@@ -62,7 +62,7 @@ func note_piece(piece: HungryPiece) -> void:
 ## from that side, and 0 here is no limit at all (dot-player-char's [code]sv_ragdoll_max 0[/code]).
 func cap() -> int:
 	var server := rules.max_count if rules != null else 8
-	var mine := local_cap if local_cap >= 0 else DotPlayerRagdolls.default_local_cap()
+	var mine := local_cap if local_cap >= 0 else GSPlayerRagdolls.default_local_cap()
 	if server <= 0:
 		return maxi(mine, 0)
 	if mine <= 0:
@@ -73,10 +73,10 @@ func cap() -> int:
 ## [param player_id] was eaten: their last piece goes down the way [param death] says (null
 ## is a plain limp fall). Returns the fall, or null when the style hides bodies or this client
 ## never drew that piece.
-func fall(player_id: int, death: DotPlayerDeath) -> Node2D:
+func fall(player_id: int, death: GSPlayerDeath) -> Node2D:
 	var rider: Node2D = rider_fn.call(player_id) if rider_fn.is_valid() else null
-	var style := rules.effective_style() if rules != null else DotPlayerRagdollRules.Style.RAGDOLL
-	if style == DotPlayerRagdollRules.Style.HIDE:
+	var style := rules.effective_style() if rules != null else GSPlayerRagdollRules.Style.RAGDOLL
+	if style == GSPlayerRagdollRules.Style.HIDE:
 		if rider != null:
 			rider.visible = false
 		return null
@@ -95,10 +95,10 @@ func fall(player_id: int, death: DotPlayerDeath) -> Node2D:
 	var made := HungryFall.new()
 	made.name = "Fall%d" % player_id
 	made.player_id = player_id
-	made.death = death if death != null else DotPlayerDeath.new()
+	made.death = death if death != null else GSPlayerDeath.new()
 	made.reaction = reactions.find(made.death.reaction) if reactions != null else null
 	if made.reaction == null:
-		made.reaction = DotPlayerDeathReactions.stock().find(DotPlayerDeathReactions.LIMP)
+		made.reaction = GSPlayerDeathReactions.stock().find(GSPlayerDeathReactions.LIMP)
 	made.at = lost["at"]
 	made.radius = float(lost["radius"])
 	made.colour = colour_fn.call(player_id) if colour_fn.is_valid() else Color.WHITE
@@ -108,7 +108,7 @@ func fall(player_id: int, death: DotPlayerDeath) -> Node2D:
 	add_child(made)
 	made.start(rules)
 	_live.append(made)
-	DotLog.debug(CHANNEL, "a player fell apart", {"player": player_id, "live": _live.size()})
+	GSLog.debug(CHANNEL, "a player fell apart", {"player": player_id, "live": _live.size()})
 	return made
 
 
@@ -150,4 +150,4 @@ func _on_sound(id: StringName, at: Vector2, volume: float) -> void:
 
 func describe() -> Dictionary:
 	return {"live": live().size(), "remembered": _lost.size(), "cap": cap(),
-		"style": DotPlayerRagdollRules.style_name(rules.effective_style()) if rules != null else "-"}
+		"style": GSPlayerRagdollRules.style_name(rules.effective_style()) if rules != null else "-"}

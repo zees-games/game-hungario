@@ -5,7 +5,7 @@ const HungryPreset := preload("../game/hungry_preset.gd")
 const HungryWorld := preload("../game/hungry_world.gd")
 
 ## Bot soak on the real simulation: N HungryBots play rounds back to back in one mode for M
-## simulated minutes through dot-bot's DotBotSoak, fed by dot-spawn's DotSpawnWatch.
+## simulated minutes through dot-bot's GSBotSoak, fed by dot-spawn's GSSpawnWatch.
 ##
 ## [codeblock]
 ## ./game.sh soak [mode] [minutes]
@@ -29,7 +29,7 @@ var _rounds := 0
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.ERROR)
 	_run.call_deferred()
 
 
@@ -43,7 +43,7 @@ func _arg(name: String, fallback: String) -> String:
 
 func _run() -> void:
 	var mode := _arg("map", String(DEFAULT_MODE))
-	var cfg := DotBotSoakConfig.new()
+	var cfg := GSBotSoakConfig.new()
 	cfg.minutes = DEFAULT_MINUTES
 	cfg.bots = DEFAULT_BOTS
 	# Warrens' gate ring locks a big monster out of the middle and the bot has no route
@@ -71,15 +71,15 @@ func _run() -> void:
 	_world.start(0)
 	_world.player_died.connect(func(_p: int, _k: int) -> void: _deaths += 1)
 	_world.match_node.round_ended.connect(
-		func(_n: int, _w: int, _o: DotMatchRules.Outcome) -> void: _rounds += 1)
+		func(_n: int, _w: int, _o: GSMatchRules.Outcome) -> void: _rounds += 1)
 	for i in range(cfg.bots):
 		_world.add_player(i + 1, "Bot %d" % (i + 1))
 
-	var watch := DotSpawnWatch.new()
+	var watch := GSSpawnWatch.new()
 	watch.rules.enabled = true
 	watch.rules.kill_y = -INF
 
-	var soak := DotBotSoak.new(cfg)
+	var soak := GSBotSoak.new(cfg)
 	soak.watch = watch
 	soak.movers_fn = _movers
 	soak.object_count_fn = func() -> int: return int(Performance.get_monitor(Performance.OBJECT_COUNT))
@@ -95,8 +95,8 @@ func _run() -> void:
 	report["map"] = mode
 	report["deaths"] = _deaths
 	report["rounds"] = _rounds
-	print(DotBotSoak.summary(report))
-	print(DotBotSoak.report_line(report))
+	print(GSBotSoak.summary(report))
+	print(GSBotSoak.report_line(report))
 	var path := ProjectSettings.globalize_path("res://.godot/test-logs/soak-%s.json" % mode)
 	DirAccess.make_dir_recursive_absolute(path.get_base_dir())
 	if soak.write_report(report, path) != OK:

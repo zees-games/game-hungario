@@ -1,11 +1,11 @@
-extends Dot2DGrid
+extends GS2DGrid
 
 const HungryField := preload("hungry_field.gd")
 
-## The world's [Dot2DGrid], with dot-sim's `DotSimGrid2D` kept beside it for the bots.
+## The world's [GS2DGrid], with dot-sim's `GSSimGrid2D` kept beside it for the bots.
 ##
 ## [b]Only built where the library has the `grid2d` module[/b] ([method HungryWorld._build_arena]);
-## everywhere else the world keeps a plain [Dot2DGrid] and nothing here runs. The native copy
+## everywhere else the world keeps a plain [GS2DGrid] and nothing here runs. The native copy
 ## itself is made the first time a bot asks ([method native]), from the cells as they stand,
 ## so a client or a world without bots never pays for it. From then on every [method place],
 ## [method remove] and [method clear] goes to both, each id with what eating it is worth
@@ -42,7 +42,7 @@ func _init(p_cell_size: float = 128.0) -> void:
 ## The native copy, made from the cells as they stand on the first ask. Null without the
 ## library's `grid2d` module or when the copy failed (an error each time it is tried).
 func native() -> Variant:
-	if _native == null and DotSim.has(&"grid2d"):
+	if _native == null and GSSim.has(&"grid2d"):
 		_native = _adopted()
 	return _native
 
@@ -78,7 +78,7 @@ func _worth(id: int) -> float:
 
 
 func _adopted() -> Variant:
-	var copy: Variant = ClassDB.instantiate(&"DotSimGrid2D")
+	var copy: Variant = ClassDB.instantiate(&"GSSimGrid2D")
 	copy.set_cell_size(cell_size)
 	copy.set_forage_rules(
 		HungryField.PIECE_ID_LIMIT, HungryField.ITEM_ID_BASE, HungryField.PLANTED_ID_BASE,

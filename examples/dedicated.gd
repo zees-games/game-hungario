@@ -1,6 +1,6 @@
 extends "dedicated_vote.gd"
 
-## A real [DotServer] with the game loaded, listening for browser clients; exits non-zero on failure.
+## A real [GSServer] with the game loaded, listening for browser clients; exits non-zero on failure.
 ## [code]godot --headless --path . res://examples/dedicated.tscn[/code], plus `-- --serve` to run one.
 ## It connects no client ([code]sandbox[/code] does); the point is the WebSocket listener browsers need.
 
@@ -10,9 +10,9 @@ const CHECKS := 274
 func _ready() -> void:
 	# Quiet by default so the checks are readable; `-- --verbose` when one of them
 	# fails and the reason is in a log line rather than in the assertion.
-	DotLog.set_level(
-		DotLog.Level.DEBUG if "--verbose" in OS.get_cmdline_user_args()
-		else DotLog.Level.ERROR
+	GSLog.set_level(
+		GSLog.Level.DEBUG if "--verbose" in OS.get_cmdline_user_args()
+		else GSLog.Level.ERROR
 	)
 	_run.call_deferred()
 
@@ -28,7 +28,7 @@ func _run() -> void:
 		probe = await _run_exit_probe()
 
 	if not serving:
-		DotPaths.remove_tree(SERVER_DIR)
+		GSPaths.remove_tree(SERVER_DIR)
 
 	var built := await _build(serving)
 
@@ -74,7 +74,7 @@ func _run() -> void:
 		_test_exits_clean(probe)
 
 	_teardown()
-	DotPaths.remove_tree(SERVER_DIR)
+	GSPaths.remove_tree(SERVER_DIR)
 
 	print("")
 	_check(
@@ -90,7 +90,7 @@ func _run() -> void:
 func _test_stats_report() -> void:
 	_section("stats_report")
 
-	var cv: DotConVar = _server.console.find_cvar("stats_report")
+	var cv: GSConVar = _server.console.find_cvar("stats_report")
 	var module := _module()
 	var stats: Object = module.get("stats") if module != null else null
 	_check(cv != null and cv.get_string() == "0", "stats_report is registered and off by default")
@@ -105,19 +105,19 @@ func _test_stats_report() -> void:
 	script.source_code = "extends Node\nfunc post_integration(_a = null, _b = null, _c = null): return null\n"
 	var _reloaded := script.reload()
 	client.set_script(script)
-	DotRegistry.register(&"dot_backbone_client", client)
+	GSRegistry.register(&"dot_backbone_client", client)
 	var _r0 := cv.set_value("0")
 	var _r1 := cv.set_value("1")
 	_check(stats.report_to_backbone, "on with a backbone client makes the tracker report")
-	_check(stats.get_node_or_null(DotGameStatsReport.TIMER_NAME) != null, "and adds the flush timer")
+	_check(stats.get_node_or_null(GSGameStatsReport.TIMER_NAME) != null, "and adds the flush timer")
 	var _r2 := cv.set_value("0")
 	_check(not stats.report_to_backbone, "off stops it again")
-	DotRegistry.unregister_instance(&"dot_backbone_client", client)
+	GSRegistry.unregister_instance(&"dot_backbone_client", client)
 	client.free()
 	_done()
 
 
-## The server half of this game's own server browser, asked by a real [DotServer] running it.
+## The server half of this game's own server browser, asked by a real [GSServer] running it.
 func _test_query() -> void:
 	_section("the server browser's half")
 
@@ -129,7 +129,7 @@ func _test_query() -> void:
 
 	_check(_server.query_source != null, "the server has a query source to contribute to")
 
-	var snapshot := DotQuerySnapshot.new()
+	var snapshot := GSQuerySnapshot.new()
 
 	for provider in module._query_providers:
 		provider.call("_contribute", snapshot)
@@ -155,12 +155,12 @@ func _test_query() -> void:
 	var env_key := "GS_BROWSER_BACKBONE_URL"
 	var had := OS.get_environment(env_key)
 	OS.unset_environment(env_key)
-	var off: DotResult = HungryBrowser.site_listing()
+	var off: GSResult = HungryBrowser.site_listing()
 	_check(off.ok and off.value == null, "the browser reads no site listing when none is configured")
 
 	OS.set_environment(env_key, "http://127.0.0.1:9")
-	var on: DotResult = HungryBrowser.site_listing()
-	var listing: DotBrowserSourceBackbone = on.value if on.ok else null
+	var on: GSResult = HungryBrowser.site_listing()
+	var listing: GSBrowserSourceBackbone = on.value if on.ok else null
 	_check(listing != null, "and does when one is", str(on.error) if not on.ok else "")
 	_check(
 		listing != null and listing.config.page_url(1).contains("app=hungario"),
@@ -183,7 +183,7 @@ func _test_query_site(env_key: String, had: String) -> void:
 	_check(web_origin == "https://site.example", "and with no query the page's own origin is the site", web_origin)
 	var web_file := HungryBrowser.resolve_default_site({"web": true, "origin": "null", "query": ""})
 	_check(web_file == "", "and a page with no usable origin lists no site", web_file)
-	var web_listing: DotResult = HungryBrowser.site_listing({"web": true, "origin": "https://site.example", "query": ""})
+	var web_listing: GSResult = HungryBrowser.site_listing({"web": true, "origin": "https://site.example", "query": ""})
 	_check(
 		web_listing.ok and web_listing.value != null
 			and web_listing.value.config.page_url(1).begins_with("https://site.example/api/content/server/list")
@@ -195,7 +195,7 @@ func _test_query_site(env_key: String, had: String) -> void:
 	var native_default := HungryBrowser.resolve_default_site({"web": false, "origin": "https://site.example", "query": "https://other.example"})
 	_check(native_default == "https://deploy.example", "on native the exported default is used and the page is never asked", native_default)
 	OS.set_environment(env_key, "http://127.0.0.1:9")
-	var env_wins: DotResult = HungryBrowser.site_listing({"web": false})
+	var env_wins: GSResult = HungryBrowser.site_listing({"web": false})
 	_check(
 		env_wins.ok and env_wins.value != null and env_wins.value.config.backbone_url == "http://127.0.0.1:9",
 		"and the environment beats that default",
@@ -211,7 +211,7 @@ func _test_query_site(env_key: String, had: String) -> void:
 func _test_transport() -> void:
 	_section("browser clients")
 
-	var transport := DotTransportWebSocket.new()
+	var transport := GSTransportWebSocket.new()
 	_check(transport != null, "dot-core can build a WebSocket transport")
 	_check(
 		transport.supports_web_clients(),
@@ -229,7 +229,7 @@ func _test_transport() -> void:
 	# The constraint that shapes the whole deployment: a browser cannot listen, so the web
 	# build is a client and the server is somewhere else.
 	_check(
-		not DotPlatform.is_web(),
+		not GSPlatform.is_web(),
 		"and this process can listen, because it is not a browser"
 	)
 	_done()
@@ -257,8 +257,8 @@ func _test_unload() -> void:
 	_done()
 
 
-## A script that `extends DotNetMessage` and preloads ITSELF, first loaded from a module a running
-## [DotServer] loads, leaves every loaded script alive at exit. Asserted on the source: the leak
+## A script that `extends GSNetMessage` and preloads ITSELF, first loaded from a module a running
+## [GSServer] loads, leaves every loaded script alive at exit. Asserted on the source: the leak
 ## is reported after `quit()`, where no check runs, so this reads every message script in `game/`.
 func _test_no_message_preloads_itself() -> void:
 	_section("exiting clean")
@@ -305,7 +305,7 @@ func _test_no_message_preloads_itself() -> void:
 func _extends_message(source: String) -> bool:
 	for line in source.split("\n"):
 		if line.begins_with("extends "):
-			return line.contains("DotNetMessage") or line.contains("dot_net_message.gd")
+			return line.contains("GSNetMessage") or line.contains("dot_net_message.gd")
 	return false
 
 

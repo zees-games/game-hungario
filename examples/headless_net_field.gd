@@ -49,14 +49,14 @@ func _test_splitting_replicates() -> void:
 
 	var before := _client_bridge.piece_count()
 
-	var split := Dot2DCommand.new()
+	var split := GS2DCommand.new()
 	split.aim = Vector2.RIGHT
 	split.reach = 700.0
-	split.set_button(Dot2DCommand.BUTTON_SPLIT, true)
+	split.set_button(GS2DCommand.BUTTON_SPLIT, true)
 
 	_step(split)
 
-	var release := Dot2DCommand.new()
+	var release := GS2DCommand.new()
 	release.aim = Vector2.RIGHT
 	release.reach = 700.0
 	_steps(10, release)
@@ -103,18 +103,18 @@ func _test_splitting_replicates() -> void:
 func _test_death_carries_its_fall() -> void:
 	_section("a death carries its fall")
 
-	var fall := DotPlayerDeath.new()
-	fall.reaction = DotPlayerDeathReactions.CRUMPLE
+	var fall := GSPlayerDeath.new()
+	fall.reaction = GSPlayerDeathReactions.CRUMPLE
 	fall.roll_seed = 4242
 	fall.damage = 37.0
 	fall.direction = Vector3(0.0, 0.0, -1.0)
-	var read := HungryEvents.read_died(DotNetReader.new(HungryEvents.write_died(9, 3, fall)))
-	var carried: DotPlayerDeath = read.get("death")
+	var read := HungryEvents.read_died(GSNetReader.new(HungryEvents.write_died(9, 3, fall)))
+	var carried: GSPlayerDeath = read.get("death")
 	_check(bool(read["ok"]) and int(read["first"]) == 9 and int(read["second"]) == 3
 			and carried != null and carried.reaction == fall.reaction and carried.roll_seed == 4242
 			and carried.direction.distance_to(fall.direction) < 0.05,
 		"DIED round-trips the victim, the eater and the fall", str(read))
-	var bare := HungryEvents.read_died(DotNetReader.new(HungryEvents.write_pair(9, 3)))
+	var bare := HungryEvents.read_died(GSNetReader.new(HungryEvents.write_pair(9, 3)))
 	_check(bool(bare["ok"]) and int(bare["first"]) == 9 and not bare.has("death"),
 		"and an older server's pair reads as a death with no fall", str(bare))
 
@@ -124,7 +124,7 @@ func _test_death_carries_its_fall() -> void:
 			heard.append(data)
 	_client_bridge.cue.connect(on_cue)
 	var monster := _server_world.monster_for(7)
-	var before: DotPlayerDeath = monster.death
+	var before: GSPlayerDeath = monster.death
 	monster.death = fall
 	_server_bridge._on_player_died(7, 0)
 	_steps(2)
@@ -133,7 +133,7 @@ func _test_death_carries_its_fall() -> void:
 	_check(heard.size() == 1 and int(heard[0].get("first", -1)) == 7,
 		"the death reaches the client", str(heard))
 	_check(heard.size() == 1 and heard[0].get("death") != null
-			and (heard[0]["death"] as DotPlayerDeath).reaction == DotPlayerDeathReactions.CRUMPLE,
+			and (heard[0]["death"] as GSPlayerDeath).reaction == GSPlayerDeathReactions.CRUMPLE,
 		"with the server's reaction, so every client draws the same fall")
 	_done()
 
@@ -152,10 +152,10 @@ func _test_throw_replicates() -> void:
 		thrown.append(kind)
 	)
 
-	var throw_command := Dot2DCommand.new()
+	var throw_command := GS2DCommand.new()
 	throw_command.aim = Vector2.RIGHT
 	throw_command.reach = 600.0
-	throw_command.set_button(Dot2DCommand.BUTTON_ACTION, true)
+	throw_command.set_button(GS2DCommand.BUTTON_ACTION, true)
 
 	# Inputs are stamped ahead of the server, so the press lands a couple of ticks later.
 	_steps(INPUT_LEAD + 2, throw_command)
@@ -177,7 +177,7 @@ func _test_throw_replicates() -> void:
 			"and in the same place twenty ticks on (%.2f apart)" % here.distance_to(there)
 		)
 
-	var release := Dot2DCommand.new()
+	var release := GS2DCommand.new()
 	_steps(120, release)
 
 	_check(
@@ -238,7 +238,7 @@ func _test_interest() -> void:
 	_server_world.spawn(7, _server_world.arena.bounds.end - Vector2(60.0, 60.0))
 	_steps(20)
 
-	var far_identity: DotNetIdentity = null
+	var far_identity: GSNetIdentity = null
 
 	for identity in _server_net.registry.all():
 		for behaviour in identity.behaviours:
@@ -266,8 +266,8 @@ func _test_blind_and_beacon() -> void:
 
 	var server_fn := func() -> HungryWorld: return _server_world
 	var tools := HungryModTools.handlers(server_fn)
-	var blind: Callable = tools[DotModTools.ACTION_BLIND]
-	var beacon: Callable = tools[DotModTools.ACTION_BEACON]
+	var blind: Callable = tools[GSModTools.ACTION_BLIND]
+	var beacon: Callable = tools[GSModTools.ACTION_BEACON]
 
 	var far_monster := _server_world.monster_for(99)
 	var far_piece := far_monster.pieces[0].id if far_monster != null and far_monster.piece_count() > 0 else 0
@@ -275,8 +275,8 @@ func _test_blind_and_beacon() -> void:
 	var far_on_client := _client_bridge.behaviour_for(far_piece)
 
 	_check(
-		mine != null and mine.find_var(&"net_blind").audience == DotNetVar.Audience.OWNER
-			and mine.find_var(&"net_beacon").audience == DotNetVar.Audience.EVERYONE,
+		mine != null and mine.find_var(&"net_blind").audience == GSNetVar.Audience.OWNER
+			and mine.find_var(&"net_beacon").audience == GSNetVar.Audience.EVERYONE,
 		"the blind is declared owner-only and the beacon for everybody"
 	)
 	_check(
@@ -299,9 +299,9 @@ func _test_blind_and_beacon() -> void:
 		"last state tick %d -> %d" % [quiet_since, far_on_client.last_state_tick]
 	)
 
-	var on_mine: DotResult = blind.call(&"7", {"on": true, "actor": "1"})
-	var on_far: DotResult = blind.call(&"99", {"on": true, "actor": "1"})
-	var lit: DotResult = beacon.call(&"99", {"on": true, "actor": "1"})
+	var on_mine: GSResult = blind.call(&"7", {"on": true, "actor": "1"})
+	var on_far: GSResult = blind.call(&"99", {"on": true, "actor": "1"})
+	var lit: GSResult = beacon.call(&"99", {"on": true, "actor": "1"})
 	_steps(30)
 
 	_check(
@@ -333,9 +333,9 @@ func _test_blind_and_beacon() -> void:
 	_done()
 
 func _blind_beacon_off(blind: Callable, beacon: Callable, far_piece: int) -> void:
-	var _off_mine: DotResult = blind.call(&"7", {"on": false, "actor": "1"})
-	var _off_far: DotResult = blind.call(&"99", {"on": false, "actor": "1"})
-	var _unlit: DotResult = beacon.call(&"99", {"on": false, "actor": "1"})
+	var _off_mine: GSResult = blind.call(&"7", {"on": false, "actor": "1"})
+	var _off_far: GSResult = blind.call(&"99", {"on": false, "actor": "1"})
+	var _unlit: GSResult = beacon.call(&"99", {"on": false, "actor": "1"})
 	_steps(30)
 
 	_check(
@@ -353,7 +353,7 @@ func _test_avatar() -> void:
 	var schema := _client_bridge.avatar_schema
 	_check(schema != null and schema.validate_schema().ok, "the rider schema is legal")
 
-	var mine := DotAvatar.make(schema.id)
+	var mine := GSAvatar.make(schema.id)
 	mine.set_part(&"body", &"rider_blob")
 	mine.set_part(&"hat", &"hat_cap")
 	mine.set_colour(&"body", 0, Color(0.9, 0.2, 0.3))
@@ -375,11 +375,11 @@ func _test_avatar() -> void:
 
 	# The server validates against the schema and loads nothing to do it. A part that is
 	# not in the schema is refused rather than clamped to whatever is at the boundary.
-	var forged := DotAvatar.make(schema.id)
+	var forged := GSAvatar.make(schema.id)
 	forged.set_part(&"body", &"rider_pip")
 	forged.parts[&"cheat"] = &"nonexistent"
 
-	var refused := schema.validate(forged, DotAvatarEntitlements.everything())
+	var refused := schema.validate(forged, GSAvatarEntitlements.everything())
 	_check(not refused.ok, "and a slot the schema does not have is refused")
 	_done()
 
@@ -398,7 +398,7 @@ func _test_interpolation() -> void:
 	_server_world.spawn(7, Vector2.ZERO)
 	_server_world.spawn(42, Vector2(220.0, 0.0))
 
-	var drift := Dot2DCommand.new()
+	var drift := GS2DCommand.new()
 	drift.aim = Vector2.RIGHT
 	drift.reach = 900.0
 

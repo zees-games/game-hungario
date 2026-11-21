@@ -238,11 +238,11 @@ func _test_lure() -> void:
 		1: _aim_at(
 			head.position(),
 			head.position() + Vector2.RIGHT * 400.0,
-			Dot2DCommand.BUTTON_ACTION
+			GS2DCommand.BUTTON_ACTION
 		)
 	})
 
-	var hold := Dot2DCommand.new()
+	var hold := GS2DCommand.new()
 
 	for _i in range(180):
 		world.tick({1: hold})
@@ -373,7 +373,7 @@ func _test_famine() -> void:
 	var world := _make_world(preset, SEED + 11)
 	var ended := [false]
 	world.match_node.round_ended.connect(
-		func(_round_number: int, _winner: int, _outcome: DotMatchRules.Outcome) -> void: ended[0] = true
+		func(_round_number: int, _winner: int, _outcome: GSMatchRules.Outcome) -> void: ended[0] = true
 	)
 
 	for id in range(1, 9):
@@ -428,7 +428,7 @@ func _test_feast() -> void:
 	var world := _make_world(preset, SEED + 12)
 	var ended := [false]
 	world.match_node.round_ended.connect(
-		func(_round_number: int, _winner: int, _outcome: DotMatchRules.Outcome) -> void: ended[0] = true
+		func(_round_number: int, _winner: int, _outcome: GSMatchRules.Outcome) -> void: ended[0] = true
 	)
 
 	for id in range(1, 9):

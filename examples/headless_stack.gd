@@ -1,4 +1,4 @@
-extends DotGameCheckSuite
+extends GSGameCheckSuite
 
 const HungryContent := preload("../game/hungry_content.gd")
 const HungryPlayerStack := preload("../game/hungry_player_stack.gd")
@@ -36,7 +36,7 @@ var _world: HungryWorld = null
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.ERROR)
 	_run()
 
 
@@ -101,7 +101,7 @@ func _test_physics_layout() -> void:
 	)
 
 	# [b]Most of this game is analytic and that is the honest reason there is little to
-	# classify.[/b] `Dot2DArena` is not a physics space: monsters, food and pieces are
+	# classify.[/b] `GS2DArena` is not a physics space: monsters, food and pieces are
 	# positions in a grid rather than collision objects. What IS a body is a hazard and a
 	# hunter, and both were on Godot's default layer 1 — the bit the layout calls `world`
 	# — which made a hazard, as far as the collision matrix went, a piece of floor.
@@ -195,7 +195,7 @@ func _test_spawn_director() -> void:
 	if not res.ok:
 		return
 
-	var choice := res.value as DotSpawnChoice
+	var choice := res.value as GSSpawnChoice
 	var half := _world.world_size * 0.5
 	var at := Vector2(choice.transform.origin.x, choice.transform.origin.y)
 
@@ -227,7 +227,7 @@ func _test_spawn_director() -> void:
 	# The per-preset override set the module hands in: the grid is laid again with it,
 	# stays 2D, and a preset without a file changes nothing.
 	var grid := spawns.sites().size()
-	var overrides := DotSpawnOverrides.make_set("game-hungario")
+	var overrides := GSSpawnOverrides.make_set("game-hungario")
 	_stack().use_spawn_overrides(overrides)
 	_check(_stack().spawn_overrides == overrides, "the stack keeps the override set it was handed")
 	_check(spawns.sites().size() == grid, "and the grid is the same size without a file for the preset")
@@ -236,7 +236,7 @@ func _test_spawn_director() -> void:
 		all_2d = all_2d and site.is_2d
 	_check(all_2d, "every site is still 2D after the overrides pass")
 	_check(
-		String(overrides.rel_path) == DotSpawnOverrides.KIND and overrides.game == "game-hungario",
+		String(overrides.rel_path) == GSSpawnOverrides.KIND and overrides.game == "game-hungario",
 		"the set is dot-spawn's `spawn` kind under this game, where the workbench writes it"
 	)
 

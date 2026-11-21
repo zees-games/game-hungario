@@ -55,7 +55,7 @@ func _test_the_atoll() -> void:
 
 
 ## The gates, which are the level.
-func _the_atoll_the_gates_which_are_the_leve(leader_mass: float, world: HungryWorld, bounds: Rect2, layout: HungryLayout, rules: Dot2DMassRules, short_half: float, fore: Array[Dictionary], back: Array[Dictionary], across: Vector2, fore_line: float, reef_rock: float, middle: Vector2, run: Vector2i) -> void:
+func _the_atoll_the_gates_which_are_the_leve(leader_mass: float, world: HungryWorld, bounds: Rect2, layout: HungryLayout, rules: GS2DMassRules, short_half: float, fore: Array[Dictionary], back: Array[Dictionary], across: Vector2, fore_line: float, reef_rock: float, middle: Vector2, run: Vector2i) -> void:
 	var wanted := HungryLayout.atoll_widths(short_half)
 	var measured := layout.ring_gates(0)
 	var agree := wanted.size() == measured.size()
@@ -122,7 +122,7 @@ func _the_atoll_the_gates_which_are_the_leve(leader_mass: float, world: HungryWo
 
 
 ## An island, not a plug.
-func _the_atoll_an_island_not_a_plug(world: HungryWorld, bounds: Rect2, layout: HungryLayout, rules: Dot2DMassRules, fore: Array[Dictionary], across: Vector2, fore_line: float, reef_rock: float, middle: Vector2, run: Vector2i, measured: PackedFloat32Array, wall_gate: float, reef_gate: float, won: float, inside: float) -> void:
+func _the_atoll_an_island_not_a_plug(world: HungryWorld, bounds: Rect2, layout: HungryLayout, rules: GS2DMassRules, fore: Array[Dictionary], across: Vector2, fore_line: float, reef_rock: float, middle: Vector2, run: Vector2i, measured: PackedFloat32Array, wall_gate: float, reef_gate: float, won: float, inside: float) -> void:
 	# The water either side, measured off the discs: wider than a leader, so the atoll is
 	# walked round from either side and nothing behind it is a pocket.
 	var to_reef := INF
@@ -189,7 +189,7 @@ func _the_atoll_an_island_not_a_plug(world: HungryWorld, bounds: Rect2, layout: 
 
 
 ## Driven: round to the reef side.
-func _the_atoll_driven_round_to_the_reef_sid(world: HungryWorld, bounds: Rect2, layout: HungryLayout, rules: Dot2DMassRules, across: Vector2, middle: Vector2, measured: PackedFloat32Array, wall_gate: float, reef_gate: float, inside: float, to_reef: float, to_wall: float) -> void:
+func _the_atoll_driven_round_to_the_reef_sid(world: HungryWorld, bounds: Rect2, layout: HungryLayout, rules: GS2DMassRules, across: Vector2, middle: Vector2, measured: PackedFloat32Array, wall_gate: float, reef_gate: float, inside: float, to_reef: float, to_wall: float) -> void:
 	# Between the flank and reef-side limits, so the only way in faces the reef; started
 	# behind the atoll, off the axis. Fed to just over the flank limit, not the band's
 	# middle, so the 97 mass swallowed on arrival still fits; the band reached is asserted.
@@ -244,7 +244,7 @@ func _the_atoll_driven_round_to_the_reef_sid(world: HungryWorld, bounds: Rect2, 
 	_the_atoll_part5(world, layout, rules, across, middle, measured, wall_gate, reef_gate, inside, to_reef, to_wall, monster, route, reached, deepest, entered_from, drive_from, drive_covered, drive_ground, drive_ticks)
 
 
-func _the_atoll_part5(world: HungryWorld, layout: HungryLayout, rules: Dot2DMassRules, across: Vector2, middle: Vector2, measured: PackedFloat32Array, wall_gate: float, reef_gate: float, inside: float, to_reef: float, to_wall: float, monster: HungryMonster, route: PackedVector2Array, reached: int, deepest: float, entered_from: float, drive_from: Vector2, drive_covered: float, drive_ground: float, drive_ticks: int) -> void:
+func _the_atoll_part5(world: HungryWorld, layout: HungryLayout, rules: GS2DMassRules, across: Vector2, middle: Vector2, measured: PackedFloat32Array, wall_gate: float, reef_gate: float, inside: float, to_reef: float, to_wall: float, monster: HungryMonster, route: PackedVector2Array, reached: int, deepest: float, entered_from: float, drive_from: Vector2, drive_covered: float, drive_ground: float, drive_ticks: int) -> void:
 	for _i in range(TICK_RATE * 40):
 		if reached >= route.size():
 			break
@@ -289,7 +289,7 @@ func _the_atoll_part5(world: HungryWorld, layout: HungryLayout, rules: Dot2DMass
 
 
 ## Straight at a gate, at three sizes.
-func _the_atoll_straight_at_a_gate_at_three_(world: HungryWorld, rules: Dot2DMassRules, across: Vector2, middle: Vector2, measured: PackedFloat32Array, wall_gate: float, reef_gate: float, inside: float, to_reef: float, to_wall: float, monster: HungryMonster) -> void:
+func _the_atoll_straight_at_a_gate_at_three_(world: HungryWorld, rules: GS2DMassRules, across: Vector2, middle: Vector2, measured: PackedFloat32Array, wall_gate: float, reef_gate: float, inside: float, to_reef: float, to_wall: float, monster: HungryMonster) -> void:
 	# From the wall side, straight at the centre: the line runs through the tight gate.
 	var behind := middle - across * (to_wall * 0.5 + 100.0)
 	_straight_run(world, 1, behind, middle, 0.0)
@@ -381,7 +381,7 @@ func _test_the_spits() -> void:
 
 
 ## The gaps, which are the level.
-func _the_spits_the_gaps_which_are_the_level(leader_mass: float, world: HungryWorld, bounds: Rect2, layout: HungryLayout, rules: Dot2DMassRules, short_half: float, fore: Array[Dictionary], across: Vector2, chain_axis: Vector2, fore_line: float, reef_rock: float, middle: Vector2, sea_wall: float, won: float) -> void:
+func _the_spits_the_gaps_which_are_the_level(leader_mass: float, world: HungryWorld, bounds: Rect2, layout: HungryLayout, rules: GS2DMassRules, short_half: float, fore: Array[Dictionary], across: Vector2, chain_axis: Vector2, fore_line: float, reef_rock: float, middle: Vector2, sea_wall: float, won: float) -> void:
 	var wanted := HungryLayout.spit_widths(short_half)
 	var agree := true
 	var built := PackedStringArray()
@@ -437,7 +437,7 @@ func _the_spits_the_gaps_which_are_the_level(leader_mass: float, world: HungryWo
 
 
 ## Round the end: a lane, not a wall.
-func _the_spits_round_the_end_a_lane_not_a_w(leader_mass: float, world: HungryWorld, bounds: Rect2, layout: HungryLayout, rules: Dot2DMassRules, fore: Array[Dictionary], across: Vector2, chain_axis: Vector2, middle: Vector2, sea_wall: float, won: float, wanted: PackedFloat32Array) -> void:
+func _the_spits_round_the_end_a_lane_not_a_w(leader_mass: float, world: HungryWorld, bounds: Rect2, layout: HungryLayout, rules: GS2DMassRules, fore: Array[Dictionary], across: Vector2, chain_axis: Vector2, middle: Vector2, sea_wall: float, won: float, wanted: PackedFloat32Array) -> void:
 	var to_reef := INF
 	var to_atoll := INF
 	var clear_of_leg := INF
@@ -505,7 +505,7 @@ func _the_spits_round_the_end_a_lane_not_a_w(leader_mass: float, world: HungryWo
 
 
 ## Two routes across one spit.
-func _the_spits_two_routes_across_one_spit(leader_mass: float, world: HungryWorld, bounds: Rect2, layout: HungryLayout, rules: Dot2DMassRules, across: Vector2, chain_axis: Vector2, middle: Vector2, won: float, wanted: PackedFloat32Array) -> void:
+func _the_spits_two_routes_across_one_spit(leader_mass: float, world: HungryWorld, bounds: Rect2, layout: HungryLayout, rules: GS2DMassRules, across: Vector2, chain_axis: Vector2, middle: Vector2, won: float, wanted: PackedFloat32Array) -> void:
 	var run0 := layout.spits[0]
 	var near := layout.blocks[run0.x]
 	var far := layout.blocks[run0.x + 1]
@@ -535,7 +535,7 @@ func _the_spits_two_routes_across_one_spit(leader_mass: float, world: HungryWorl
 
 
 ## Driven: a middling monster through, a leader round.
-func _the_spits_driven_a_middling_monster_th(leader_mass: float, world: HungryWorld, bounds: Rect2, layout: HungryLayout, rules: Dot2DMassRules, across: Vector2, won: float, wanted: PackedFloat32Array, near: Vector3, far: Vector3, gap_mouth: Vector2, outward: Vector2, bay: Vector2, sheltered: Vector2, end_face: float) -> void:
+func _the_spits_driven_a_middling_monster_th(leader_mass: float, world: HungryWorld, bounds: Rect2, layout: HungryLayout, rules: GS2DMassRules, across: Vector2, won: float, wanted: PackedFloat32Array, near: Vector3, far: Vector3, gap_mouth: Vector2, outward: Vector2, bay: Vector2, sheltered: Vector2, end_face: float) -> void:
 	world.spawn(1, bay)
 	_run_ticks(world, 2)
 
@@ -602,7 +602,7 @@ func _the_spits_driven_a_middling_monster_th(leader_mass: float, world: HungryWo
 	_the_spits_part6(world, rules, across, wanted, near, far, gap_mouth, outward, middling_drive, leader_drive)
 
 
-func _the_spits_part6(world: HungryWorld, rules: Dot2DMassRules, across: Vector2, wanted: PackedFloat32Array, near: Vector3, far: Vector3, gap_mouth: Vector2, outward: Vector2, middling_drive: Dictionary, leader_drive: Dictionary) -> void:
+func _the_spits_part6(world: HungryWorld, rules: GS2DMassRules, across: Vector2, wanted: PackedFloat32Array, near: Vector3, far: Vector3, gap_mouth: Vector2, outward: Vector2, middling_drive: Dictionary, leader_drive: Dictionary) -> void:
 	# [b]Both drives at full pace[/b] (`[bot-drive-1]`): covering the route, at the ground
 	# speed the game gives a monster that size. A drive that crawled would pass every check
 	# above given a long enough budget.

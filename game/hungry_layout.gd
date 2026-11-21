@@ -1617,7 +1617,7 @@ func depth_in_rocks(at: Vector2, radius: float) -> float:
 	return deepest
 
 
-func resolve_circle(state: Dot2DState, radius: float) -> bool:
+func resolve_circle(state: GS2DState, radius: float) -> bool:
 	if state == null or blocks.is_empty():
 		return false
 

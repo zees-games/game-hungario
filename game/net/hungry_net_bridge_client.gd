@@ -1,9 +1,9 @@
 extends "./hungry_net_bridge_state.gd"
 
 ## Mirrors the match entity on a client. Called once, from the first HELLO.
-func _mirror_match_entity(net_id: int) -> DotResult:
+func _mirror_match_entity(net_id: int) -> GSResult:
 	if _match_identity != null:
-		return DotResult.success(_match_identity)
+		return GSResult.success(_match_identity)
 
 	var root := Node2D.new()
 	root.name = "Match"
@@ -15,7 +15,7 @@ func _mirror_match_entity(net_id: int) -> DotResult:
 	_match_behaviour.bridge = self
 	root.add_child(_match_behaviour)
 
-	_match_identity = DotNetIdentity.new()
+	_match_identity = GSNetIdentity.new()
 	_match_identity.name = "Identity"
 	_match_identity.owner_peer_id = 1
 	_match_identity.always_relevant = true
@@ -24,7 +24,7 @@ func _mirror_match_entity(net_id: int) -> DotResult:
 	return net.registry.register(_match_identity, net_id, net.clock.tick, net.config)
 
 ## Builds the node, behaviour and identity that make a piece replicate.
-func _build_piece_entity(piece: HungryPiece, peer_id: int) -> DotNetIdentity:
+func _build_piece_entity(piece: HungryPiece, peer_id: int) -> GSNetIdentity:
 	var root := Node2D.new()
 	root.name = "Piece%d" % piece.id
 	root.position = piece.position()
@@ -36,12 +36,12 @@ func _build_piece_entity(piece: HungryPiece, peer_id: int) -> DotNetIdentity:
 	behaviour.bridge = self
 	root.add_child(behaviour)
 
-	var identity := DotNetIdentity.new()
+	var identity := GSNetIdentity.new()
 	identity.name = "Identity"
 	identity.owner_peer_id = peer_id
-		# SHARED, not SERVER: `DotNetIdentity.is_predicted()` is false for any other authority, so the
+		# SHARED, not SERVER: `GSNetIdentity.is_predicted()` is false for any other authority, so the
 		# player would see their own monster a full round trip late.
-	identity.authority = DotNetIdentity.Authority.SHARED
+	identity.authority = GSNetIdentity.Authority.SHARED
 	identity.interest_tags = PackedStringArray(["piece"])
 	root.add_child(identity)
 
@@ -53,7 +53,7 @@ func _build_piece_entity(piece: HungryPiece, peer_id: int) -> DotNetIdentity:
 ## One client tick: record the local command, predict, separate.
 ## The command is recorded [i]before[/i] predicting, because reconciliation replays that history and
 ## an unrecorded input cannot be reproduced.
-func client_tick(tick: int, command: Dot2DCommand) -> void:
+func client_tick(tick: int, command: GS2DCommand) -> void:
 	if net == null or net.is_server or world == null:
 		return
 
@@ -71,7 +71,7 @@ func client_tick(tick: int, command: Dot2DCommand) -> void:
 	var packet := HungryNetCommand.new()
 	packet.tick = tick
 	packet.delta = net.clock.tick_duration()
-	packet.command = command if command != null else Dot2DCommand.new()
+	packet.command = command if command != null else GS2DCommand.new()
 
 	net.local_inputs().push(packet)
 
@@ -79,8 +79,8 @@ func client_tick(tick: int, command: Dot2DCommand) -> void:
 		# The acknowledgement goes in front because it is fixed width. A bit-packed
 		# command is not, so a reader that had to skip it would have to decode it first.
 		var payload := net.encode_ack()
-		var writer := DotNetWriter.new()
-		DotNetInput.write_batch(writer, _input_copies(packet))
+		var writer := GSNetWriter.new()
+		GSNetInput.write_batch(writer, _input_copies(packet))
 		payload.append_array(writer.to_bytes())
 		link.send_input(payload)
 
@@ -107,13 +107,13 @@ func predict_piece(piece: HungryPiece, tick: int, delta: float) -> void:
 
 ## [param packet] and the commands before it from the local replay history, oldest first,
 ## for one input packet. See [constant INPUT_COPIES].
-func _input_copies(packet: DotNetInput) -> Array:
+func _input_copies(packet: GSNetInput) -> Array:
 	var batch: Array = Array(net.local_inputs().recent(INPUT_COPIES, packet.tick - 1))
 	batch = batch.slice(maxi(0, batch.size() - (INPUT_COPIES - 1)))
 	batch.append(packet)
 	return batch
 
-func _on_event(message: DotNetMessage) -> void:
+func _on_event(message: GSNetMessage) -> void:
 	var event := message as HungryEvent
 
 	if event == null or world == null:
@@ -166,7 +166,7 @@ func _on_event(message: DotNetMessage) -> void:
 		_:
 			_on_event_world(event.kind, reader)
 
-func _on_event_world(kind: int, reader: DotNetReader) -> void:
+func _on_event_world(kind: int, reader: GSNetReader) -> void:
 	match kind:
 		HungryEvents.Kind.SPAWN:
 			_apply_spawn(reader)
@@ -213,11 +213,11 @@ func _on_event_world(kind: int, reader: DotNetReader) -> void:
 					monster.carried.append(item)
 			cue.emit(kind, {"carried": carried})
 
-func _apply_hello(reader: DotNetReader) -> void:
+func _apply_hello(reader: GSNetReader) -> void:
 	var hello := HungryEvents.read_hello(reader)
 
 	if not bool(hello["ok"]):
-		DotLog.warn(CHANNEL, "a truncated hello")
+		GSLog.warn(CHANNEL, "a truncated hello")
 		return
 
 	local_player_id = int(hello["player_id"])
@@ -235,7 +235,7 @@ func _apply_hello(reader: DotNetReader) -> void:
 
 	hello_received.emit(local_player_id)
 
-func _apply_join(reader: DotNetReader) -> void:
+func _apply_join(reader: GSNetReader) -> void:
 	var join := HungryEvents.read_join(reader, avatar_schema)
 
 	if not bool(join["ok"]):
@@ -251,12 +251,12 @@ func _apply_join(reader: DotNetReader) -> void:
 
 	var avatar: Variant = join["avatar"]
 
-	if avatar is DotAvatar:
+	if avatar is GSAvatar:
 		monster.avatar = avatar
 
 	var carried: Variant = join["loadout"]
 
-	if carried is DotLoadout:
+	if carried is GSLoadout:
 		# Adopted without validating: this came from the authority, which validated it,
 		# and a client that second-guessed it would disagree with the server about how
 		# fast its own monster moves.
@@ -264,7 +264,7 @@ func _apply_join(reader: DotNetReader) -> void:
 
 	roster_changed.emit(player_id)
 
-func _apply_spawn(reader: DotNetReader) -> void:
+func _apply_spawn(reader: GSNetReader) -> void:
 	var spawn := HungryEvents.read_spawn(reader)
 
 	if not bool(spawn["ok"]):
@@ -295,7 +295,7 @@ func _apply_spawn(reader: DotNetReader) -> void:
 	)
 
 	if not registered.ok:
-		DotLog.warn(CHANNEL, "could not mirror a piece", {
+		GSLog.warn(CHANNEL, "could not mirror a piece", {
 			"net_id": net_id, "error": str(registered.error)
 		})
 		world.forget_piece(piece.id)
@@ -303,7 +303,7 @@ func _apply_spawn(reader: DotNetReader) -> void:
 
 	_piece_of_net[net_id] = piece.id
 
-func _apply_despawn(reader: DotNetReader) -> void:
+func _apply_despawn(reader: GSNetReader) -> void:
 	var net_id := reader.read_varint()
 
 	if not reader.ok() or not _piece_of_net.has(net_id):
@@ -325,7 +325,7 @@ func _apply_despawn(reader: DotNetReader) -> void:
 
 	world.forget_piece(piece_id)
 
-func _apply_throw(reader: DotNetReader) -> void:
+func _apply_throw(reader: GSNetReader) -> void:
 	var row := HungryEvents.read_throw(reader)
 
 	if not bool(row["ok"]):
@@ -343,7 +343,7 @@ func _apply_throw(reader: DotNetReader) -> void:
 	world.adopt_projectile(shot)
 	cue.emit(HungryEvents.Kind.THROW, {"shot": shot})
 
-func _apply_impact(reader: DotNetReader) -> void:
+func _apply_impact(reader: GSNetReader) -> void:
 	var row := HungryEvents.read_impact(reader)
 
 	if not bool(row["ok"]):
@@ -380,7 +380,7 @@ func ask_for_world() -> void:
 
 ## Publishes this client's chosen loadout. Client side.
 ## It takes effect on the next spawn (dot-loadout's rule), so nobody swaps trait mid-fight.
-func publish_loadout(loadout: DotLoadout) -> void:
+func publish_loadout(loadout: GSLoadout) -> void:
 	if net == null or net.is_server or loadout == null:
 		return
 
@@ -391,7 +391,7 @@ func publish_loadout(loadout: DotLoadout) -> void:
 		0
 	)
 
-## One chat line to one peer. Server side; what [member DotChatRouter.send_fn] points at.
+## One chat line to one peer. Server side; what [member GSChatRouter.send_fn] points at.
 ## Peer by peer, never a broadcast: the router has already worked out who may hear it.
 func send_chat(peer_id: int, wire: Dictionary) -> void:
 	_tell(peer_id, HungryEvents.Kind.CHAT, HungryEvents.write_chat(wire))
@@ -461,7 +461,7 @@ func vote(token: String) -> void:
 	)
 
 ## Publishes this client's avatar. Client side.
-func publish_avatar(avatar: DotAvatar) -> void:
+func publish_avatar(avatar: GSAvatar) -> void:
 	if net == null or net.is_server or avatar == null:
 		return
 

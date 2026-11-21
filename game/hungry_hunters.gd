@@ -31,12 +31,12 @@ signal hunter_changed(hunter_id: int)
 signal piece_hunted(player_id: int, mass: float)
 
 
-var spawner: DotNpcSpawner = null
+var spawner: GSNpcSpawner = null
 
 ## How good the hunters are, server-wide. Handed in by the module, which owns the cvars;
 ## attached to the spawner before the first hunter thinks. Null leaves them as authored.
-var npc_skill: DotNpcAiSkill = null
-var director: DotNpcDirector = null
+var npc_skill: GSNpcAiSkill = null
+var director: GSNpcDirector = null
 
 ## The world this hunts in. Set before [method setup].
 var world: HungryWorld = null
@@ -59,13 +59,13 @@ var _tick: int = 0
 ## remember to call. Identity, not equality: the world builds its layout once.
 var _nav_layout: HungryLayout = null
 var _nav_built: bool = false
-var _static_catalogue: DotNpcCatalogue = null
+var _static_catalogue: GSNpcCatalogue = null
 
 
 
 ## What a hunter can be. Three kinds, and each is a different problem for a player.
-static func catalogue() -> DotNpcCatalogue:
-	var out := DotNpcCatalogue.new()
+static func catalogue() -> GSNpcCatalogue:
+	var out := GSNpcCatalogue.new()
 
 	# Small, fast, and only a threat to somebody who has just spawned or just split. The
 	# thing that makes splitting a commitment rather than a free move.
@@ -83,7 +83,7 @@ static func catalogue() -> DotNpcCatalogue:
 
 
 static func _add(
-	into: DotNpcCatalogue,
+	into: GSNpcCatalogue,
 	id: StringName,
 	display: String,
 	mass: float,
@@ -93,7 +93,7 @@ static func _add(
 	health: float,
 	skill: String
 ) -> void:
-	var def := DotNpcDef.make(id, HUNTER_SCENE)
+	var def := GSNpcDef.make(id, HUNTER_SCENE)
 	def.display_name = display
 	def.brain_script_path = HUNTER_BRAIN
 	def.category = &"hunter"
@@ -113,13 +113,13 @@ static func _add(
 	into.add(def)
 
 
-static func shared_catalogue() -> DotNpcCatalogue:
+static func shared_catalogue() -> GSNpcCatalogue:
 	return _shared if _shared != null else _make_shared()
 
 
-static var _shared: DotNpcCatalogue = null
+static var _shared: GSNpcCatalogue = null
 
-static func _make_shared() -> DotNpcCatalogue:
+static func _make_shared() -> GSNpcCatalogue:
 	_shared = catalogue()
 	return _shared
 
@@ -158,14 +158,14 @@ static func radius_of(id: StringName) -> float:
 
 
 ## Builds the spawner and the director on the authority, and nothing on a client.
-func setup(p_authoritative: bool, p_world: HungryWorld) -> DotResult:
+func setup(p_authoritative: bool, p_world: HungryWorld) -> GSResult:
 	authoritative = p_authoritative
 	world = p_world
 
 	if not authoritative:
-		return DotResult.success(null)
+		return GSResult.success(null)
 
-	var limits := DotNpcLimits.new()
+	var limits := GSNpcLimits.new()
 	limits.world_budget = 40
 	limits.per_kind_cap = 12
 	limits.spawn_interval = 0.0
@@ -183,7 +183,7 @@ func setup(p_authoritative: bool, p_world: HungryWorld) -> DotResult:
 	if not problem.ok:
 		return problem.wrap("The hunter limits are not usable")
 
-	spawner = DotNpcSpawner.new()
+	spawner = GSNpcSpawner.new()
 	spawner.name = "Spawner"
 	spawner.catalogue = shared_catalogue()
 	spawner.limits = limits
@@ -206,8 +206,8 @@ func setup(p_authoritative: bool, p_world: HungryWorld) -> DotResult:
 
 
 ## The director, and the one number in it that is this game rather than the genre.
-func _build_director() -> DotResult:
-	var rules := DotNpcDirectorRules.new()
+func _build_director() -> GSResult:
+	var rules := GSNpcDirectorRules.new()
 	# An arena has no critical path to spawn ahead along, so the distances are the arena's and `spawn_ahead` is zero:
 	# far enough away not to be a jump scare, near enough to arrive.
 	rules.spawn_min_distance = 600.0
@@ -234,10 +234,10 @@ func _build_director() -> DotResult:
 	if not problem.ok:
 		return problem.wrap("The director rules are not usable")
 
-	director = DotNpcDirector.new()
+	director = GSNpcDirector.new()
 	director.name = "Director"
 	director.rules = rules
-	director.spawner_ref = DotNodeRef.of_path(^"../Spawner")
+	director.spawner_ref = GSNodeRef.of_path(^"../Spawner")
 	# Round-robin through this list, so the mix is exact rather than approached — a random
 	# pick from three gives three lurkers in a row often enough for a player to notice and
 	# conclude the director is broken.
@@ -248,7 +248,7 @@ func _build_director() -> DotResult:
 	# Somewhere to put them: [method spawn_points_for], seeded by [method _keep_nav_current]
 	# on the first tick of every layout rather than once here, because the world this was
 	# set up with is not the world a game change leaves it with.
-	return DotResult.success(null)
+	return GSResult.success(null)
 
 
 func _seed_spawn_points() -> void:
@@ -258,7 +258,7 @@ func _seed_spawn_points() -> void:
 	var points := PackedVector3Array()
 
 	for at in spawn_points_for(world.layout, world.arena.bounds):
-		points.append(DotNpcInstance.to_plane(at))
+		points.append(GSNpcInstance.to_plane(at))
 
 	director.spawn_points = points
 
@@ -318,7 +318,7 @@ func set_enabled(on: bool) -> void:
 	# INFO on the edge only: an operator turned the mode into a different game, and that is
 	# worth keeping. The cvar may be re-applied with the same value on every game change.
 	if director != null and director.enabled != on:
-		DotLog.info(CHANNEL, "hunters switched %s" % ("on" if on else "off"), {
+		GSLog.info(CHANNEL, "hunters switched %s" % ("on" if on else "off"), {
 			"hunters": _hunters.size(),
 		})
 
@@ -368,16 +368,16 @@ const NAV_CLEARANCE := 40.0
 
 
 ## Navigation for [param layout] inside [param bounds], or null for an empty one.
-static func nav_for(layout: HungryLayout, bounds: Rect2) -> DotNpcNavData:
+static func nav_for(layout: HungryLayout, bounds: Rect2) -> GSNpcNavData:
 	if layout == null or layout.is_empty():
 		return null
 
-	var data := DotNpcNavData.new()
+	var data := GSNpcNavData.new()
 	# A variant's colon is not a file-name character everywhere.
 	data.map_id = StringName("hungry_%s" % String(layout.id).replace(":", "_"))
 	data.grid_spacing = NAV_SPACING
 	data.point_radius = NAV_SPACING
-	data.source_digest = DotNpcNavData.digest_of([
+	data.source_digest = GSNpcNavData.digest_of([
 		String(layout.id), bounds.position, bounds.size, NAV_SPACING, NAV_CLEARANCE,
 		layout.blocks,
 	])
@@ -394,7 +394,7 @@ static func nav_for(layout: HungryLayout, bounds: Rect2) -> DotNpcNavData:
 			var at := inner.position + Vector2(column, row) * NAV_SPACING
 
 			if not layout.blocked(at, NAV_CLEARANCE):
-				index_at[row * columns + column] = data.add_point(DotNpcInstance.to_plane(at))
+				index_at[row * columns + column] = data.add_point(GSNpcInstance.to_plane(at))
 
 	# Four of the eight directions from each point, so each edge is added once; the graph
 	# makes every edge two-way.
@@ -420,8 +420,8 @@ static func nav_for(layout: HungryLayout, bounds: Rect2) -> DotNpcNavData:
 					continue
 
 				if layout._clear_line(
-					DotNpcInstance.from_plane(data.points[here]),
-					DotNpcInstance.from_plane(data.points[there]),
+					GSNpcInstance.from_plane(data.points[here]),
+					GSNpcInstance.from_plane(data.points[there]),
 					NAV_CLEARANCE, NAV_SPACING * 0.5
 				):
 					data.connect_points(here, there)
@@ -475,9 +475,9 @@ func _candidates() -> Array:
 		if not monster.alive or monster.piece_count() == 0:
 			continue
 
-		out.append(DotNpcSenses.Candidate.new(
+		out.append(GSNpcSenses.Candidate.new(
 			StringName("%s%d" % [PLAYER_PREFIX, monster.id]),
-			DotNpcInstance.to_plane(monster.centre()),
+			GSNpcInstance.to_plane(monster.centre()),
 			&"player",
 			# Loudness: a bigger monster is harder to miss. It is what makes a hunter
 			# notice the leader from across the arena and a newly spawned player not at
@@ -497,7 +497,7 @@ func _report_stress() -> void:
 
 		director.report_player(
 			StringName("%s%d" % [PLAYER_PREFIX, monster.id]),
-			DotNpcInstance.to_plane(monster.centre()),
+			GSNpcInstance.to_plane(monster.centre()),
 			_pressure_on(monster)
 		)
 
@@ -555,8 +555,8 @@ func _resolve_eating() -> void:
 				if hunter_mass >= piece.mass() * ratio:
 					# The hunter eats the piece. Reported rather than done here: what
 					# "lose a piece" means — dying, splitting, respawning — is the
-					# world's, exactly as [DotTimer] never moves a player.
-					DotLog.debug(CHANNEL, "a hunter ate a piece", {
+					# world's, exactly as [GSTimer] never moves a player.
+					GSLog.debug(CHANNEL, "a hunter ate a piece", {
 						"hunter": int(wire_id), "kind": String(kind),
 						"player": monster.id, "mass": snappedf(piece.mass(), 0.1),
 					})
@@ -565,7 +565,7 @@ func _resolve_eating() -> void:
 					break
 				elif piece.mass() >= hunter_mass * ratio:
 					# The player eats the hunter through the spawner's own death path, so the population budget, the director's count and the removal event agree.
-					DotLog.debug(CHANNEL, "a player ate a hunter", {
+					GSLog.debug(CHANNEL, "a player ate a hunter", {
 						"hunter": int(wire_id), "kind": String(kind), "player": monster.id,
 					})
 					var instance_id := int(_instance_of_wire.get(wire_id, 0))
@@ -575,7 +575,7 @@ func _resolve_eating() -> void:
 
 
 
-func _on_spawned(npc: DotNpcInstance) -> void:
+func _on_spawned(npc: GSNpcInstance) -> void:
 	var wire_id := _next_wire_id
 	_next_wire_id += 1
 
@@ -598,20 +598,20 @@ func _on_spawned(npc: DotNpcInstance) -> void:
 		"alive": true,
 	}
 
-	DotLog.debug(CHANNEL, "a hunter spawned", {
+	GSLog.debug(CHANNEL, "a hunter spawned", {
 		"hunter": wire_id, "kind": String(npc.def.id), "at": npc.position_2d(),
 		"population": _hunters.size(),
 	})
 	hunter_changed.emit(wire_id)
 
 
-func _on_removed(npc: DotNpcInstance, reason: StringName) -> void:
+func _on_removed(npc: GSNpcInstance, reason: StringName) -> void:
 	var wire_id := int(_wire_of_instance.get(npc.instance_id, 0))
 
 	if wire_id == 0:
 		return
 
-	DotLog.debug(CHANNEL, "a hunter was removed", {
+	GSLog.debug(CHANNEL, "a hunter was removed", {
 		"hunter": wire_id, "reason": String(reason),
 	})
 
@@ -715,7 +715,7 @@ func position_of(candidate_id: StringName) -> Vector3:
 	if monster == null or not monster.alive:
 		return Vector3.INF
 
-	return DotNpcInstance.to_plane(monster.centre())
+	return GSNpcInstance.to_plane(monster.centre())
 
 
 ## What a candidate weighs, for the ratio. Zero when it has gone.

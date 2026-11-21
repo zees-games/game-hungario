@@ -51,7 +51,7 @@ func _test_the_rock_pools() -> void:
 
 
 ## The doors, which are the level.
-func _the_rock_pools_the_doors_which_are_the_leve(leader_mass: float, world: HungryWorld, bounds: Rect2, layout: HungryLayout, rules: Dot2DMassRules, lines: int, door: float, widths: PackedFloat32Array, won: float, start: float, centre: Vector2, last_line: Vector2i) -> void:
+func _the_rock_pools_the_doors_which_are_the_leve(leader_mass: float, world: HungryWorld, bounds: Rect2, layout: HungryLayout, rules: GS2DMassRules, lines: int, door: float, widths: PackedFloat32Array, won: float, start: float, centre: Vector2, last_line: Vector2i) -> void:
 	var doors := PackedFloat32Array()
 	var placed := true
 	var to_line := INF
@@ -116,7 +116,7 @@ func _the_rock_pools_the_doors_which_are_the_leve(leader_mass: float, world: Hun
 
 
 ## Reach: just too big for a door.
-func _the_rock_pools_reach_just_too_big_for_a_doo(leader_mass: float, world: HungryWorld, bounds: Rect2, layout: HungryLayout, rules: Dot2DMassRules, door: float, won: float, start: float, to_line: float, south: Vector3, diagonal: Vector2, holds: float, inside: Vector2) -> void:
+func _the_rock_pools_reach_just_too_big_for_a_doo(leader_mass: float, world: HungryWorld, bounds: Rect2, layout: HungryLayout, rules: GS2DMassRules, door: float, won: float, start: float, to_line: float, south: Vector3, diagonal: Vector2, holds: float, inside: Vector2) -> void:
 	var open_water := _shallows_open_water(layout, bounds)
 	var outgrown := door * 0.5 + 16.0
 	var sweep := layout.reach(bounds, open_water, outgrown)
@@ -165,7 +165,7 @@ func _the_rock_pools_reach_just_too_big_for_a_doo(leader_mass: float, world: Hun
 
 
 ## Driven: a starting monster in, a leader beside it.
-func _the_rock_pools_driven_a_starting_monster_in(leader_mass: float, world: HungryWorld, bounds: Rect2, layout: HungryLayout, rules: Dot2DMassRules, door: float, won: float, start: float, to_line: float, south: Vector3, diagonal: Vector2, holds: float, inside: Vector2, open_water: Vector2) -> void:
+func _the_rock_pools_driven_a_starting_monster_in(leader_mass: float, world: HungryWorld, bounds: Rect2, layout: HungryLayout, rules: GS2DMassRules, door: float, won: float, start: float, to_line: float, south: Vector3, diagonal: Vector2, holds: float, inside: Vector2, open_water: Vector2) -> void:
 	world.spawn(1, open_water)
 	_run_ticks(world, 2)
 
@@ -226,7 +226,7 @@ func _the_rock_pools_driven_a_starting_monster_in(leader_mass: float, world: Hun
 
 
 ## Straight along the south wall at the west door.
-func _the_rock_pools_straight_along_the_south_wal(world: HungryWorld, bounds: Rect2, layout: HungryLayout, rules: Dot2DMassRules, door: float, won: float, start: float, to_line: float, south: Vector3, holds: float, monster: HungryMonster) -> void:
+func _the_rock_pools_straight_along_the_south_wal(world: HungryWorld, bounds: Rect2, layout: HungryLayout, rules: GS2DMassRules, door: float, won: float, start: float, to_line: float, south: Vector3, holds: float, monster: HungryMonster) -> void:
 	var hug := bounds.end.y - door * 0.5
 	var from_west := Vector2(south.x - 900.0, hug)
 	var to_east := Vector2(bounds.end.x + 400.0, hug)
@@ -377,7 +377,7 @@ func _test_the_groynes() -> void:
 
 
 ## The doors, which are the level.
-func _the_groynes_the_doors_which_are_the_leve(leader_mass: float, world: HungryWorld, bounds: Rect2, layout: HungryLayout, rules: Dot2DMassRules, lines: int, doors: PackedFloat32Array, widths: PackedFloat32Array, won: float, last_line: Vector2i) -> void:
+func _the_groynes_the_doors_which_are_the_leve(leader_mass: float, world: HungryWorld, bounds: Rect2, layout: HungryLayout, rules: GS2DMassRules, lines: int, doors: PackedFloat32Array, widths: PackedFloat32Array, won: float, last_line: Vector2i) -> void:
 	var built := PackedFloat32Array()
 	var joined := true
 	var mismatch := 0.0
@@ -435,7 +435,7 @@ func _the_groynes_the_doors_which_are_the_leve(leader_mass: float, world: Hungry
 
 
 ## The detour: one crossing, planned at both sizes.
-func _the_groynes_the_detour_one_crossing_plan(leader_mass: float, world: HungryWorld, bounds: Rect2, layout: HungryLayout, rules: Dot2DMassRules, lines: int, doors: PackedFloat32Array, won: float, last_line: Vector2i, south: Vector3, gy: float, outer: Vector3, bay_centres: Array) -> void:
+func _the_groynes_the_detour_one_crossing_plan(leader_mass: float, world: HungryWorld, bounds: Rect2, layout: HungryLayout, rules: GS2DMassRules, lines: int, doors: PackedFloat32Array, won: float, last_line: Vector2i, south: Vector3, gy: float, outer: Vector3, bay_centres: Array) -> void:
 	# Far enough off the open wall that a leader clears the inlet's posts.
 	var from := Vector2(bounds.end.x - won - 440.0, gy - won - 60.0)
 	var to := Vector2(from.x, gy + won + 60.0)
@@ -476,7 +476,7 @@ func _the_groynes_the_detour_one_crossing_plan(leader_mass: float, world: Hungry
 
 
 ## Driven: the same crossing, short way and long way.
-func _the_groynes_driven_the_same_crossing_sho(leader_mass: float, world: HungryWorld, bounds: Rect2, layout: HungryLayout, rules: Dot2DMassRules, doors: PackedFloat32Array, won: float, last_line: Vector2i, south: Vector3, gy: float, outer: Vector3, from: Vector2, to: Vector2, behind: Callable, short_len: float, long_len: float) -> void:
+func _the_groynes_driven_the_same_crossing_sho(leader_mass: float, world: HungryWorld, bounds: Rect2, layout: HungryLayout, rules: GS2DMassRules, doors: PackedFloat32Array, won: float, last_line: Vector2i, south: Vector3, gy: float, outer: Vector3, from: Vector2, to: Vector2, behind: Callable, short_len: float, long_len: float) -> void:
 	world.spawn(1, from)
 	_run_ticks(world, 2)
 	var monster := world.monster_for(1)
@@ -528,7 +528,7 @@ func _the_groynes_driven_the_same_crossing_sho(leader_mass: float, world: Hungry
 
 
 ## Straight at the wall door.
-func _the_groynes_straight_at_the_wall_door(world: HungryWorld, bounds: Rect2, layout: HungryLayout, rules: Dot2DMassRules, doors: PackedFloat32Array, last_line: Vector2i, south: Vector3, gy: float, outer: Vector3, short_len: float, long_len: float, monster: HungryMonster) -> void:
+func _the_groynes_straight_at_the_wall_door(world: HungryWorld, bounds: Rect2, layout: HungryLayout, rules: GS2DMassRules, doors: PackedFloat32Array, last_line: Vector2i, south: Vector3, gy: float, outer: Vector3, short_len: float, long_len: float, monster: HungryMonster) -> void:
 	var door_x := (outer.x + outer.z + bounds.end.x) * 0.5
 	# From beside the inlet rather than in front of it: further along this line is the
 	# inlet's room.
@@ -555,7 +555,7 @@ func _the_groynes_straight_at_the_wall_door(world: HungryWorld, bounds: Rect2, l
 
 
 ## Outgrown in a door: it is pushed into a bay, not held.
-func _the_groynes_outgrown_in_a_door_it_is_pus(world: HungryWorld, bounds: Rect2, layout: HungryLayout, rules: Dot2DMassRules, doors: PackedFloat32Array, last_line: Vector2i, south: Vector3, gy: float, short_len: float, long_len: float, monster: HungryMonster) -> void:
+func _the_groynes_outgrown_in_a_door_it_is_pus(world: HungryWorld, bounds: Rect2, layout: HungryLayout, rules: GS2DMassRules, doors: PackedFloat32Array, last_line: Vector2i, south: Vector3, gy: float, short_len: float, long_len: float, monster: HungryMonster) -> void:
 	var joint_s := layout.blocks[last_line.x + last_line.y - 1 - HungryLayout.GROYNE_JOINT]
 	var in_door := Vector2(joint_s.x + joint_s.z + doors[0] * 0.5, gy)
 	world.spawn(1, in_door)

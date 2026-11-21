@@ -1,4 +1,4 @@
-extends DotGameCheckSuite
+extends GSGameCheckSuite
 
 const HungryMapConfig := preload("../game/hungry_map_config.gd")
 
@@ -14,7 +14,7 @@ const SECTIONS := 1
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.ERROR)
 	_run.call_deferred()
 
 
@@ -29,12 +29,12 @@ func _run() -> void:
 	DirAccess.make_dir_recursive_absolute(dir)
 	_write(dir.path_join("warrens.yml"), "hungry_hazards_count: 6\nhungry_warrens_corners: quartered\nhungry_hunters_on: 1\nbot_quota: 99\n")
 
-	var console := DotConsole.new()
+	var console := GSConsole.new()
 	add_child(console)
-	console.cvar("hungry_hazards_count", "0", "", DotConVar.FLAG_ARCHIVE)
-	console.cvar("hungry_warrens_corners", "", "", DotConVar.FLAG_ARCHIVE)
-	console.cvar("hungry_hunters_on", "0", "", DotConVar.FLAG_ARCHIVE)
-	console.cvar("bot_quota", "6", "", DotConVar.FLAG_ARCHIVE)
+	console.cvar("hungry_hazards_count", "0", "", GSConVar.FLAG_ARCHIVE)
+	console.cvar("hungry_warrens_corners", "", "", GSConVar.FLAG_ARCHIVE)
+	console.cvar("hungry_hunters_on", "0", "", GSConVar.FLAG_ARCHIVE)
+	console.cvar("bot_quota", "6", "", GSConVar.FLAG_ARCHIVE)
 	var cfg := HungryMapConfig.build(console)
 	cfg.config_dir = root.path_join("cfg")
 

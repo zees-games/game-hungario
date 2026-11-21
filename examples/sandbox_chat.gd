@@ -1,13 +1,13 @@
-extends DotGameCheckSuite
+extends GSGameCheckSuite
 ## The sandbox's chat checks and the section bookkeeping every sandbox part shares.
 ## [code]sandbox.gd[/code] extends this; it holds the rest of the suite.
 
 const HungryClient := preload("../game/client/hungry_client.gd")
 const HungryServices := preload("../game/hungry_services.gd")
 var _client: HungryClient = null
-var _link: DotClientLink = null
+var _link: GSClientLink = null
 ## Chat lines the client received.
-var _heard: Array[DotChatMessage] = []
+var _heard: Array[GSChatMessage] = []
 ## Anything that came back through dot-server's own chat signal.
 var _legacy_heard: Array[Dictionary] = []
 ## The one thing dot-server's chat signal legitimately carries here.
@@ -76,7 +76,7 @@ func _test_chat() -> void:
 		"and the HUD shows it"
 	)
 
-	# [DotChatFilter] sanitises first: a zero-width space slips a name past a filter, and no client should get one.
+	# [GSChatFilter] sanitises first: a zero-width space slips a name past a filter, and no client should get one.
 	var zero_width := String.chr(0x200B)
 	var dirty := await _say_and_wait("bad%sline" % zero_width)
 	_check(
@@ -128,7 +128,7 @@ func _chat_legacy_path() -> void:
 	)
 
 
-func _note_heard(message: DotChatMessage, _channel: StringName) -> void:
+func _note_heard(message: GSChatMessage, _channel: StringName) -> void:
 	_heard.append(message)
 
 
