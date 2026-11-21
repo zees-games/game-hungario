@@ -63,6 +63,9 @@ Thumbs.db
 /addons/dot_player
 /addons/dot_player_controller
 /addons/dot_player_char
+/addons/dot_animation
+/addons/dot_save
+/addons/dot_camera
 /addons/dot_player_class
 /addons/dot_team
 /addons/dot_server_query
