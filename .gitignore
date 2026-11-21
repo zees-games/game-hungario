@@ -75,3 +75,7 @@ Thumbs.db
 
 # Written by dot-cloud publish_pack.sh; per-developer, like the other games.
 /content.lock.json
+/addons/dot_bot_record
+/addons/dot_sql
+/addons/godot-sqlite
+/addons/dot_weapon
