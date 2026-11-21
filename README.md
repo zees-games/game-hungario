@@ -10,6 +10,23 @@ Everything in this repository is open source under the MIT license. The only clo
 
 The game was built with Claude Code. It has a full automated test suite, but few real players have tried it yet, so expect rough edges. Please report what you find.
 
+## Screenshots
+
+<table>
+<tr>
+<td width="50%"><img src="https://raw.githubusercontent.com/zees-games/game-hungario/main/docs/screenshots/arena.png" alt="A mid-round Classic arena: nine monsters from a starting blob to a giant, with food and clouds."><br>A mid-round Classic arena: nine monsters from a starting blob to a giant, with food and clouds.</td>
+<td width="50%"><img src="https://raw.githubusercontent.com/zees-games/game-hungario/main/docs/screenshots/hud.png" alt="The HUD: round clock, leaderboard, your mass, the throwable you carry and the minimap."><br>The HUD: round clock, leaderboard, your mass, the throwable you carry and the minimap.</td>
+</tr>
+<tr>
+<td width="50%"><img src="https://raw.githubusercontent.com/zees-games/game-hungario/main/docs/screenshots/big-and-small.png" alt="Rings tell you who is who: green around the small monster you can eat, red around the big one that can eat you."><br>Rings tell you who is who: green around the small monster you can eat, red around the big one that can eat you.</td>
+<td width="50%"><img src="https://raw.githubusercontent.com/zees-games/game-hungario/main/docs/screenshots/grown.png" alt="A grown monster zooms the camera out and still has to watch for bigger ones."><br>A grown monster zooms the camera out and still has to watch for bigger ones.</td>
+</tr>
+<tr>
+<td width="50%"><img src="https://raw.githubusercontent.com/zees-games/game-hungario/main/docs/screenshots/effects.png" alt="Food pops and pepper bursts around a monster as it eats and fights."><br>Food pops and pepper bursts around a monster as it eats and fights.</td>
+<td width="50%"><img src="https://raw.githubusercontent.com/zees-games/game-hungario/main/docs/screenshots/loadout.png" alt="The loadout menu: choose a starting throwable and a trait before you spawn."><br>The loadout menu: choose a starting throwable and a trait before you spawn.</td>
+</tr>
+</table>
+
 ## How it plays
 
 Your mass is your size, your speed and your score. The bigger you are, the slower you move (twice the mass is about 26% slower). Your avatar rides on top of your monster.

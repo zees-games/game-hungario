@@ -66,6 +66,7 @@ func _initialize() -> void:
 	var fx := false
 	var ballot := false
 	var workshop := false
+	var readme := false
 	_touch = false
 
 	for argument in OS.get_cmdline_user_args():
@@ -84,6 +85,8 @@ func _initialize() -> void:
 			fx = true
 		elif argument == "--ballot":
 			ballot = true
+		elif argument == "--readme":
+			readme = true
 		elif argument == "--workshop":
 			# A fixture pack map (solo), through the same workshop path the map menu uses.
 			workshop = true
@@ -121,7 +124,8 @@ func _initialize() -> void:
 	# frames still came out because the world limped on without a match.
 	# `tools/screenshot_menus.gd` seeds its monsters on the first frame for the same reason.
 
-	_shots = _plan_shots(wanted, tag, preset, fx, ballot, admin)
+	_shots = _plan_readme(wanted, tag, preset) if readme else _plan_shots(wanted, tag, preset, fx, ballot, admin)
+	print("renderer: %s | %s" % [RenderingServer.get_video_adapter_name(), RenderingServer.get_video_adapter_api_version()])
 
 
 ## The frames to take: see the three framings and the optional ones below.
@@ -167,6 +171,57 @@ func _plan_shots(wanted: StringName, tag: String, preset: HungryPreset, fx: bool
 		shots.append({"name": "%s%s_blind" % [wanted, tag], "mass": 0.0, "whole": false, "blind": true})
 
 	return shots
+
+
+## The frames the README's Screenshots section uses (`--readme`): a populated round, not an
+## empty level. Every one has the crowd of [method _crowd] in it.
+func _plan_readme(wanted: StringName, tag: String, preset: HungryPreset) -> Array[Dictionary]:
+	return [
+		{"name": "%s%s_rm_arena" % [wanted, tag], "mass": 0.0, "whole": true, "crowd": true},
+		{"name": "%s%s_rm_hud" % [wanted, tag], "mass": 90.0, "whole": false, "crowd": true, "hud": true},
+		{"name": "%s%s_rm_eating" % [wanted, tag], "mass": 0.0, "whole": false, "crowd": true, "fx": true, "hud": true},
+		{"name": "%s%s_rm_encounter" % [wanted, tag], "mass": 0.0, "whole": false, "crowd": true, "encounter": true, "hud": true},
+		{"name": "%s%s_rm_grown" % [wanted, tag], "mass": preset.win_mass * 0.4, "whole": false, "crowd": true, "hud": true},
+	]
+
+
+const CROWD_NAMES: Array = ["Gulp", "Nibbler", "Maw", "Pip", "Munch", "Snap", "Bloop", "Rumble"]
+const CROWD_MASSES: Array = [35.0, 90.0, 260.0, 55.0, 600.0, 140.0, 40.0, 1000.0]
+
+
+## Eight more monsters of very different sizes spread over the arena, as a mid-round arena has.
+func _crowd() -> void:
+	var names: Array = CROWD_NAMES
+	var masses: Array = CROWD_MASSES
+	var bounds := _world.arena.bounds
+
+	for i in names.size():
+		var id := i + 2
+
+		if _world.monster_for(id) != null:
+			continue
+
+		_world.add_player(id, names[i])
+		var angle := TAU * i / names.size() + 0.4
+		var at := bounds.get_center() + Vector2(cos(angle) * bounds.size.x * 0.3, sin(angle) * bounds.size.y * 0.3)
+		_world.spawn(id, _room_for(at, 60.0 + masses[i] * 0.1))
+		_world.feed_player(id, masses[i] - HungryContent.START_MASS)
+
+	_world.tick({})
+
+
+## A bigger and a smaller monster right beside the player, who is in between: one ring
+## green, one red.
+func _encounter() -> void:
+	var me := _world.monster_for(1)
+	_world.feed_player(1, 150.0)
+	var centre := me.centre()
+
+	for pair in [[2, Vector2(190.0, -10.0), 26.0], [3, Vector2(-420.0, -70.0), 700.0]]:
+		var monster := _world.monster_for(pair[0])
+		var target: Vector2 = centre + pair[1]
+		monster.pieces[0].state.position = _room_for(target, monster.pieces[0].radius() * 1.2)
+		_world.feed_player(pair[0], float(pair[2]) - monster.mass())
 
 
 ## A fixture pack map (solo), through the same workshop path the map menu uses.
@@ -318,6 +373,11 @@ func _process(_delta: float) -> bool:
 func _prepare(shot: Dictionary) -> void:
 	var monster := _world.monster_for(1)
 
+	if shot.has("crowd") or shot.has("ballot"):
+		# The presentation layer applies the player's saved window size on setup, which
+		# turned a 1280 x 720 run into 1280 x 800 after the first frame.
+		root.size = Vector2i(1280, 720)
+
 	if float(shot["mass"]) > 0.0 and monster != null:
 		# The default spot is chosen for the starting monster's view, and in the
 		# gauntlet it is a slalom gate a grown one does not fit: fed there and left idle
@@ -332,7 +392,17 @@ func _prepare(shot: Dictionary) -> void:
 
 		_world.feed_player(1, float(shot["mass"]) - monster.mass())
 
+	if shot.has("crowd"):
+		_crowd()
+
+	if shot.has("encounter"):
+		_encounter()
+
 	_frame_camera(bool(shot["whole"]))
+
+	if shot.has("hud"):
+		_hud.visible = true
+		_hud.refresh_leaderboard()
 
 	if shot.has("vote"):
 		_hud.visible = true

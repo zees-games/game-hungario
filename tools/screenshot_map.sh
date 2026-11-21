@@ -13,5 +13,5 @@ set -euo pipefail
 # A short frame sequence beside each still (DotShotSeq), so Nightly -> Review can play and scrub it.
 export GS_SHOT_FRAMES=${GS_SHOT_FRAMES:-${DOT_SHOT_FRAMES:-8}} GS_SHOT_SECS=${GS_SHOT_SECS:-${DOT_SHOT_SECS:-1}}
 cd "$(dirname "$0")/.."
-exec xvfb-run -a godot --path . --resolution 1280x800 \
+exec xvfb-run -a godot --path . --resolution "${GS_SHOT_RES:-1280x800}" \
     --script tools/screenshot_map.gd -- "${@:-warrens}"
