@@ -20,7 +20,8 @@ content_id: gamemann/game-hungario
 version: 0.0.0
 kind: pack
 
-name: "Hungario: Classic"
+name: "Hungario"
+icon: branding/icon.png
 max_players: 32
 
 scene: game/modes/classic.tscn
