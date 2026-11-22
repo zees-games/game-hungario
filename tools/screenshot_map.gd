@@ -24,12 +24,15 @@ const HungryWorld := preload("../game/hungry_world.gd")
 ##     tools/screenshot_map.sh warrens
 ##     tools/screenshot_map.sh warrens --admin   # also a beacon, and a blind
 ##     tools/screenshot_map.sh warrens --ballot  # also the HUD under an open ballot
+##     tools/screenshot_map.sh warrens --avatar  # the rider close up (tools/avatar_shot.sh): warrens_avatar.png
 ##
 ## [b]Not `--headless`[/b]: that gives a null renderer and a 64 x 64 viewport, and every
 ## frame it saves is empty — which is worse than no screenshot because it looks like one.
 
 const OUT_DIR := "res://screenshots"
 const SETTLE := 4
+## How far the `--avatar` shot zooms in on the player's rider.
+const AVATAR_ZOOM := 3.0
 
 var _world: HungryWorld = null
 var _renderer: HungryRenderer = null
@@ -67,6 +70,7 @@ func _initialize() -> void:
 	var ballot := false
 	var workshop := false
 	var readme := false
+	var avatar := false
 	_touch = false
 
 	for argument in OS.get_cmdline_user_args():
@@ -87,6 +91,8 @@ func _initialize() -> void:
 			ballot = true
 		elif argument == "--readme":
 			readme = true
+		elif argument == "--avatar":
+			avatar = true
 		elif argument == "--workshop":
 			# A fixture pack map (solo), through the same workshop path the map menu uses.
 			workshop = true
@@ -124,8 +130,17 @@ func _initialize() -> void:
 	# frames still came out because the world limped on without a match.
 	# `tools/screenshot_menus.gd` seeds its monsters on the first frame for the same reason.
 
-	_shots = _plan_readme(wanted, tag, preset) if readme else _plan_shots(wanted, tag, preset, fx, ballot, admin)
+	if avatar:
+		_shots = _plan_avatar(wanted, tag)
+	else:
+		_shots = _plan_readme(wanted, tag, preset) if readme else _plan_shots(wanted, tag, preset, fx, ballot, admin)
 	print("renderer: %s | %s" % [RenderingServer.get_video_adapter_name(), RenderingServer.get_video_adapter_api_version()])
+
+
+## The avatar shot (`--avatar`): the player's rider close up, among a few other monsters,
+## so the person on the monster is the subject and not a dot in an arena.
+func _plan_avatar(wanted: StringName, tag: String) -> Array[Dictionary]:
+	return [{"name": "%s%s_avatar" % [wanted, tag], "mass": 0.0, "whole": false, "crowd": true, "avatar": true}]
 
 
 ## The frames to take: see the three framings and the optional ones below.
@@ -399,6 +414,11 @@ func _prepare(shot: Dictionary) -> void:
 		_encounter()
 
 	_frame_camera(bool(shot["whole"]))
+
+	if shot.has("avatar"):
+		# Zoomed in on the player's rider, held there: the rig's own zoom is for playing.
+		_camera.zoom_with_size = false
+		_camera.zoom = Vector2(AVATAR_ZOOM, AVATAR_ZOOM)
 
 	if shot.has("hud"):
 		_hud.visible = true
