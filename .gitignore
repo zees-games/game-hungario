@@ -10,10 +10,10 @@
 /addons/gs_profiler
 /addons/gs_2d
 # bootstrap fetches the release zip into addons/gs_net/native/bin and export copies it beside the exe (gs-bootstrap: bootstrap-natives).
-# bootstrap-natives: gs-net v0.1.30 native/bin
+# bootstrap-natives: gs-net v0.1.38 native/bin
 /addons/gs_net
 # gs-sim: optional native library (snapshot codec); without its built library the GDScript twins run.
-# bootstrap-natives: gs-sim v0.2.10
+# bootstrap-natives: gs-sim v0.2.12
 /addons/gs_sim
 /addons/gs_server
 /addons/gs_match
