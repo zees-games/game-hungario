@@ -17,7 +17,7 @@ const HungryTuning := preload("../game/hungry_tuning.gd")
 const ROOT_ARG := "--cfgroot="
 var ROOT := _root()
 const GAME := "game-hungario"
-const CHECKS := 62
+const CHECKS := 63
 const SECTIONS := 7
 
 
@@ -54,6 +54,10 @@ func _delivered_modes() -> void:
 	_check(built_in.size() == 8, "built in there are eight modes")
 	for d in built_in:
 		_check(not d.needs_delivered_content() and d.content_key() == "", "%s is bundled built in" % d.game_id)
+	var staged := true
+	for d in built_in:
+		staged = staged and String(d.metadata.get("module", "")) == "game/hungry_module.gd"
+	_check(staged, "every mode names its module, for a host that learns the modes from here and not from a content list")
 	var mounted := HungryModule.game_descriptors("res://gs_cloud/gamemann/game-hungario/0.3.1+r2")
 	_check(mounted.size() == 8, "mounted there are eight modes")
 	var ok := true

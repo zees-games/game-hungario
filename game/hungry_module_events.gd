@@ -310,6 +310,9 @@ func _on_earned(player_key: String, id: StringName, title: String, points: int) 
 static func game_id_of(preset_id: StringName) -> StringName:
 	return StringName("hungry_%s" % preset_id)
 
+## The module every mode runs, relative to the pack, as `module:` in game.yml.
+const MODULE_PATH := "game/hungry_module.gd"
+
 ## The modes, so `changegame` and a vote have something to change to.
 ## Both ship inside the build, so [member GSGameDescriptor.manifest_url] is empty; a game whose
 ## content lives on a CDN sets it instead.
@@ -342,6 +345,9 @@ static func game_descriptors(here: String = "") -> Array[GSGameDescriptor]:
 				# A game delivered through gs-cloud sets a relative path here.
 		descriptor.client_scene = "game/client/hungry_client.tscn" if not mount.is_empty() else ""
 		descriptor.min_players = 0
+		# The module path the host loads for this mode (as game.yml's `module:`). A server that gets the modes from here
+		# and not from a content list has no other way to know it, and unloads the module on the first mode change.
+		descriptor.metadata["module"] = MODULE_PATH
 		out.append(descriptor)
 
 	return out
